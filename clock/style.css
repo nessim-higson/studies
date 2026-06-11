@@ -1,0 +1,202 @@
+/* ─── Reset ──────────────────────────────────────────────────────────────── */
+*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+html, body { width: 100%; height: 100%; overflow: hidden; }
+
+body {
+  font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* ─── Canvas (always behind everything) ──────────────────────────────────── */
+#canvas {
+  display: block;
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  transition: opacity 0.6s ease;
+}
+
+/* ─── Scene Container ────────────────────────────────────────────────────── */
+#scene {
+  position: fixed;
+  inset: 0;
+  z-index: 1;
+  display: grid;
+  place-items: center;
+  transition: background-color 0.6s ease, color 0.6s ease;
+}
+
+/* ─── Scene Modes ────────────────────────────────────────────────────────── */
+.mode-dark {
+  background-color: rgba(0, 0, 0, 0.62);
+  color: #fff;
+}
+.mode-dark #canvas { opacity: 1; }
+
+.mode-light {
+  background-color: #F5F0EB;
+  color: #111;
+}
+.mode-light #canvas { opacity: 0; }
+
+/* ─── Scene Content ──────────────────────────────────────────────────────── */
+.scene-content {
+  text-align: center;
+  padding: 0 48px;
+  opacity: 0;
+  transition: opacity 0.6s ease;
+  position: relative;
+  margin-top: -3vh;
+}
+.scene-content.visible { opacity: 1; }
+
+/* Logo scene */
+.scene-logo .logo-mark {
+  font-size: 32px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  margin-bottom: 16px;
+}
+.scene-logo .logo-sub {
+  font-size: 13px;
+  font-weight: 300;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  opacity: 0.4;
+}
+
+/* Clock scene */
+.scene-clock .clock-digits {
+  font-size: clamp(80px, 18vw, 200px);
+  font-weight: 100;
+  letter-spacing: -0.04em;
+  line-height: 1;
+  color: rgba(255, 255, 255, 0.9);
+}
+.scene-clock .clock-colon {
+  transition: opacity 0.08s ease;
+}
+.scene-clock .clock-colon.pulse { opacity: 0.3; }
+
+/* Title card scene (light) */
+.scene-title .title-name {
+  font-size: clamp(42px, 8vw, 96px);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.05;
+  margin-bottom: 20px;
+}
+.scene-title .title-descriptor {
+  font-size: clamp(12px, 1.4vw, 18px);
+  font-weight: 300;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  opacity: 0.45;
+}
+
+/* Detail scene */
+.scene-detail .detail-category {
+  font-size: clamp(13px, 1.4vw, 16px);
+  font-weight: 500;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.75);
+}
+
+/* Interlude — no content, just shader */
+.scene-interlude { }
+
+/* ─── Control Bar ────────────────────────────────────────────────────────── */
+#controls {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 10;
+  height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 32px;
+  opacity: 0.25;
+  transition: opacity 0.4s ease, color 0.6s ease, border-color 0.6s ease;
+  user-select: none;
+  border-top: 1px solid transparent;
+}
+#controls:hover { opacity: 1; }
+
+.mode-light #controls {
+  color: rgba(0, 0, 0, 0.4);
+  border-top-color: rgba(0, 0, 0, 0.06);
+}
+.mode-dark #controls {
+  color: rgba(255, 255, 255, 0.4);
+  border-top-color: transparent;
+}
+
+.ctrl-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.ctrl-label {
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  cursor: default;
+}
+
+.ctrl-sep {
+  opacity: 0.2;
+  font-size: 11px;
+}
+
+.ctrl-btn {
+  font-family: inherit;
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  background: none;
+  border: none;
+  color: inherit;
+  cursor: pointer;
+  padding: 4px 6px;
+  border-radius: 4px;
+  transition: opacity 0.15s;
+  outline: none;
+}
+.ctrl-btn:hover { opacity: 1; }
+
+.ctrl-btn.active {
+  opacity: 1;
+}
+
+/* Beat dot */
+#beat-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: currentColor;
+  opacity: 0.3;
+  transition: transform 0.06s ease-out, opacity 0.06s;
+  flex-shrink: 0;
+}
+#beat-dot.on {
+  transform: scale(2.4);
+  opacity: 1;
+}
+
+/* Sound indicator dot */
+.sound-dot {
+  display: inline-block;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: currentColor;
+  margin-left: 4px;
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+.sound-dot.on { opacity: 1; }

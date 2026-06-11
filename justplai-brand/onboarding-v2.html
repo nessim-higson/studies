@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Plai Pix — Onboarding v2 (tightened)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&family=Press+Start+2P&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#0a0a0b;--panel:#151517;--screen:#0f0f10;--chalk:#f6f6f4;--muted:#8a8a92;--line:#26262c;
+    --red:#ff4d4d;--orange:#ff9f1c;--yellow:#ffd23f;--green:#3ddc84;--sky:#3da5ff;--grape:#a06cff;--pink:#ff6fcf;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:#080809;color:var(--chalk);font-family:'Nunito',system-ui,sans-serif;font-weight:600;-webkit-font-smoothing:antialiased;padding:48px 24px 90px}
+  .head{max-width:1200px;margin:0 auto 14px}
+  .kick{font-family:'Press Start 2P',monospace;font-size:10px;color:var(--muted);letter-spacing:1px;margin-bottom:16px}
+  h1{font-weight:900;font-size:30px;letter-spacing:-.02em;margin-bottom:8px}
+  .sub{color:#bfbfc6;font-size:16px;max-width:70ch}
+  .filmstrip{display:flex;gap:30px;overflow-x:auto;padding:34px 4px 14px;max-width:1200px;margin:0 auto;scroll-snap-type:x mandatory}
+  .slot{scroll-snap-align:center;flex:none;width:264px;display:flex;flex-direction:column;align-items:center;gap:14px}
+
+  /* ---- phone ---- */
+  .phone{width:264px;height:556px;background:#000;border-radius:40px;padding:9px;box-shadow:0 0 0 2px #2a2a30,0 30px 60px rgba(0,0,0,.6);position:relative}
+  .scr{position:relative;width:100%;height:100%;border-radius:32px;overflow:hidden;background:var(--screen);display:flex;flex-direction:column}
+  .island{position:absolute;top:9px;left:50%;transform:translateX(-50%);width:78px;height:22px;background:#000;border-radius:14px;z-index:30}
+  .status{position:absolute;top:0;left:0;right:0;height:38px;display:flex;align-items:center;justify-content:space-between;padding:0 20px;font-size:12px;font-weight:800;z-index:20;color:#fff}
+  .status .r{display:flex;gap:5px;align-items:center;font-size:10px}
+  .grid-bg{position:absolute;inset:0;background-image:linear-gradient(rgba(255,255,255,.04) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.04) 1px,transparent 1px);background-size:15px 15px}
+  .stage{position:relative;flex:1;overflow:hidden}
+  .copy{position:relative;padding:22px 22px 0;z-index:5}
+  .copy .big{font-weight:900;font-size:22px;line-height:1.18;letter-spacing:-.01em}
+  .copy .big .y{color:var(--yellow)}
+  .cta-wrap{padding:0 18px 26px;position:relative;z-index:5}
+  .cta{width:100%;background:var(--yellow);color:#1a1300;border:none;border-radius:999px;padding:15px;font-family:'Nunito';font-weight:900;font-size:16px;cursor:pointer}
+  .cta:active{transform:translateY(1px)}
+  .ghost{width:100%;background:#1c1c20;color:var(--chalk);border:1px solid var(--line);border-radius:14px;padding:14px;font-weight:800;font-size:14px;display:flex;align-items:center;justify-content:center;gap:9px;margin-top:10px;cursor:pointer}
+  .legal{font-size:10px;color:var(--muted);text-align:center;margin-top:14px;line-height:1.5;padding:0 6px}
+  .legal a{color:#aeaeb6;text-decoration:underline}
+
+  /* glow (the void) */
+  .glow{position:absolute;top:34%;left:50%;width:230px;height:230px;transform:translate(-50%,-50%);background:radial-gradient(circle,rgba(255,255,255,.9),rgba(255,255,255,.15) 38%,transparent 66%);filter:blur(2px);animation:breathe 4s ease-in-out infinite}
+  @keyframes breathe{0%,100%{opacity:.85;transform:translate(-50%,-50%) scale(1)}50%{opacity:1;transform:translate(-50%,-50%) scale(1.08)}}
+
+  .scatter{position:absolute;inset:0}
+  .sb{position:absolute;width:16px;height:16px;border-radius:3px;opacity:.95;animation:pop .5s cubic-bezier(.34,1.56,.64,1) backwards}
+  @keyframes pop{from{transform:scale(0);opacity:0}to{transform:scale(1);opacity:.95}}
+
+  /* interactive grid */
+  .draw{position:absolute;inset:0;display:grid;grid-template-columns:repeat(14,1fr);grid-template-rows:repeat(28,1fr);cursor:crosshair}
+  .cell{border:.5px solid rgba(255,255,255,.025)}
+  .cell.fill{border-radius:2px}
+  .hint{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-family:'Press Start 2P',monospace;font-size:9px;color:rgba(255,255,255,.4);text-align:center;line-height:1.8;pointer-events:none;transition:opacity .3s}
+  .palette-mini{position:absolute;bottom:10px;left:50%;transform:translateX(-50%);display:flex;gap:6px;background:rgba(0,0,0,.5);padding:7px 9px;border-radius:999px;z-index:6}
+  .pm{width:18px;height:18px;border-radius:4px;cursor:pointer;border:2px solid transparent}
+  .pm.sel{border-color:#fff}
+
+  /* creature canvas */
+  .creature-grid{position:absolute;top:48%;left:50%;transform:translate(-50%,-50%);display:grid;gap:2px}
+  .cpx{width:13px;height:13px;border-radius:2px}
+
+  /* heart logo */
+  .brandmark{position:absolute;top:30%;left:50%;transform:translate(-50%,-50%);text-align:center}
+  .heart{display:grid;gap:2px;justify-content:center;margin:0 auto 16px}
+  .hpx{width:13px;height:13px;border-radius:2px}
+  .brandname{font-weight:900;font-size:26px;letter-spacing:-.01em}
+  .brandtag{color:var(--muted);font-size:14px;margin-top:2px;font-weight:700}
+
+  /* annotation */
+  .ann{width:264px;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px 16px}
+  .ann .n{font-family:'Press Start 2P',monospace;font-size:9px;color:var(--yellow);margin-bottom:8px}
+  .ann .t{font-weight:900;font-size:14px;margin-bottom:6px}
+  .ann .d{font-size:12.5px;color:#b6b6bd;font-weight:600;line-height:1.5}
+  .ann .was{font-size:11px;color:var(--muted);margin-top:8px;border-top:1px dashed var(--line);padding-top:8px}
+  .ann .was b{color:#d98a8a;font-weight:800}
+  .scrollnote{max-width:1200px;margin:0 auto;font-size:12px;color:var(--muted);font-family:'Press Start 2P',monospace}
+</style>
+</head>
+<body>
+  <div class="head">
+    <div class="kick">PLAI PIX · ONBOARDING v2 — TIGHTENED</div>
+    <h1>Same myth. Half the taps. You make the duck.</h1>
+    <p class="sub">The creation-myth arc is the good idea — kept. What changed: the scripture is gone (kept the beat), the two identical creature screens became one that pays off, screen 3 is now interactive (you place your first pixel instead of watching), and sign-in moved to the end as "save your work," not a wall. Tap the yellow buttons / draw on screen 3.</p>
+  </div>
+
+  <div class="filmstrip" id="strip"></div>
+  <div class="scrollnote">← SCROLL THE STRIP →</div>
+
+<script>
+  const PAL={red:'#ff4d4d',orange:'#ff9f1c',yellow:'#ffd23f',green:'#3ddc84',sky:'#3da5ff',grape:'#a06cff',pink:'#ff6fcf',cream:'#f3ead2',lime:'#bfe23f',brown:'#7a4a २b'};
+  const C=['#ff4d4d','#ff9f1c','#ffd23f','#3ddc84','#3da5ff','#a06cff','#ff6fcf','#f3ead2','#bfe23f'];
+
+  function statusBar(t){
+    return `<div class="island"></div><div class="status"><span>${t}</span><span class="r">▦ ⚟ <span style="border:1px solid #fff;border-radius:3px;padding:0 3px;font-size:9px">94</span></span></div>`;
+  }
+  function phone(time,stageHTML,copyHTML,ctaHTML){
+    return `<div class="phone"><div class="scr"><div class="grid-bg"></div>${statusBar(time)}
+      <div class="stage">${stageHTML}</div>
+      <div class="copy">${copyHTML}</div>
+      <div class="cta-wrap">${ctaHTML}</div>
+    </div></div>`;
+  }
+
+  // heart bitmap (multicolor)
+  const HEART=["01100110","11111111","11111111","11111111","01111110","00111100","00011000"];
+  function heartHTML(px=13){
+    let cells='';let i=0;
+    HEART.forEach(r=>{[...r].forEach(b=>{
+      cells+=`<div class="hpx" style="background:${b==='1'?C[i%C.length]:'transparent'}"></div>`;if(b==='1')i++;
+    });});
+    return `<div class="heart" style="grid-template-columns:repeat(8,${px}px)">${cells}</div>`;
+  }
+
+  // duck bitmap
+  const DUCK=["...yyyy....","..yyyyyy...","..ywkyyy...",".yyyyyyy...",".yyyyyyyyo.",".yyyyyyyy..","..yyyyyy...","...o.o.....","..........."];
+  const DMAP={y:'#ffd23f',o:'#ff9f1c',w:'#f6f6f4',k:'#0a0a0b'};
+  function duckHTML(){
+    let cells='';
+    DUCK.forEach(r=>{[...r].forEach(c=>{cells+=`<div class="cpx" style="background:${DMAP[c]||'transparent'}"></div>`;});});
+    return `<div class="creature-grid" style="grid-template-columns:repeat(11,13px)">${cells}</div>`;
+  }
+
+  const strip=document.getElementById('strip');
+
+  // ---- SCREEN 1: the void ----
+  const s1=phone('3:20',
+    `<div class="glow"></div>`,
+    `<div class="big">In the beginning, there was nothing.<br><span class="y">Just a grid.</span></div>`,
+    `<button class="cta">Go On</button>`);
+
+  // ---- SCREEN 2: pixels appear ----
+  let scatter='<div class="scatter">';
+  for(let i=0;i<16;i++){
+    scatter+=`<div class="sb" style="left:${15+Math.random()*65}%;top:${15+Math.random()*55}%;background:${C[i%C.length]};animation-delay:${(i*0.06).toFixed(2)}s"></div>`;
+  }
+  scatter+='</div>';
+  const s2=phone('3:21',scatter,
+    `<div class="big">Then came the pixel.<br><span class="y">Pretty chill, honestly.</span></div>`,
+    `<button class="cta">Go On</button>`);
+
+  // ---- SCREEN 3: INTERACTIVE ----
+  const s3=phone('3:22',
+    `<div class="draw" id="draw"></div>
+     <div class="hint" id="hint">YOUR TURN.<br>TAP ANYWHERE.</div>
+     <div class="palette-mini" id="pm"></div>`,
+    `<div class="big">Your turn.<br><span class="y">Tap to place a pixel.</span></div>`,
+    `<button class="cta">Go On</button>`);
+
+  // ---- SCREEN 4: payoff (one screen, builds) ----
+  const s4=phone('3:23',duckHTML(),
+    `<div class="big">A duck. An octopus.<br><span class="y">Literally anything.</span></div>`,
+    `<button class="cta">Go On</button>`);
+
+  // ---- SCREEN 5: brand + auth-as-save ----
+  const s5=phone('3:24',
+    `<div class="brandmark">${heartHTML(13)}<div class="brandname">Plai Pix</div><div class="brandtag">Draw Your World</div></div>`,
+    ``,
+    `<button class="cta">Start drawing →</button>
+     <button class="ghost"> Save your pixels with Apple</button>
+     <button class="ghost"><span style="color:#4285F4">G</span> Save your pixels with Google</button>
+     <div class="legal">Make first. Sign in later to keep what you made.<br>Bound by our <a>Terms</a> &amp; <a>Privacy</a> incantations.</div>`);
+
+  const SLOTS=[
+    {p:s1,n:'01',t:'The void',d:'Kept the myth, dropped the scripture. Same opening beat, no app-store / classroom snag. The glow now reads as "before pixels."',was:'<b>was:</b> "In the beginning, God created the heavens and earth."'},
+    {p:s2,n:'02',t:'Pixels arrive',d:'The voice you already nailed — "pretty chill, honestly." Pixels pop in one by one so it feels like creation, not a static image.',was:'<b>kept:</b> your line, your scatter.'},
+    {p:s3,n:'03',t:'You make a mark (interactive)',d:'The pivot. Instead of a fourth "Go On," the kid places their first pixels. The thing they make next is theirs, not a demo.',was:'<b>new:</b> turns a passive screen into the first hit of the actual product.'},
+    {p:s4,n:'04',t:'The payoff — one screen',d:'The duck/octopus screens merge into one line that builds: "A duck. An octopus. Literally anything."',was:'<b>was:</b> <b>two</b> screens, identical caption ("you can use pixels to draw anything"). Read like a stutter.'},
+    {p:s5,n:'05',t:'Brand + sign-in as "save"',d:'Heart promoted to the mark. Primary action is "Start drawing" — no wall. Apple/Google reframed as saving, not gatekeeping. (Also sidesteps the under-13 auth problem.)',was:'<b>was:</b> forced Apple/Google before making anything = top drop-off + COPPA risk.'}
+  ];
+
+  SLOTS.forEach(s=>{
+    const slot=document.createElement('div');slot.className='slot';
+    slot.innerHTML=s.p+`<div class="ann"><div class="n">SCREEN ${s.n}</div><div class="t">${s.t}</div><div class="d">${s.d}</div><div class="was">${s.was}</div></div>`;
+    strip.appendChild(slot);
+  });
+
+  // ---- wire up interactive screen 3 ----
+  const draw=document.getElementById('draw');
+  const hint=document.getElementById('hint');
+  const pm=document.getElementById('pm');
+  let sel=C[2]; // yellow default
+  C.slice(0,7).forEach((c,i)=>{
+    const b=document.createElement('div');b.className='pm'+(i===2?' sel':'');b.style.background=c;
+    b.onclick=(e)=>{e.stopPropagation();sel=c;[...pm.children].forEach(x=>x.classList.remove('sel'));b.classList.add('sel');};
+    pm.appendChild(b);
+  });
+  for(let i=0;i<14*28;i++){const c=document.createElement('div');c.className='cell';draw.appendChild(c);}
+  let painting=false;
+  function paint(el){if(el&&el.classList.contains('cell')){el.classList.add('fill');el.style.background=sel;hint.style.opacity=0;}}
+  draw.addEventListener('mousedown',e=>{painting=true;paint(e.target);});
+  draw.addEventListener('mouseover',e=>{if(painting)paint(e.target);});
+  window.addEventListener('mouseup',()=>painting=false);
+  draw.addEventListener('click',e=>paint(e.target));
+</script>
+</body>
+</html>

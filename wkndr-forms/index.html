@@ -1,0 +1,282 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
+<title>WKNDR · gradient forms</title>
+<style>
+  :root { --ui: #e9e6df; --ui-dim: #8c897f; --panel: rgba(18,17,15,.82); }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; overflow: hidden; background: #0d0c0b;
+    font-family: ui-sans-serif, system-ui, -apple-system, "Helvetica Neue", sans-serif; }
+  canvas { position: fixed; inset: 0; width: 100%; height: 100%; display: block; }
+  #panel {
+    position: fixed; top: 14px; left: 14px; width: 236px; z-index: 10;
+    background: var(--panel); backdrop-filter: blur(14px) saturate(1.2);
+    border: 1px solid rgba(255,255,255,.08); border-radius: 14px;
+    padding: 14px 14px 16px; color: var(--ui);
+    font-size: 11px; line-height: 1.3; user-select: none;
+    box-shadow: 0 12px 40px rgba(0,0,0,.5); max-height: calc(100vh - 28px); overflow-y: auto;
+  }
+  #panel h1 { font-size: 11px; letter-spacing: .14em; text-transform: uppercase; margin: 0 0 2px; font-weight: 600; }
+  #panel .sub { color: var(--ui-dim); font-size: 10px; margin-bottom: 12px; }
+  .why { color: var(--ui-dim); font-size: 10px; line-height: 1.4; margin: -4px 0 14px; min-height: 26px; }
+  .modes { display: grid; grid-template-columns: repeat(3, 1fr); gap: 5px; margin-bottom: 14px; }
+  .modes button { appearance: none; border: 1px solid rgba(255,255,255,.12); background: transparent;
+    color: var(--ui-dim); border-radius: 8px; padding: 7px 4px; font-size: 10px; cursor: pointer; transition: all .15s; }
+  .modes button:hover { color: var(--ui); border-color: rgba(255,255,255,.28); }
+  .modes button.on { background: var(--ui); color: #111; border-color: var(--ui); font-weight: 600; }
+  .row { margin-bottom: 11px; }
+  .row label { display: flex; justify-content: space-between; margin-bottom: 5px; color: var(--ui-dim); }
+  .row label .val { color: var(--ui); font-variant-numeric: tabular-nums; }
+  input[type=range] { -webkit-appearance: none; width: 100%; height: 3px; border-radius: 3px; background: rgba(255,255,255,.16); outline: none; }
+  input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 13px; height: 13px; border-radius: 50%; background: var(--ui); cursor: pointer; box-shadow: 0 1px 4px rgba(0,0,0,.4); }
+  .seedline { display: flex; align-items: center; gap: 6px; color: var(--ui-dim); font-variant-numeric: tabular-nums; margin-top: 4px; }
+  .seedline input { flex: 1; background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.12); color: var(--ui); border-radius: 6px; padding: 5px 7px; font-size: 11px; font-family: inherit; }
+  .foot { display: flex; gap: 6px; margin-top: 12px; }
+  .foot button { flex: 1; appearance: none; border: 1px solid rgba(255,255,255,.14); background: transparent; color: var(--ui); border-radius: 8px; padding: 8px 4px; font-size: 10px; cursor: pointer; }
+  .foot button:hover { background: rgba(255,255,255,.1); }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div id="panel">
+  <h1>Gradient Forms</h1>
+  <div class="sub">WKNDR · gradient-form weather</div>
+  <div class="modes" id="modes"></div>
+  <div class="why" id="why"></div>
+  <div class="row"><label>Forms <span class="val" id="v-shapes"></span></label>
+    <input type="range" id="s-shapes" min="2" max="6" step="1"></div>
+  <div class="row"><label>Softness <span class="val" id="v-soft"></span></label>
+    <input type="range" id="s-soft" min="0" max="1" step="0.05"></div>
+  <div class="row"><label>Halftone <span class="val" id="v-half"></span></label>
+    <input type="range" id="s-half" min="0" max="1" step="0.05"></div>
+  <div class="row"><label>Grain <span class="val" id="v-grain"></span></label>
+    <input type="range" id="s-grain" min="0" max="1" step="0.05"></div>
+  <div class="row"><label>Motion <span class="val" id="v-motion"></span></label>
+    <input type="range" id="s-motion" min="0" max="1.5" step="0.05"></div>
+  <div class="seedline">seed <input id="seed" type="text" inputmode="numeric"></div>
+  <div class="foot"><button id="reroll">Reroll</button><button id="save">Save PNG</button></div>
+</div>
+
+<script>
+const c = document.getElementById('c');
+const ctx = c.getContext('2d');
+let W, H, DPR = Math.min(2, window.devicePixelRatio||1);
+
+function mulberry32(a){ return function(){ a|=0; a=a+0x6D2B79F5|0; let t=Math.imul(a^a>>>15,1|a); t=t+Math.imul(t^t>>>7,61|t)^t; return ((t^t>>>14)>>>0)/4294967296; }; }
+let rng = mulberry32(1);
+const rr = (a,b)=>a+rng()*(b-a);
+const pick = arr => arr[(rng()*arr.length)|0];
+function rgba(hex,a){ hex=hex.replace('#',''); const r=parseInt(hex.slice(0,2),16),g=parseInt(hex.slice(2,4),16),b=parseInt(hex.slice(4,6),16); return `rgba(${r},${g},${b},${a})`; }
+
+// ---- weather conditions: each = palette + a form-composition language ----
+const HALFPI=Math.PI/2, QPI=Math.PI/4;
+const MODES = {
+  sun:   { label:'Sun',  why:'Warm radial blooms with occasional big sunbursts — airy and bright.',
+           bg:'#f3ecdf', cols:['#f4c20d','#f08a1d','#e8331f','#ffce6e','#ff9ec4'],
+           shapes:['blob','circle','blob','blob'], place:'high', size:[0.5,0.95], aspect:[0.85,1.2],
+           gAngle:null, tilt:0.2, drift:[0,-0.4], ht:0.2, burst:0.45, countMul:1.2, mo:1.4 },
+  rain:  { label:'Rain', why:'Cool tall blocks spread across, with rain lines falling through.',
+           bg:'#eef1f5', cols:['#1b4dd8','#2f6ee0','#5b3fd8','#9fb6d4','#1bb3c8'],
+           shapes:['capsule','rect','capsule','rect'], place:'rainspread', size:[0.4,0.72], aspect:[0.42,0.7],
+           gAngle:HALFPI, tilt:0.08, drift:[0,1.1], ht:0.4, countMul:2.0, rainLines:true },
+  cloud: { label:'Cloud',why:'Feathered lobed masses drifting — abstract clouds, soft-edged.',
+           bg:'#e9ecef', cols:['#aebccb','#c3cdd7','#cdbfd6','#9aa6b2','#e3e7ea'],
+           shapes:['cloud','cloud','blob'], place:'band', size:[0.55,0.95], aspect:[1.0,1.0],
+           gAngle:0, tilt:0, drift:[0.7,0], ht:0, countMul:1.3, mo:1.5, flowX:0.05 },
+  wind:  { label:'Wind', why:'Wavy ribbons streaming across — lots of flowing, undulating air.',
+           bg:'#edf1e8', cols:['#3f6b5e','#7fae8a','#cfd98a','#f0a85a','#e8e0c8'],
+           shapes:['ribbon','ribbon','capsule'], place:'band', size:[0.5,0.9], aspect:[1.4,2.2],
+           gAngle:QPI, tilt:0.2, drift:[1.0,0.1], ht:0.2, countMul:1.8 },
+  storm: { label:'Storm',why:'A dark field with strange, colliding shapes glowing where they cross.',
+           bg:'#161221', blend:'screen', cols:['#5b3fd8','#1b6de8','#e8331f','#f4c20d','#1bb35a'],
+           shapes:['triangle','rect','triangle','blob'], place:'scatter', size:[0.4,0.82], aspect:[0.7,1.5],
+           gAngle:null, tilt:0.9, drift:[0.5,0.5], ht:0.1, countMul:1.6, mo:1.8 },
+  snow:  { label:'Snow', why:'Many small snowballs falling — light, scattered, lots of space.',
+           bg:'#f4f7fb', cols:['#cdd9e8','#dde6f0','#cfd0ea','#ffffff','#b8cbe0'],
+           shapes:['circle','circle','blob'], place:'sparse', size:[0.05,0.18], aspect:[0.9,1.15],
+           gAngle:null, tilt:0.2, drift:[0.2,0], ht:0, countMul:5, fall:true, mo:1.3 },
+};
+let mode = 'sun';
+const P = { shapes:3, soft:0.5, half:0.4, grain:0.35, motion:0.7, seed:1 };
+
+// ---- placement per weather composition ----
+function place(kind,i,N){
+  if(kind==='high')     return [rr(0.3,0.7), rr(0.14,0.42)];
+  if(kind==='stack')    return [rr(0.32,0.68), ((i+0.5)/N)*0.86+0.07 + rr(-0.04,0.04)];
+  if(kind==='band')     return [rr(0.2,0.8), rr(0.12,0.88)];
+  if(kind==='diagonal'){ const tt=(i+0.5)/N; return [0.12+tt*0.72+rr(-0.06,0.06), 0.16+tt*0.62+rr(-0.06,0.06)]; }
+  if(kind==='rainspread') return [rr(0.02,0.98), rr(-0.05,0.85)];
+  if(kind==='sparse')   return [rr(0.12,0.88), rr(0.12,0.88)];
+  return [rr(0.15,0.85), rr(0.15,0.85)];  // scatter
+}
+// ---- build a deterministic set of forms (animated by t at draw time) ----
+function buildForms(m){
+  const N=Math.max(1, Math.round(P.shapes*(m.countMul||1))), out=[];
+  for (let i=0;i<N;i++){
+    const p=place(m.place,i,N), type=pick(m.shapes);
+    const s={
+      type, cx:p[0], cy:p[1],
+      size: rr(m.size[0], m.size[1]),
+      aspect: rr(m.aspect[0], m.aspect[1]),
+      rot: rr(-m.tilt, m.tilt) + (m.tiltBias||0),
+      cols: [pick(m.cols), pick(m.cols), pick(m.cols)],
+      gAngle: (m.gAngle==null) ? rr(0,6.2832) : m.gAngle + rr(-0.35,0.35),
+      gSpin: rr(-0.12,0.12),
+      rotSpin: rr(-0.09,0.09),
+      dphase: rr(0,6.2832),
+      dx: (m.drift?m.drift[0]:0) + rr(-0.5,0.5),
+      dy: (m.drift?m.drift[1]:0) + rr(-0.5,0.5),
+      ht: rng() < (m.ht!=null?m.ht:0.4),
+      fallSpeed: rr(0.05,0.14),
+    };
+    if (m.burst && rng()<m.burst) s.size *= rr(1.5,2.2);                 // sun: occasional big burst
+    if (type==='cloud'){ s.lobes=[]; const L=4+((rng()*3)|0); for(let k=0;k<L;k++) s.lobes.push([rr(-0.85,0.85), rr(-0.32,0.12), rr(0.42,0.9), rr(0,6.2832)]); }
+    if (type==='ribbon'){ s.amp=rr(0.04,0.085); s.freq=rr(0.6,1.3); s.freq2=s.freq*rr(1.7,2.3); s.phase=rr(0,6.2832); s.bandH=rr(0.14,0.3); }
+    out.push(s);
+  }
+  return out;
+}
+
+function shapePath(type, r, aspect){
+  const w=r*2*Math.sqrt(aspect), h=r*2/Math.sqrt(aspect);
+  ctx.beginPath();
+  if (type==='rect'){ ctx.rect(-w/2,-h/2,w,h); }
+  else if (type==='circle'){ ctx.arc(0,0,r,0,6.2832); }
+  else if (type==='capsule'){ const rad=Math.min(w,h)/2; roundRect(-w/2,-h/2,w,h,rad); }
+  else if (type==='triangle'){ ctx.moveTo(0,-h*0.62); ctx.lineTo(w*0.6,h*0.5); ctx.lineTo(-w*0.6,h*0.5); ctx.closePath(); }
+}
+function roundRect(x,y,w,h,r){ ctx.moveTo(x+r,y); ctx.arcTo(x+w,y,x+w,y+h,r); ctx.arcTo(x+w,y+h,x,y+h,r); ctx.arcTo(x,y+h,x,y,r); ctx.arcTo(x,y,x+w,y,r); ctx.closePath(); }
+
+function drawForm(s, t, m){
+  const blend = m.blend || 'multiply';
+  const tt = t * (m.mo || 1);                             // per-mode movement multiplier
+  const ang = s.gAngle + tt*s.gSpin;
+  let cx, cy;
+  if (m.flowX) cx = ((((s.cx + tt*m.flowX)%1.26)+1.26)%1.26 - 0.13)*W;   // continuous drift across + wrap
+  else         cx = (s.cx + Math.sin(tt*0.28+s.dphase)*s.dx*0.06)*W;
+  if (m.fall)  cy = (((s.cy + tt*s.fallSpeed)%1.14)-0.07)*H;             // snow: fall + wrap
+  else         cy = (s.cy + Math.cos(tt*0.24+s.dphase)*s.dy*0.06)*H;
+  const r = s.size*0.5*Math.min(W,H);
+  ctx.save();
+  ctx.globalCompositeOperation=blend;
+  if (s.type==='blob'){                                   // soft airbrushed blob, breathing
+    const R=r*(1.0+P.soft*0.5)*(1+0.1*Math.sin(tt*0.9+s.dphase));
+    const g=ctx.createRadialGradient(cx,cy,0,cx,cy,R);
+    g.addColorStop(0, rgba(s.cols[0],1)); g.addColorStop(0.5, rgba(s.cols[1],0.92)); g.addColorStop(1, rgba(s.cols[1],0));
+    ctx.fillStyle=g; ctx.beginPath(); ctx.arc(cx,cy,R,0,6.2832); ctx.fill();
+  } else if (s.type==='cloud'){                           // feathered lobed mass that billows + drifts
+    for (const lo of s.lobes){
+      const lx=cx+(lo[0]+Math.sin(tt*0.5+lo[3])*0.2)*r, ly=cy+(lo[1]+Math.cos(tt*0.43+lo[3])*0.13)*r;
+      const lr=lo[2]*r*(1+P.soft*0.4)*(1+0.13*Math.sin(tt*0.62+lo[3]));
+      const g=ctx.createRadialGradient(lx,ly,0,lx,ly,lr);
+      g.addColorStop(0,rgba(s.cols[0],0.8)); g.addColorStop(0.5,rgba(s.cols[1],0.5)); g.addColorStop(1,rgba(s.cols[1],0));
+      ctx.fillStyle=g; ctx.beginPath(); ctx.arc(lx,ly,lr,0,6.2832); ctx.fill();
+    }
+  } else if (s.type==='ribbon'){                          // smooth, organically-flowing wavy band (wind)
+    const ph=s.phase+tt*0.95, amp=s.amp*H, half=s.bandH*Math.min(W,H)*0.5;
+    const bob=Math.sin(tt*0.55+s.dphase)*0.04*H, x0=-0.14*W, x1=1.14*W, Nn=72;
+    const yAt=(x)=>{ const u=x/W; return cy+bob + (Math.sin(u*6.2832*s.freq+ph)*0.72 + Math.sin(u*6.2832*s.freq2+ph*1.3+1.7)*0.28)*amp; };
+    ctx.beginPath();
+    for (let i=0;i<=Nn;i++){ const x=x0+(x1-x0)*i/Nn; i?ctx.lineTo(x,yAt(x)-half):ctx.moveTo(x,yAt(x)-half); }
+    for (let i=Nn;i>=0;i--){ const x=x0+(x1-x0)*i/Nn; ctx.lineTo(x,yAt(x)+half); }
+    ctx.closePath(); ctx.clip();
+    const g=ctx.createLinearGradient(0,0,W,0); g.addColorStop(0,s.cols[0]); g.addColorStop(0.5,s.cols[1]); g.addColorStop(1,s.cols[2]);
+    ctx.fillStyle=g; ctx.fillRect(0, cy+bob-amp-half-6, W, 2*(amp+half)+12);
+  } else {                                                // crisp form with a flowing linear gradient
+    ctx.translate(cx,cy); ctx.rotate(s.rot + tt*s.rotSpin);
+    shapePath(s.type, r, s.aspect); ctx.clip();
+    const dx=Math.cos(ang)*r, dy=Math.sin(ang)*r;
+    const g=ctx.createLinearGradient(-dx,-dy,dx,dy);
+    g.addColorStop(0,s.cols[0]); g.addColorStop(0.5,s.cols[1]); g.addColorStop(1,s.cols[2]);
+    ctx.fillStyle=g; ctx.fillRect(-r*1.8,-r*1.8,r*3.6,r*3.6);
+    if (P.half>0.01 && s.ht && halftone){
+      ctx.globalCompositeOperation='multiply'; ctx.globalAlpha=P.half*0.55;
+      ctx.fillStyle=halftone; ctx.fillRect(-r*1.8,-r*1.8,r*3.6,r*3.6); ctx.globalAlpha=1;
+    }
+  }
+  ctx.restore();
+}
+
+// ---- rain lines: thin + dotted verticals falling through the blocks ----
+function drawRainLines(m,t){
+  ctx.globalCompositeOperation='multiply';
+  const n=Math.round(20 + P.shapes*6);
+  for (let i=0;i<n;i++){
+    const x=rng()*W, dotted=rng()<0.5;
+    ctx.strokeStyle=rgba(pick(m.cols), rr(0.12,0.35)); ctx.lineWidth=rr(0.6,1.4)*DPR;
+    if (dotted){ ctx.setLineDash([rr(2,6)*DPR, rr(6,18)*DPR]); ctx.lineDashOffset=-t*85*DPR; } else ctx.setLineDash([]);
+    ctx.beginPath(); ctx.moveTo(x, rr(-0.1,0.2)*H); ctx.lineTo(x, rr(0.7,1.1)*H); ctx.stroke();
+  }
+  ctx.setLineDash([]); ctx.globalCompositeOperation='source-over';
+}
+
+// ---- textures ----
+let halftone=null, grainTile=null;
+function buildHalftone(){
+  const s=9, t=document.createElement('canvas'); t.width=s; t.height=s;
+  const p=t.getContext('2d'); p.fillStyle='rgba(20,18,16,1)';
+  p.beginPath(); p.arc(s/2,s/2,s*0.3,0,6.2832); p.fill();
+  halftone=ctx.createPattern(t,'repeat');
+}
+function buildGrain(){
+  const s=240, t=document.createElement('canvas'); t.width=s; t.height=s;
+  const p=t.getContext('2d'), img=p.createImageData(s,s), d=img.data;
+  for(let i=0;i<d.length;i+=4){ const v=128+(Math.random()-0.5)*255; d[i]=d[i+1]=d[i+2]=v; d[i+3]=255; }
+  p.putImageData(img,0,0); grainTile=ctx.createPattern(t,'repeat');
+}
+
+// ---- draw ----
+let forms=[];
+function draw(t){
+  rng = mulberry32(P.seed>>>0);
+  const m = MODES[mode];
+  forms = buildForms(m);
+  ctx.setTransform(DPR,0,0,DPR,0,0);
+  ctx.globalCompositeOperation='source-over';
+  ctx.fillStyle=m.bg; ctx.fillRect(0,0,W,H);
+  for (const s of forms) drawForm(s, t, m);
+  if (m.rainLines) drawRainLines(m, t);
+  // grain over everything
+  ctx.globalCompositeOperation='overlay';
+  if (P.grain>0.01 && grainTile){ ctx.globalAlpha=P.grain*0.85; ctx.fillStyle=grainTile; ctx.fillRect(0,0,W,H); ctx.globalAlpha=1; }
+  ctx.globalCompositeOperation='source-over';
+  // soft vignette to seat it on the paper
+  const g=ctx.createRadialGradient(W/2,H*0.45,Math.min(W,H)*0.25,W/2,H*0.5,Math.max(W,H)*0.8);
+  g.addColorStop(0,'rgba(0,0,0,0)'); g.addColorStop(1,'rgba(20,18,15,0.06)');
+  ctx.fillStyle=g; ctx.fillRect(0,0,W,H);
+}
+
+let raf=0, t0=performance.now();
+function loop(){ const t=(performance.now()-t0)/1000*P.motion; draw(t); raf=requestAnimationFrame(loop); }
+function render(){ cancelAnimationFrame(raf); if(P.motion>0.001) loop(); else draw(0); }
+
+// ---- UI ----
+function buildUI(){
+  const mc=document.getElementById('modes');
+  Object.keys(MODES).forEach(k=>{
+    const b=document.createElement('button'); b.textContent=MODES[k].label; b.className=k===mode?'on':'';
+    b.onclick=()=>{ mode=k; [...mc.children].forEach(x=>x.classList.remove('on')); b.classList.add('on');
+      document.getElementById('why').textContent=MODES[k].why; render(); };
+    mc.appendChild(b);
+  });
+  document.getElementById('why').textContent=MODES[mode].why;
+  const bind=(id,key,fmt)=>{ const el=document.getElementById('s-'+id), v=document.getElementById('v-'+id);
+    el.value=P[key]; v.textContent=fmt(P[key]); el.oninput=()=>{ P[key]=parseFloat(el.value); v.textContent=fmt(P[key]); render(); }; };
+  bind('shapes','shapes',x=>x|0);
+  bind('soft','soft',x=>(x*100|0)+'%');
+  bind('half','half',x=>(x*100|0)+'%');
+  bind('grain','grain',x=>(x*100|0)+'%');
+  bind('motion','motion',x=>x===0?'still':(x*100|0)+'%');
+  const seedEl=document.getElementById('seed'); seedEl.value=P.seed;
+  seedEl.onchange=()=>{ P.seed=(parseInt(seedEl.value)||0); render(); };
+  document.getElementById('reroll').onclick=()=>{ P.seed=Math.floor(Math.random()*1e6); seedEl.value=P.seed; render(); };
+  document.getElementById('save').onclick=()=>{ draw(0); const a=document.createElement('a'); a.download=`wkndr-forms-${mode}-${P.seed}.png`; a.href=c.toDataURL('image/png'); a.click(); };
+}
+function resize(){ W=window.innerWidth; H=window.innerHeight; c.width=Math.floor(W*DPR); c.height=Math.floor(H*DPR); buildHalftone(); buildGrain(); render(); }
+window.addEventListener('resize', resize);
+buildHalftone(); buildGrain(); buildUI(); resize();
+</script>
+</body>
+</html>

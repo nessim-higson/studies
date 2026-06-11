@@ -1,0 +1,547 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>prototype 01</title>
+  <style>
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body { width: 100%; height: 100%; background: #000; overflow: hidden; }
+    canvas { display: block; position: fixed; inset: 0; }
+
+    /* ── Controls ──────────────────────────────────────────────── */
+
+    #controls {
+      position: fixed;
+      bottom: 36px;
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      align-items: center;
+      background: rgba(8, 8, 8, 0.6);
+      backdrop-filter: blur(24px) saturate(1.6);
+      -webkit-backdrop-filter: blur(24px) saturate(1.6);
+      border: 1px solid rgba(255,255,255,0.07);
+      border-radius: 16px;
+      padding: 18px 26px;
+      opacity: 0.18;
+      transition: opacity 0.6s ease;
+      user-select: none;
+      white-space: nowrap;
+    }
+    #controls:hover { opacity: 1; }
+
+    .section { display: flex; flex-direction: column; gap: 11px; }
+
+    .label {
+      font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+      font-size: 8.5px;
+      letter-spacing: 0.24em;
+      text-transform: uppercase;
+      color: rgba(255,255,255,0.3);
+    }
+
+    /* Tempo */
+    #sec-tempo { min-width: 190px; }
+
+    .tempo-row { display: flex; align-items: baseline; gap: 7px; }
+
+    #bpm-num {
+      font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+      font-size: 30px;
+      font-weight: 100;
+      color: #fff;
+      letter-spacing: -0.02em;
+      line-height: 1;
+    }
+
+    .bpm-unit {
+      font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+      font-size: 9px;
+      letter-spacing: 0.2em;
+      color: rgba(255,255,255,0.3);
+    }
+
+    .slider-row { display: flex; align-items: center; gap: 12px; }
+
+    input[type=range] {
+      -webkit-appearance: none; appearance: none;
+      width: 148px; height: 1px;
+      background: rgba(255,255,255,0.18);
+      outline: none; cursor: pointer;
+    }
+    input[type=range]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 11px; height: 11px;
+      border-radius: 50%;
+      background: #fff;
+      box-shadow: 0 0 8px rgba(255,255,255,0.35);
+      cursor: pointer;
+      transition: transform 0.12s;
+    }
+    input[type=range]::-webkit-slider-thumb:hover { transform: scale(1.4); }
+
+    /* beat dot */
+    #beat-dot {
+      width: 5px; height: 5px;
+      border-radius: 50%;
+      background: rgba(255,255,255,0.35);
+      flex-shrink: 0;
+      transition: transform 0.05s ease-out, background 0.05s;
+    }
+    #beat-dot.on { transform: scale(2.6); background: #fff; }
+
+    /* divider */
+    .div {
+      width: 1px; height: 56px;
+      background: rgba(255,255,255,0.08);
+      margin: 0 24px; flex-shrink: 0;
+    }
+
+    /* Transition */
+    .wipe-row { display: flex; gap: 6px; }
+
+    .wb {
+      width: 34px; height: 34px;
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 8px;
+      background: rgba(255,255,255,0.03);
+      color: rgba(255,255,255,0.35);
+      font-size: 12px;
+      cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      transition: background 0.15s, border-color 0.15s, color 0.15s;
+      outline: none;
+    }
+    .wb:hover { background: rgba(255,255,255,0.08); color: rgba(255,255,255,0.7); border-color: rgba(255,255,255,0.2); }
+    .wb.on { background: rgba(255,255,255,0.13); border-color: rgba(255,255,255,0.45); color: #fff; }
+
+    /* Audio */
+    #sec-audio { min-width: 52px; align-items: center; }
+
+    #audio-btn {
+      width: 34px; height: 34px;
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 8px;
+      background: rgba(255,255,255,0.03);
+      color: rgba(255,255,255,0.35);
+      cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      transition: background 0.15s, border-color 0.15s, color 0.15s;
+      outline: none;
+    }
+    #audio-btn:hover { background: rgba(255,255,255,0.08); color: rgba(255,255,255,0.7); }
+    #audio-btn.on { background: rgba(255,255,255,0.13); border-color: rgba(255,255,255,0.45); color: #fff; }
+  </style>
+</head>
+<body>
+<canvas id="c"></canvas>
+
+<div id="controls">
+
+  <div class="section" id="sec-tempo">
+    <div class="label">Tempo</div>
+    <div class="tempo-row">
+      <span id="bpm-num">30</span>
+      <span class="bpm-unit">BPM</span>
+    </div>
+    <div class="slider-row">
+      <input type="range" id="slider" min="8" max="120" value="30" step="1">
+      <div id="beat-dot"></div>
+    </div>
+  </div>
+
+  <div class="div"></div>
+
+  <div class="section">
+    <div class="label">Transition</div>
+    <div class="wipe-row" id="wipe-row">
+      <button class="wb on" data-t="0" title="Dissolve">
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+          <rect x="2" y="6" width="10" height="2" rx="1" fill="currentColor" opacity="0.4"/>
+          <rect x="2" y="3" width="10" height="1.2" rx="0.6" fill="currentColor" opacity="0.6"/>
+          <rect x="2" y="9.8" width="10" height="1.2" rx="0.6" fill="currentColor" opacity="0.6"/>
+        </svg>
+      </button>
+      <button class="wb" data-t="1" title="Sweep →">
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+          <rect x="6.5" y="2" width="1" height="10" rx="0.5" fill="currentColor"/>
+          <polyline points="9,4.5 11.5,7 9,9.5" stroke="currentColor" stroke-width="1.1" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </button>
+      <button class="wb" data-t="2" title="Sweep ↑">
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+          <rect x="2" y="6.5" width="10" height="1" rx="0.5" fill="currentColor"/>
+          <polyline points="4.5,9 7,11.5 9.5,9" stroke="currentColor" stroke-width="1.1" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </button>
+      <button class="wb" data-t="3" title="Diagonal">
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+          <line x1="2" y1="12" x2="12" y2="2" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/>
+          <polyline points="7.5,2 12,2 12,6.5" stroke="currentColor" stroke-width="1.1" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </button>
+      <button class="wb" data-t="4" title="Radial">
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+          <circle cx="7" cy="7" r="4.5" stroke="currentColor" stroke-width="1.1"/>
+          <circle cx="7" cy="7" r="1.5" fill="currentColor"/>
+        </svg>
+      </button>
+      <button class="wb" data-t="5" title="Blinds">
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+          <rect x="2" y="2.5" width="10" height="1.4" rx="0.5" fill="currentColor"/>
+          <rect x="2" y="5.7" width="10" height="1.4" rx="0.5" fill="currentColor" opacity="0.7"/>
+          <rect x="2" y="8.9" width="10" height="1.4" rx="0.5" fill="currentColor" opacity="0.4"/>
+        </svg>
+      </button>
+      <button class="wb" data-t="-1" title="Auto">
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+          <path d="M3 7 A4 4 0 0 1 11 7" stroke="currentColor" stroke-width="1.1" stroke-linecap="round" fill="none"/>
+          <polyline points="9,5 11,7 9,9" stroke="currentColor" stroke-width="1.1" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </button>
+    </div>
+  </div>
+
+  <div class="div"></div>
+
+  <div class="section" id="sec-audio">
+    <div class="label">Audio</div>
+    <button id="audio-btn" title="Toggle audio">
+      <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+        <path d="M2 5h2.5L8 2v10L4.5 9H2z" stroke="currentColor" stroke-width="1.1" fill="none" stroke-linejoin="round"/>
+        <path d="M10 4.5 Q12.5 7 10 9.5" stroke="currentColor" stroke-width="1.1" stroke-linecap="round" fill="none"/>
+      </svg>
+    </button>
+  </div>
+
+</div>
+
+<script>
+// ─── WebGL ─────────────────────────────────────────────────────────────────
+
+const canvas = document.getElementById('c');
+const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
+
+function resize() {
+  const dpr = Math.min(devicePixelRatio, 2);
+  canvas.width  = innerWidth  * dpr;
+  canvas.height = innerHeight * dpr;
+  canvas.style.width  = innerWidth  + 'px';
+  canvas.style.height = innerHeight + 'px';
+  gl.viewport(0, 0, canvas.width, canvas.height);
+}
+addEventListener('resize', resize);
+resize();
+
+// ─── Shaders ───────────────────────────────────────────────────────────────
+
+const VS = `
+attribute vec2 a_pos;
+void main() { gl_Position = vec4(a_pos, 0.0, 1.0); }
+`;
+
+const FS = `
+precision highp float;
+
+uniform float u_time;
+uniform vec2  u_res;
+uniform vec3  u_cA;
+uniform vec3  u_cB;
+uniform float u_blend;
+uniform float u_bpm;
+uniform int   u_wipe;
+
+// ── Noise ──────────────────────────────────────────────────────────────────
+
+vec2 hash2(vec2 p) {
+  p = vec2(dot(p,vec2(127.1,311.7)), dot(p,vec2(269.5,183.3)));
+  return -1.0 + 2.0*fract(sin(p)*43758.5453123);
+}
+float gnoise(vec2 p) {
+  vec2 i=floor(p), f=fract(p), u=f*f*(3.0-2.0*f);
+  return mix(
+    mix(dot(hash2(i),f), dot(hash2(i+vec2(1,0)),f-vec2(1,0)),u.x),
+    mix(dot(hash2(i+vec2(0,1)),f-vec2(0,1)), dot(hash2(i+vec2(1,1)),f-vec2(1,1)),u.x),u.y);
+}
+float fbm(vec2 p) {
+  float v=0.0,a=0.5;
+  mat2 R=mat2(0.866,0.5,-0.5,0.866);
+  for(int i=0;i<6;i++){v+=a*gnoise(p);p=R*p*2.1+vec2(5.2,1.3);a*=0.5;}
+  return v;
+}
+float field(vec2 uv, float t) {
+  vec2 q=vec2(fbm(uv+t*0.16),fbm(uv+vec2(5.2,1.3)+t*0.12));
+  vec2 r=vec2(fbm(uv+1.8*q+vec2(1.7,9.2)+t*0.07),fbm(uv+1.8*q+vec2(8.3,2.8)+t*0.06));
+  return fbm(uv+2.2*r+t*0.03);
+}
+
+// ── Wipe masks — crisp edge + leading gleam ────────────────────────────────
+
+// Returns vec2(mask, gleam) — mask is hard 0/1 wipe, gleam is thin leading stripe
+vec2 crispWipe(float line, float p) {
+  float EDGE  = 0.0028;
+  float mask  = smoothstep(p-EDGE, p+EDGE, line);
+  // Leading gleam: a thin band just ahead of the edge
+  float ahead = line - p;
+  float gleam = smoothstep(0.0, 0.022, ahead) * smoothstep(0.048, 0.022, ahead);
+  return vec2(mask, gleam);
+}
+
+void main() {
+  vec2 uv  = gl_FragCoord.xy / u_res;
+  float ar = u_res.x / u_res.y;
+  vec2 uvF = vec2(uv.x*ar, uv.y);
+
+  float speed = 0.14 + (u_bpm/120.0)*0.18;
+  float t     = u_time * speed;
+  float f     = field(uvF*1.35, t)*0.5+0.5;
+
+  vec3 cA = u_cA/255.0;
+  vec3 cB = u_cB/255.0;
+  vec3 colA = mix(cA*0.84, cA*1.05, f);
+  vec3 colB = mix(cB*0.84, cB*1.05, f);
+
+  float mask=0.0, gleam=0.0;
+  vec2 wg;
+
+  if (u_wipe==0) {
+    // Dissolve — pure crossfade
+    mask = u_blend;
+
+  } else if (u_wipe==1) {
+    // Horizontal →
+    wg=crispWipe(uv.x, u_blend); mask=wg.x; gleam=wg.y;
+
+  } else if (u_wipe==2) {
+    // Vertical ↑
+    wg=crispWipe(uv.y, u_blend); mask=wg.x; gleam=wg.y;
+
+  } else if (u_wipe==3) {
+    // Diagonal ↗
+    float d=(uv.x+(1.0-uv.y))*0.5;
+    wg=crispWipe(d, u_blend); mask=wg.x; gleam=wg.y;
+
+  } else if (u_wipe==4) {
+    // Radial from center
+    float dist=length(uv-vec2(0.5))*1.4142;
+    wg=crispWipe(1.0-dist, u_blend); mask=wg.x; gleam=wg.y;
+
+  } else {
+    // Blinds — 10 bands, cascaded
+    float band    = floor(uv.y*10.0)/10.0;
+    float stagger = band*0.22;
+    float lp      = clamp((u_blend-stagger)/(1.0-0.22), 0.0, 1.0);
+    wg=crispWipe(uv.x, lp); mask=wg.x; gleam=wg.y;
+  }
+
+  vec3 col = mix(colA, colB, mask);
+
+  // Leading-edge gleam
+  col = col + gleam*(vec3(1.0)-col)*0.55;
+
+  // Vignette
+  vec2 v=uv*2.0-1.0;
+  col *= 0.80+0.20*(1.0-smoothstep(0.5,1.3,length(v)));
+
+  gl_FragColor = vec4(col,1.0);
+}
+`;
+
+function mkShader(type, src) {
+  const s = gl.createShader(type);
+  gl.shaderSource(s, src); gl.compileShader(s);
+  if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) console.error(gl.getShaderInfoLog(s));
+  return s;
+}
+
+const prog = gl.createProgram();
+gl.attachShader(prog, mkShader(gl.VERTEX_SHADER, VS));
+gl.attachShader(prog, mkShader(gl.FRAGMENT_SHADER, FS));
+gl.linkProgram(prog);
+gl.useProgram(prog);
+
+const vbuf = gl.createBuffer();
+gl.bindBuffer(gl.ARRAY_BUFFER, vbuf);
+gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1,-1,1,-1,-1,1,1,1]), gl.STATIC_DRAW);
+const aPos = gl.getAttribLocation(prog, 'a_pos');
+gl.enableVertexAttribArray(aPos);
+gl.vertexAttribPointer(aPos, 2, gl.FLOAT, false, 0, 0);
+
+const U = {
+  time  : gl.getUniformLocation(prog, 'u_time'),
+  res   : gl.getUniformLocation(prog, 'u_res'),
+  cA    : gl.getUniformLocation(prog, 'u_cA'),
+  cB    : gl.getUniformLocation(prog, 'u_cB'),
+  blend : gl.getUniformLocation(prog, 'u_blend'),
+  bpm   : gl.getUniformLocation(prog, 'u_bpm'),
+  wipe  : gl.getUniformLocation(prog, 'u_wipe'),
+};
+
+// ─── Palette ───────────────────────────────────────────────────────────────
+
+const palette = [
+  [228,212,196],
+  [172,152,185],
+  [132,172,152],
+  [198,132,112],
+  [112,142,198],
+  [208,182,128],
+  [148,195,208],
+  [202,152,172],
+  [ 98,122,158],
+  [178,200,168],
+  [218,175,142],
+  [152,172,195],
+];
+
+// ─── Beat state ─────────────────────────────────────────────────────────────
+// Single clock: totalBeats = elapsed / beatDur.
+// blend = ease(frac), palette advances on integer boundary.
+// This eliminates the color-pop bug from out-of-sync clocks.
+
+let bpm           = 30;
+let startTime     = null;
+let lastBeatCount = -1;
+let idxA          = 0;
+let idxB          = 1;
+let autoWipe      = false;
+let currentWipe   = 0;
+const N_WIPES     = 6;
+
+function ease(t) { return t < 0.5 ? 4*t*t*t : 1-Math.pow(-2*t+2,3)/2; }
+
+// ─── Audio ──────────────────────────────────────────────────────────────────
+
+let audioCtx   = null;
+let masterGain = null;
+let audioOn    = false;
+
+function initAudio() {
+  if (audioCtx) return;
+  audioCtx   = new (window.AudioContext || window.webkitAudioContext)();
+  masterGain = audioCtx.createGain();
+  masterGain.gain.value = 0;
+  masterGain.connect(audioCtx.destination);
+
+  const lpf = audioCtx.createBiquadFilter();
+  lpf.type = 'lowpass'; lpf.frequency.value = 900; lpf.Q.value = 0.7;
+  lpf.connect(masterGain);
+
+  // Drone: detuned sines at A1, A2, E3
+  [[55,0,0.26],[110,5,0.14],[164.8,-4,0.07]].forEach(([freq,det,gain]) => {
+    const osc = audioCtx.createOscillator();
+    const g   = audioCtx.createGain();
+    osc.type = 'sine'; osc.frequency.value = freq; osc.detune.value = det;
+    g.gain.value = gain;
+    osc.connect(g); g.connect(lpf); osc.start();
+  });
+
+  // Slow breathing LFO
+  const lfo = audioCtx.createOscillator();
+  const lg  = audioCtx.createGain();
+  lfo.frequency.value = 0.07; lg.gain.value = 0.05;
+  lfo.connect(lg); lg.connect(masterGain.gain); lfo.start();
+}
+
+function startAudio() {
+  if (!audioCtx) initAudio();
+  if (audioCtx.state === 'suspended') audioCtx.resume();
+  const t = audioCtx.currentTime;
+  masterGain.gain.cancelScheduledValues(t);
+  masterGain.gain.setValueAtTime(masterGain.gain.value, t);
+  masterGain.gain.linearRampToValueAtTime(0.55, t + 1.8);
+}
+
+function stopAudio() {
+  if (!masterGain) return;
+  const t = audioCtx.currentTime;
+  masterGain.gain.cancelScheduledValues(t);
+  masterGain.gain.setValueAtTime(masterGain.gain.value, t);
+  masterGain.gain.linearRampToValueAtTime(0, t + 1.2);
+}
+
+function playBeatThump() {
+  if (!audioCtx || !audioOn) return;
+  const now = audioCtx.currentTime;
+  const osc = audioCtx.createOscillator();
+  const env = audioCtx.createGain();
+  const lpf = audioCtx.createBiquadFilter();
+  osc.type = 'sine';
+  osc.frequency.setValueAtTime(72, now);
+  osc.frequency.exponentialRampToValueAtTime(36, now + 0.14);
+  lpf.type = 'lowpass'; lpf.frequency.value = 260;
+  env.gain.setValueAtTime(0, now);
+  env.gain.linearRampToValueAtTime(0.42, now + 0.007);
+  env.gain.exponentialRampToValueAtTime(0.001, now + 0.24);
+  osc.connect(lpf); lpf.connect(env); env.connect(masterGain);
+  osc.start(now); osc.stop(now + 0.28);
+}
+
+// ─── UI ─────────────────────────────────────────────────────────────────────
+
+const slider   = document.getElementById('slider');
+const bpmNum   = document.getElementById('bpm-num');
+const beatDot  = document.getElementById('beat-dot');
+const audioBtn = document.getElementById('audio-btn');
+
+slider.addEventListener('input', () => { bpm = +slider.value; bpmNum.textContent = bpm; });
+
+document.getElementById('wipe-row').addEventListener('click', e => {
+  const btn = e.target.closest('.wb');
+  if (!btn) return;
+  const t = +btn.dataset.t;
+  document.querySelectorAll('.wb').forEach(b => b.classList.remove('on'));
+  btn.classList.add('on');
+  if (t === -1) { autoWipe = true; }
+  else { autoWipe = false; currentWipe = t; }
+});
+
+audioBtn.addEventListener('click', () => {
+  audioOn = !audioOn;
+  audioBtn.classList.toggle('on', audioOn);
+  if (audioOn) startAudio(); else stopAudio();
+});
+
+function pulseBeat() {
+  beatDot.classList.add('on');
+  setTimeout(() => beatDot.classList.remove('on'), 100);
+}
+
+// ─── Render ──────────────────────────────────────────────────────────────────
+
+function render(ts) {
+  if (!startTime) startTime = ts;
+  const elapsed    = (ts - startTime) / 1000.0;
+  const beatDur    = 60.0 / bpm;
+  const totalBeats = elapsed / beatDur;
+  const beatCount  = Math.floor(totalBeats);
+  const beatFrac   = totalBeats - beatCount;
+
+  if (beatCount !== lastBeatCount) {
+    if (lastBeatCount >= 0) {
+      idxA = idxB;
+      idxB = (idxB + 1) % palette.length;
+      if (autoWipe) currentWipe = (currentWipe + 1) % N_WIPES;
+      pulseBeat();
+      playBeatThump();
+    }
+    lastBeatCount = beatCount;
+  }
+
+  gl.uniform1f(U.time,  elapsed);
+  gl.uniform2f(U.res,   canvas.width, canvas.height);
+  gl.uniform3fv(U.cA,   palette[idxA]);
+  gl.uniform3fv(U.cB,   palette[idxB]);
+  gl.uniform1f(U.blend, ease(beatFrac));
+  gl.uniform1f(U.bpm,   bpm);
+  gl.uniform1i(U.wipe,  currentWipe);
+
+  gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+  requestAnimationFrame(render);
+}
+
+requestAnimationFrame(render);
+</script>
+</body>
+</html>

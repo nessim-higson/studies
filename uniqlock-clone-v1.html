@@ -1,0 +1,676 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>UNIQLOCK Clone</title>
+<style>
+/* ═══════════════════════════════════════════
+   FONTS
+   ═══════════════════════════════════════════ */
+@font-face {
+  font-family: "Uniqlo";
+  src: url("https://megajerk.github.io/Uniqlock/assets/fonts/7_UniqloBold.woff") format("woff");
+  font-weight: 700;
+}
+@font-face {
+  font-family: "Uniqlo";
+  src: url("https://megajerk.github.io/Uniqlock/assets/fonts/27_UniqloRegular.woff") format("woff");
+  font-weight: 400;
+}
+
+/* ═══════════════════════════════════════════
+   RESET & BASE
+   ═══════════════════════════════════════════ */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html, body {
+  width: 100%; height: 100%;
+  overflow: hidden;
+  background: #000;
+  font-family: "Uniqlo", "Helvetica Neue", Helvetica, Arial, sans-serif;
+}
+
+:root {
+  --accent: #ea3cef;
+  --wipe-duration: 300ms;
+  --wipe-easing: cubic-bezier(.1, 1, .2, 1);
+}
+
+/* ═══════════════════════════════════════════
+   VIEWPORT CONTAINER — maintains 16:9-ish
+   ═══════════════════════════════════════════ */
+#viewport {
+  position: relative;
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
+}
+
+/* ═══════════════════════════════════════════
+   CLOCK FACES
+   time1 = white bg, accent-colored digits (underneath)
+   time2 = accent bg, white digits (on top, clip-pathed)
+   ═══════════════════════════════════════════ */
+#time1, #time2 {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+}
+#time1 { background: #fff; z-index: 2; }
+#time2 { background: var(--accent); z-index: 3; }
+
+.time-display {
+  font-weight: 700;
+  font-size: clamp(52px, 9.5vh, 110px);
+  line-height: 1;
+  letter-spacing: 0.06em;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  display: flex;
+  align-items: baseline;
+  gap: 0.12em;
+}
+.digit-pair { display: flex; gap: 0.01em; }
+
+#time1 .time-display { color: var(--accent); }
+#time2 .time-display { color: #fff; }
+
+/* Label */
+.clock-label {
+  position: absolute;
+  bottom: 22px; right: 26px;
+  font-weight: 700;
+  font-size: 9px;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  opacity: 0.22;
+}
+#time1 .clock-label { color: var(--accent); }
+#time2 .clock-label { color: #fff; }
+
+/* ═══════════════════════════════════════════
+   CLIP-PATH WIPE ANIMATIONS — matching original
+   One animation per second, driven by parent class on #viewport.
+   4-direction cycle: exit → enter → exit → enter
+   ═══════════════════════════════════════════ */
+
+@keyframes animateTopToBottom {
+  from { clip-path: inset(0% 0% 0% 0%); }
+  to   { clip-path: inset(100% 0% 0% 0%); }
+}
+@keyframes animateRightToLeft {
+  from { clip-path: inset(0% 0% 0% 100%); }
+  to   { clip-path: inset(0% 0% 0% 0%); }
+}
+@keyframes animateBottomToTop {
+  from { clip-path: inset(0% 0% 0% 0%); }
+  to   { clip-path: inset(0% 0% 100% 0%); }
+}
+@keyframes animateLeftToRight {
+  from { clip-path: inset(0% 100% 0% 0%); }
+  to   { clip-path: inset(0% 0% 0% 0%); }
+}
+
+#viewport.top-to-bottom #time2 { animation: animateTopToBottom var(--wipe-duration) forwards var(--wipe-easing); }
+#viewport.right-to-left  #time2 { animation: animateRightToLeft  var(--wipe-duration) forwards var(--wipe-easing); }
+#viewport.bottom-to-top  #time2 { animation: animateBottomToTop  var(--wipe-duration) forwards var(--wipe-easing); }
+#viewport.left-to-right  #time2 { animation: animateLeftToRight  var(--wipe-duration) forwards var(--wipe-easing); }
+
+/* ═══════════════════════════════════════════
+   VIDEO LAYERS — behind clock, above black bg
+   ═══════════════════════════════════════════ */
+#video-a, #video-b {
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  object-fit: cover;
+  width: 100%;
+  height: 100%;
+  display: none;
+}
+
+/* Video wipe-in: enters from the same edge as the clock direction */
+@keyframes vidShowTopToBottom {
+  from { clip-path: inset(0% 0% 100% 0%); }
+  to   { clip-path: inset(0% 0% 0% 0%); }
+}
+@keyframes vidShowRightToLeft {
+  from { clip-path: inset(0% 0% 0% 100%); }
+  to   { clip-path: inset(0% 0% 0% 0%); }
+}
+@keyframes vidShowBottomToTop {
+  from { clip-path: inset(100% 0% 0% 0%); }
+  to   { clip-path: inset(0% 0% 0% 0%); }
+}
+@keyframes vidShowLeftToRight {
+  from { clip-path: inset(0% 100% 0% 0%); }
+  to   { clip-path: inset(0% 0% 0% 0%); }
+}
+
+/* Video wipe-out: exits in the clock's current direction */
+@keyframes vidHideTopToBottom {
+  from { clip-path: inset(0% 0% 0% 0%); }
+  to   { clip-path: inset(100% 0% 0% 0%); }
+}
+@keyframes vidHideRightToLeft {
+  from { clip-path: inset(0% 0% 0% 0%); }
+  to   { clip-path: inset(0% 100% 0% 0%); }
+}
+@keyframes vidHideBottomToTop {
+  from { clip-path: inset(0% 0% 0% 0%); }
+  to   { clip-path: inset(0% 0% 100% 0%); }
+}
+@keyframes vidHideLeftToRight {
+  from { clip-path: inset(0% 0% 0% 0%); }
+  to   { clip-path: inset(0% 0% 0% 100%); }
+}
+
+/* Video show/hide via parent direction + .show/.hide class */
+#viewport.top-to-bottom video.show { animation: vidShowTopToBottom 300ms forwards var(--wipe-easing); }
+#viewport.right-to-left  video.show { animation: vidShowRightToLeft  300ms forwards var(--wipe-easing); }
+#viewport.bottom-to-top  video.show { animation: vidShowBottomToTop  300ms forwards var(--wipe-easing); }
+#viewport.left-to-right  video.show { animation: vidShowLeftToRight  300ms forwards var(--wipe-easing); }
+
+#viewport.top-to-bottom video.hide { animation: vidHideTopToBottom 300ms forwards var(--wipe-easing); }
+#viewport.right-to-left  video.hide { animation: vidHideRightToLeft  300ms forwards var(--wipe-easing); }
+#viewport.bottom-to-top  video.hide { animation: vidHideBottomToTop  300ms forwards var(--wipe-easing); }
+#viewport.left-to-right  video.hide { animation: vidHideLeftToRight  300ms forwards var(--wipe-easing); }
+
+/* ═══════════════════════════════════════════
+   SOUND TOGGLE
+   ═══════════════════════════════════════════ */
+#sound-toggle {
+  position: absolute;
+  top: 16px; right: 20px;
+  z-index: 20;
+  background: none;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  opacity: 0;
+  transition: opacity 0.4s;
+}
+#viewport:hover #sound-toggle,
+#sound-toggle:focus { opacity: 1; }
+
+#sound-toggle .label {
+  font-family: "Uniqlo", sans-serif;
+  font-weight: 400;
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: rgba(255,255,255,0.5);
+  transition: color 0.2s;
+}
+#sound-toggle:hover .label { color: rgba(255,255,255,0.9); }
+#sound-toggle.on .label { color: #fff; }
+
+#sound-dot {
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  border: 1px solid rgba(255,255,255,0.3);
+  transition: background 0.2s, border-color 0.2s;
+}
+#sound-toggle.on #sound-dot {
+  background: #fff;
+  border-color: #fff;
+}
+
+/* ═══════════════════════════════════════════
+   CLICK-TO-START OVERLAY
+   ═══════════════════════════════════════════ */
+#overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 50;
+  background: #000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: opacity 0.6s ease;
+}
+#overlay.hidden {
+  opacity: 0;
+  pointer-events: none;
+}
+#overlay .prompt {
+  color: rgba(255,255,255,0.4);
+  font-weight: 400;
+  font-size: 13px;
+  letter-spacing: 0.12em;
+}
+</style>
+</head>
+<body>
+
+<div id="viewport">
+  <!-- Video layers -->
+  <video id="video-a" muted playsinline></video>
+  <video id="video-b" muted playsinline></video>
+
+  <!-- Clock face 1: white bg, colored digits -->
+  <div id="time1">
+    <div class="time-display">
+      <div class="digit-pair"><span data-digit="h1">0</span><span data-digit="h2">0</span></div>
+      <div class="digit-pair"><span data-digit="m1">0</span><span data-digit="m2">0</span></div>
+      <div class="digit-pair"><span data-digit="s1">0</span><span data-digit="s2">0</span></div>
+    </div>
+    <div class="clock-label">UNIQLOCK · Clone</div>
+  </div>
+
+  <!-- Clock face 2: colored bg, white digits (wipe layer) -->
+  <div id="time2">
+    <div class="time-display">
+      <div class="digit-pair"><span data-digit="h1">0</span><span data-digit="h2">0</span></div>
+      <div class="digit-pair"><span data-digit="m1">0</span><span data-digit="m2">0</span></div>
+      <div class="digit-pair"><span data-digit="s1">0</span><span data-digit="s2">0</span></div>
+    </div>
+    <div class="clock-label">UNIQLOCK · Clone</div>
+  </div>
+
+  <!-- Sound toggle -->
+  <button id="sound-toggle" aria-label="Toggle sound">
+    <span class="label">Sound</span>
+    <span id="sound-dot"></span>
+  </button>
+
+  <!-- Click to start -->
+  <div id="overlay">
+    <span class="prompt">(click anywhere to begin)</span>
+  </div>
+</div>
+
+<script>
+'use strict';
+
+// ═══════════════════════════════════════════════════
+// CONFIGURATION
+// ═══════════════════════════════════════════════════
+
+const ASSETS_BASE = 'https://megajerk.github.io/Uniqlock/assets';
+
+// 24 hour colors (from original UniQlock)
+const HOUR_COLORS = [
+  '#7733ee','#5522cc','#3311aa','#4422aa','#6633bb','#ff5500',
+  '#ff8800','#ff3377','#ff2200','#0077ff','#ff1155','#ea3cef',
+  '#ea3cef','#00aa44','#ddaa00','#8811bb','#0099cc','#ff4400',
+  '#cc2233','#1133aa','#660099','#991100','#223366','#441177',
+];
+
+// Season 1 video clips (5-second dance clips)
+const VIDEO_COUNT = 56;
+const VIDEO_URLS = [];
+for (let i = 1; i <= VIDEO_COUNT; i++) {
+  const num = String(i).padStart(2, '0');
+  VIDEO_URLS.push(`${ASSETS_BASE}/videos/Season%201/Season%201%20-%20Day%20-%20${num}.webm`);
+}
+
+// Music tracks (Season 1 day tracks)
+const MUSIC_TRACKS = [
+  `${ASSETS_BASE}/music/00%20-%20Season%201.ogg`,
+  `${ASSETS_BASE}/music/01%20-%20Season%201.ogg`,
+  `${ASSETS_BASE}/music/02%20-%20Season%201.ogg`,
+  `${ASSETS_BASE}/music/03%20-%20Season%201.ogg`,
+  `${ASSETS_BASE}/music/04%20-%20Season%201.ogg`,
+  `${ASSETS_BASE}/music/05%20-%20Season%201.ogg`,
+];
+
+// Seconds that trigger video playback (every 10s starting at :06)
+const VIDEO_TRIGGER_SECONDS = [6, 16, 26, 36, 46, 56];
+
+// Wipe direction rotation — matches original exactly
+// Alternates: exit (time2 disappears) → enter (time2 appears) → exit → enter
+const WIPE_DIRECTIONS = ['top-to-bottom', 'right-to-left', 'bottom-to-top', 'left-to-right'];
+
+const WIPE_DURATION = 300; // ms — matches original
+const VIDEO_DURATION = 5000; // ms — each dance clip
+
+// ═══════════════════════════════════════════════════
+// DOM REFS
+// ═══════════════════════════════════════════════════
+
+const viewportEl = document.getElementById('viewport');
+const time1El = document.getElementById('time1');
+const time2El = document.getElementById('time2');
+const videoA = document.getElementById('video-a');
+const videoB = document.getElementById('video-b');
+const overlay = document.getElementById('overlay');
+const soundBtn = document.getElementById('sound-toggle');
+
+// Digit elements for both faces
+const digits1 = {};
+const digits2 = {};
+time1El.querySelectorAll('[data-digit]').forEach(el => { digits1[el.dataset.digit] = el; });
+time2El.querySelectorAll('[data-digit]').forEach(el => { digits2[el.dataset.digit] = el; });
+
+// ═══════════════════════════════════════════════════
+// STATE
+// ═══════════════════════════════════════════════════
+
+let started = false;
+let wipeIndex = 0;
+let lastSecond = -1;
+let mode = 'clock'; // 'clock' | 'video'
+
+// Video state
+let videoPool = [];       // shuffled queue
+let activeVideo = null;   // which <video> element is showing
+let nextVideoReady = false;
+let currentVideoEl = videoA;
+let standbyVideoEl = videoB;
+
+// Audio state
+let audioCtx = null;
+let audioGain = null;
+let soundOn = false;
+let currentSource = null;
+let audioBuffers = [];
+let audioBufferIndex = 0;
+let audioLoading = false;
+
+// ═══════════════════════════════════════════════════
+// HOUR COLOR
+// ═══════════════════════════════════════════════════
+
+function applyHourColor() {
+  const color = HOUR_COLORS[new Date().getHours()] || '#ea3cef';
+  document.documentElement.style.setProperty('--accent', color);
+}
+
+// ═══════════════════════════════════════════════════
+// CLOCK DISPLAY
+// ═══════════════════════════════════════════════════
+
+function getTimeVals() {
+  const now = new Date();
+  const h = String(now.getHours()).padStart(2, '0');
+  const m = String(now.getMinutes()).padStart(2, '0');
+  const s = String(now.getSeconds()).padStart(2, '0');
+  return { h1: h[0], h2: h[1], m1: m[0], m2: m[1], s1: s[0], s2: s[1] };
+}
+
+function updateFace(digitMap, vals) {
+  for (const [key, val] of Object.entries(vals)) {
+    digitMap[key].textContent = val;
+  }
+}
+
+function updateAllDigits() {
+  const vals = getTimeVals();
+  updateFace(digits1, vals);
+  updateFace(digits2, vals);
+}
+
+// ═══════════════════════════════════════════════════
+// WIPE ENGINE — matches original exactly
+// Both layers always show the SAME time.
+// Each second, a direction class on #viewport triggers
+// one CSS animation on #time2 (alternating exit/enter).
+// ═══════════════════════════════════════════════════
+
+function doClockWipe(onComplete) {
+  // 1. Update BOTH layers to the current time simultaneously
+  const vals = getTimeVals();
+  updateFace(digits1, vals);
+  updateFace(digits2, vals);
+
+  // 2. Set direction class on parent — CSS handles the animation
+  //    Swapping the class restarts the animation automatically.
+  const dir = WIPE_DIRECTIONS[wipeIndex % WIPE_DIRECTIONS.length];
+  viewportEl.classList.remove(...WIPE_DIRECTIONS);
+  void viewportEl.offsetHeight; // force reflow to restart animation
+  viewportEl.classList.add(dir);
+  wipeIndex++;
+
+  if (onComplete) onComplete();
+}
+
+// ═══════════════════════════════════════════════════
+// VIDEO MANAGER
+// ═══════════════════════════════════════════════════
+
+function shuffleVideoPool() {
+  videoPool = [...VIDEO_URLS];
+  // Fisher-Yates shuffle
+  for (let i = videoPool.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [videoPool[i], videoPool[j]] = [videoPool[j], videoPool[i]];
+  }
+}
+
+function getNextVideoUrl() {
+  if (videoPool.length === 0) shuffleVideoPool();
+  return videoPool.pop();
+}
+
+function preloadNextVideo() {
+  const url = getNextVideoUrl();
+  standbyVideoEl.src = url;
+  standbyVideoEl.load();
+  nextVideoReady = true;
+}
+
+function showVideo() {
+  if (!nextVideoReady) return;
+  mode = 'video';
+
+  // Swap active/standby
+  const showEl = standbyVideoEl;
+  showEl.style.display = 'block';
+  showEl.style.clipPath = '';
+
+  // Use .show class — CSS picks up direction from #viewport parent class
+  showEl.classList.remove('show', 'hide');
+  void showEl.offsetHeight;
+  showEl.classList.add('show');
+
+  showEl.currentTime = 0;
+  showEl.play().catch(() => {});
+
+  activeVideo = showEl;
+
+  // Swap references
+  const tmp = currentVideoEl;
+  currentVideoEl = standbyVideoEl;
+  standbyVideoEl = tmp;
+  nextVideoReady = false;
+
+  // Schedule video end
+  setTimeout(() => hideVideo(), VIDEO_DURATION);
+
+  // Preload the next one
+  preloadNextVideo();
+}
+
+function hideVideo() {
+  if (!activeVideo) return;
+
+  const el = activeVideo;
+
+  // Use .hide class — CSS picks up direction from #viewport parent class
+  el.classList.remove('show');
+  void el.offsetHeight;
+  el.classList.add('hide');
+
+  setTimeout(() => {
+    el.style.display = 'none';
+    el.classList.remove('hide');
+    el.pause();
+    activeVideo = null;
+    mode = 'clock';
+  }, 400);
+}
+
+// ═══════════════════════════════════════════════════
+// AUDIO MANAGER
+// ═══════════════════════════════════════════════════
+
+async function initAudio() {
+  if (audioCtx) return;
+  audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  audioGain = audioCtx.createGain();
+  audioGain.gain.value = soundOn ? 0.15 : 0;
+  audioGain.connect(audioCtx.destination);
+
+  // Start loading tracks
+  loadNextTrack();
+}
+
+async function loadNextTrack() {
+  if (audioLoading) return;
+  audioLoading = true;
+
+  try {
+    const url = MUSIC_TRACKS[audioBufferIndex % MUSIC_TRACKS.length];
+    audioBufferIndex++;
+
+    const response = await fetch(url);
+    const arrayBuffer = await response.arrayBuffer();
+    const audioBuffer = await audioCtx.decodeAudioData(arrayBuffer);
+    audioBuffers.push(audioBuffer);
+
+    // If this is the first buffer and sound is on, start playing
+    if (audioBuffers.length === 1 && soundOn) {
+      playNextBuffer();
+    }
+  } catch (e) {
+    console.warn('Audio load failed:', e);
+  }
+
+  audioLoading = false;
+}
+
+function playNextBuffer() {
+  if (!audioCtx || audioBuffers.length === 0) return;
+
+  const buffer = audioBuffers.shift();
+  const source = audioCtx.createBufferSource();
+  source.buffer = buffer;
+  source.connect(audioGain);
+  source.start(0);
+  currentSource = source;
+
+  // When track ends, play next
+  source.onended = () => {
+    currentSource = null;
+    if (soundOn && audioBuffers.length > 0) {
+      playNextBuffer();
+    }
+  };
+
+  // Preload next track
+  loadNextTrack();
+}
+
+function toggleSound() {
+  soundOn = !soundOn;
+  soundBtn.classList.toggle('on', soundOn);
+
+  if (!audioCtx) {
+    initAudio();
+    return;
+  }
+
+  if (audioCtx.state === 'suspended') audioCtx.resume();
+
+  if (soundOn) {
+    // Fade in
+    audioGain.gain.cancelScheduledValues(audioCtx.currentTime);
+    audioGain.gain.setValueAtTime(audioGain.gain.value, audioCtx.currentTime);
+    audioGain.gain.linearRampToValueAtTime(0.15, audioCtx.currentTime + 0.8);
+
+    // Start playback if not already playing
+    if (!currentSource && audioBuffers.length > 0) {
+      playNextBuffer();
+    } else if (!currentSource) {
+      loadNextTrack();
+    }
+  } else {
+    // Fade out
+    audioGain.gain.cancelScheduledValues(audioCtx.currentTime);
+    audioGain.gain.setValueAtTime(audioGain.gain.value, audioCtx.currentTime);
+    audioGain.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 0.4);
+  }
+}
+
+// ═══════════════════════════════════════════════════
+// MAIN CLOCK LOOP — requestAnimationFrame precision
+// ═══════════════════════════════════════════════════
+
+function tick() {
+  const now = new Date();
+  const sec = now.getSeconds();
+
+  if (sec !== lastSecond) {
+    lastSecond = sec;
+    onSecondChange(now);
+  }
+
+  requestAnimationFrame(tick);
+}
+
+function onSecondChange(now) {
+  const sec = now.getSeconds();
+  const min = now.getMinutes();
+
+  // Hour color check
+  if (min === 0 && sec === 0) {
+    applyHourColor();
+  }
+
+  if (mode === 'clock') {
+    // Check if this second triggers a video
+    const shouldShowVideo = VIDEO_TRIGGER_SECONDS.includes(sec);
+
+    doClockWipe(() => {
+      if (shouldShowVideo && nextVideoReady) {
+        showVideo();
+      }
+    });
+  } else {
+    // During video, still update digits silently (no wipe)
+    updateAllDigits();
+  }
+}
+
+// ═══════════════════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════════════════
+
+function start() {
+  if (started) return;
+  started = true;
+
+  overlay.classList.add('hidden');
+
+  // Init
+  applyHourColor();
+  updateAllDigits();
+  shuffleVideoPool();
+  preloadNextVideo();
+  initAudio();
+
+  // Start the precision clock loop
+  requestAnimationFrame(tick);
+}
+
+// Click to start (required for AudioContext on most browsers)
+overlay.addEventListener('click', start);
+
+// Sound toggle
+soundBtn.addEventListener('click', (e) => {
+  e.stopPropagation();
+  toggleSound();
+});
+
+// Set initial display
+updateAllDigits();
+</script>
+</body>
+</html>

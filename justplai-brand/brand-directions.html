@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Plai Pix — Brand Directions (steer me)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Nunito:wght@400;600;700;800;900&family=Space+Mono:wght@400;700&family=Fredoka:wght@400;500;600;700&family=Archivo+Black&display=swap" rel="stylesheet">
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:#08080a;color:#f3f3ef;font-family:'Nunito',system-ui,sans-serif;font-weight:600;-webkit-font-smoothing:antialiased}
+  .wrap{max-width:1080px;margin:0 auto;padding:54px 26px 100px}
+  .kick{font-family:'Press Start 2P',monospace;font-size:10px;color:#7e7e88;letter-spacing:1px;margin-bottom:18px}
+  h1{font-weight:900;font-size:clamp(28px,4vw,44px);letter-spacing:-.025em;line-height:1.04;margin-bottom:14px}
+  .lede{font-size:17px;color:#c4c4cb;max-width:64ch;line-height:1.55}
+  .lede b{color:#fff}
+
+  /* steering / decisions box */
+  .decide{background:#121214;border:1px solid #26262c;border-radius:16px;padding:26px;margin:34px 0 12px}
+  .decide h2{font-size:13px;font-family:'Press Start 2P',monospace;color:#ffd23f;margin-bottom:18px;letter-spacing:.5px}
+  .drow{display:grid;grid-template-columns:30px 1fr;gap:14px;padding:13px 0;border-top:1px dashed #26262c;align-items:start}
+  .drow:first-of-type{border-top:none}
+  .dnum{font-family:'Press Start 2P',monospace;font-size:11px;color:#3da5ff}
+  .dq{font-weight:900;font-size:16px;margin-bottom:3px}
+  .da{font-size:13.5px;color:#a6a6ae;font-weight:600}
+  .steer{margin-top:18px;font-size:13px;color:#8a8a92;font-family:'Space Mono',monospace;border-top:1px dashed #26262c;padding-top:16px}
+  .steer b{color:#3ddc84}
+
+  .sectlbl{font-family:'Press Start 2P',monospace;font-size:11px;color:#7e7e88;margin:46px 0 6px;letter-spacing:1px}
+
+  /* ===== direction panels ===== */
+  .dir{border-radius:20px;margin-top:24px;overflow:hidden;border:1px solid #26262c}
+  .dir-head{display:flex;align-items:baseline;justify-content:space-between;padding:24px 28px 0;flex-wrap:wrap;gap:8px}
+  .dir-tag{font-size:11px;font-weight:900;letter-spacing:1px;text-transform:uppercase;opacity:.7}
+  .dir-name{font-size:30px;letter-spacing:-.02em}
+  .dir-rec{font-family:'Space Mono',monospace;font-size:10px;padding:5px 9px;border-radius:999px;font-weight:700}
+  .dir-body{display:grid;grid-template-columns:300px 1fr;gap:28px;padding:22px 28px 30px}
+  .specimen{border-radius:14px;height:230px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;position:relative;overflow:hidden}
+  .essence{font-size:17px;font-weight:800;margin-bottom:14px;line-height:1.35}
+  .meta-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px 22px;margin-bottom:16px}
+  .meta .l{font-size:10px;font-family:'Space Mono',monospace;text-transform:uppercase;opacity:.55;margin-bottom:5px;letter-spacing:.5px}
+  .meta .v{font-size:14px;font-weight:700}
+  .sw{display:flex;gap:5px;margin-top:4px}
+  .sw i{width:20px;height:20px;border-radius:4px;display:block}
+  .says{font-size:14px;font-weight:700;padding:12px 14px;border-radius:10px;margin-bottom:14px}
+  .refs{font-size:13px}
+  .refs .rl{font-size:10px;font-family:'Space Mono',monospace;text-transform:uppercase;opacity:.55;margin-bottom:7px;letter-spacing:.5px}
+  .refs a{color:inherit;text-decoration:none;border-bottom:1px solid currentColor;opacity:.85;margin-right:4px;font-weight:700}
+  .refs a:hover{opacity:1}
+  .mini-cta{font-weight:900;padding:11px 20px;border-radius:999px;font-size:14px;display:inline-block}
+
+  @media(max-width:760px){.dir-body{grid-template-columns:1fr}.specimen{height:180px}.meta-grid{grid-template-columns:1fr 1fr}}
+
+  /* ---- A: 8-BIT ARCADE ---- */
+  .dir-arcade{background:#0b0b0d;border-color:#1d3a1d}
+  .dir-arcade .dir-name,.dir-arcade .dir-tag{font-family:'Press Start 2P',monospace;font-size:18px;color:#9bff6a}
+  .dir-arcade .dir-tag{font-size:9px;color:#5a8a4a}
+  .dir-arcade .specimen{background:#000;background-image:radial-gradient(circle,rgba(155,255,106,.08),transparent 70%);border:2px solid #1d3a1d}
+  .dir-arcade .says{background:rgba(155,255,106,.08);color:#9bff6a}
+  .dir-arcade .mini-cta{background:#9bff6a;color:#062006;font-family:'Press Start 2P';font-size:10px;border-radius:4px}
+
+  /* ---- B: TOY BOX ---- */
+  .dir-toy{background:#fff4e8;border-color:#ffd9b0;color:#3a2a1a}
+  .dir-toy .dir-name{font-family:'Fredoka';font-weight:700;color:#ff7a3d}
+  .dir-toy .dir-tag{color:#c98a5a}
+  .dir-toy .specimen{background:#ffe3c2}
+  .dir-toy .meta .v,.dir-toy .essence{color:#3a2a1a;font-family:'Fredoka'}
+  .dir-toy .says{background:#ffd0a8;color:#7a3d1a}
+  .dir-toy .refs a{color:#a0522d}
+  .dir-toy .mini-cta{background:#ff7a3d;color:#fff;font-family:'Fredoka'}
+
+  /* ---- C: THE INSTRUMENT ---- */
+  .dir-inst{background:#0e0e0f;border-color:#3a3a18}
+  .dir-inst .dir-name{font-family:'Space Mono',monospace;font-weight:700;color:#ffd23f}
+  .dir-inst .dir-tag{font-family:'Space Mono';color:#8a8a5a}
+  .dir-inst .specimen{background:#141414;border:1px solid #2a2a1a}
+  .dir-inst .essence,.dir-inst .meta .v{font-family:'Space Mono',monospace}
+  .dir-inst .says{background:rgba(255,210,63,.07);color:#ffd23f}
+  .dir-inst .refs a{color:#ffd23f}
+  .dir-inst .mini-cta{background:#ffd23f;color:#1a1300;border-radius:6px;font-family:'Space Mono';font-weight:700}
+
+  /* ---- D: INTERNET MAXIMALIST ---- */
+  .dir-net{background:#15071a;border-color:#5a1d6a;color:#fce}
+  .dir-net .dir-name{font-family:'Archivo Black';background:linear-gradient(90deg,#ff6fcf,#ffd23f,#3da5ff);-webkit-background-clip:text;background-clip:text;color:transparent}
+  .dir-net .dir-tag{color:#c66ad6}
+  .dir-net .specimen{background:linear-gradient(135deg,#2a0a35,#0a1a3a)}
+  .dir-net .essence{color:#fce0ff}.dir-net .meta .v{color:#fce0ff}
+  .dir-net .says{background:rgba(255,111,207,.12);color:#ff9fdf}
+  .dir-net .refs a{color:#ff9fdf}
+  .dir-net .mini-cta{background:linear-gradient(90deg,#ff6fcf,#a06cff);color:#fff;font-family:'Archivo Black';font-size:12px}
+
+  /* pixel specimen helper */
+  .pxword{display:flex;gap:6px}
+  .pxglyph{display:grid;grid-template-columns:repeat(5,1fr);grid-template-rows:repeat(7,1fr);gap:2px}
+  .pxd{width:9px;height:9px}
+  .heart{display:grid;gap:2px}
+  .hpx{width:12px;height:12px}
+  .footnote{margin-top:50px;font-size:13px;color:#8a8a92;text-align:center;font-family:'Space Mono',monospace;line-height:1.7}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="kick">PLAI PIX · BRAND DIRECTIONS — A BOARD TO STEER BY</div>
+  <h1>Four worlds the same product could live in.</h1>
+  <p class="lede">These aren't four logos — they're four <b>aesthetic territories</b>. Each is internally consistent and each one would make Plai Pix feel like a different company. The panels are styled in their own direction, so you're feeling the vibe, not reading about it. <b>Don't pick a winner yet</b> — react. Point at one, or mix ("C's restraint with D's energy").</p>
+
+  <div class="decide">
+    <h2>3 DECISIONS THIS BOARD HELPS YOU MAKE</h2>
+    <div class="drow"><div class="dnum">01</div><div><div class="dq">What's the name?</div><div class="da">In-app it's <b>Plai Pix</b>; the domain is <b>justplai.com</b>; the site wordmark says <b>JUST PLAI</b>. Cleanest story: <b>Plai</b> = the platform, <b>Plai Pix</b> = the first tool (Plai Draw, Plai Build later). Decide, don't drift.</div></div></div>
+    <div class="drow"><div class="dnum">02</div><div><div class="dq">Is the heart the mark?</div><div class="da">The multicolor pixel heart (your app icon) is a stronger, more ownable symbol than blocky letters — it scales, it means "made of pixels, with love." I'd promote it to primary and let the wordmark be secondary.</div></div></div>
+    <div class="drow"><div class="dnum">03</div><div><div class="dq">Which audience?</div><div class="da">Your onboarding voice ("pretty chill," "incantations") already leans older/everyone, not toddlers. The direction you pick should match who you're really for. Direction tints below note which audience each fits.</div></div></div>
+    <div class="steer">// HOW TO STEER ME: tell me a letter + what you'd change. e.g. <b>"C, but warmer"</b> · <b>"A's nostalgia, D's color"</b> · <b>"B is too young."</b></div>
+  </div>
+
+  <div class="sectlbl">▼ THE FOUR DIRECTIONS</div>
+  <div id="dirs"></div>
+
+  <div class="footnote">All visuals above are original, generated in-browser from blocks — no stock, no copyrighted refs embedded.<br>The named references are starting points to go look at, not things to copy.</div>
+</div>
+
+<script>
+  const C=['#ff4d4d','#ff9f1c','#ffd23f','#3ddc84','#3da5ff','#a06cff','#ff6fcf'];
+  // 5x7 letters for PLAI
+  const F={P:["11110","10001","10001","11110","10000","10000","10000"],L:["10000","10000","10000","10000","10000","10000","11111"],A:["00100","01010","10001","10001","11111","10001","10001"],I:["11111","00100","00100","00100","00100","00100","11111"]};
+  const HEART=["01100110","11111111","11111111","11111111","01111110","00111100","00011000"];
+
+  function pxword(word,colorFn,px=9){
+    let html='<div class="pxword">';
+    [...word].forEach((ch,wi)=>{
+      html+='<div class="pxglyph">';
+      F[ch].forEach((r,ri)=>{[...r].forEach((b,ci)=>{
+        const col=b==='1'?colorFn(wi,ri,ci):'transparent';
+        html+=`<div class="pxd" style="width:${px}px;height:${px}px;background:${col};border-radius:${px>0?'1px':0}"></div>`;
+      });});
+      html+='</div>';
+    });
+    return html+'</div>';
+  }
+  function heart(colorFn,px=12){
+    let html=`<div class="heart" style="grid-template-columns:repeat(8,${px}px)">`;let i=0;
+    HEART.forEach(r=>{[...r].forEach(b=>{html+=`<div class="hpx" style="width:${px}px;height:${px}px;background:${b==='1'?colorFn(i++):'transparent'};border-radius:2px"></div>`;});});
+    return html+'</div>';
+  }
+
+  const DIRS=[
+    {
+      cls:'dir-arcade', tag:'Direction A', name:'8-BIT ARCADE',
+      rec:'', recStyle:'',
+      specimen:()=>pxword('PLAI',()=> '#9bff6a',9)+`<div style="font-family:'Press Start 2P';font-size:8px;color:#5a8a4a;letter-spacing:1px">INSERT COIN</div>`,
+      essence:'Crunchy, nostalgic, unapologetically game. The pixel as heritage — Game Boy, arcade cabinet, CRT glow.',
+      mood:'Retro · crunchy · game-y · loud',
+      type:'Press Start 2P everywhere + pixel body',
+      pal:['#000','#9bff6a','#ff4d4d','#ffd23f','#3da5ff'],
+      motion:'Hard cuts, blink, scanlines, chiptune',
+      audience:'Older kids, retro-loving parents, gamers',
+      says:'"Real games looked like this." Heritage & cred.',
+      risk:'Backward-looking. Can feel niche / for grown-ups who miss the 90s.',
+      refs:[['eBoy','https://www.eboy.com/'],['Susan Kare','https://kareprints.com/'],['Press Start 2P','https://fonts.google.com/specimen/Press+Start+2P']]
+    },
+    {
+      cls:'dir-toy', tag:'Direction B', name:'Toy Box',
+      specimen:()=>heart(i=>C[i%C.length],14)+`<div style="font-family:'Fredoka';font-weight:600;color:#ff7a3d;font-size:15px">soft &amp; squishy</div>`,
+      essence:'Rounded, warm, candy-bright. Pixels with soft corners, big friendly shapes, a world that hugs back.',
+      mood:'Wholesome · joyful · safe · cuddly',
+      type:'Fredoka / Baloo (rounded) — no pixel type',
+      pal:['#ff7a3d','#ffd23f','#7ed957','#5ec8ff','#ff9fd6'],
+      motion:'Bouncy, squash-&-stretch, gentle bloops',
+      audience:'Ages 3–7 + parents (Door 1: Calm Sandbox)',
+      says:'"Safe, joyful, made for little hands."',
+      risk:'Crowded space (Toca/Sago own it). Clashes with your ironic voice.',
+      refs:[['Toca Boca','https://tocaboca.com'],['Sago Mini','https://sagomini.com'],['Duolingo brand','https://design.duolingo.com/']]
+    },
+    {
+      cls:'dir-inst', tag:'Direction C', name:'The Instrument',
+      rec:'★ BEST FIT FOR YOUR VOICE', recBg:'#ffd23f', recColor:'#1a1300',
+      specimen:()=>pxword('PLAI',()=> '#ffd23f',9)+`<div style="font-family:'Space Mono';font-size:10px;color:#8a8a5a">draw your world</div>`,
+      essence:'Premium, tactile, confident, dry-witty. Mostly ink + chalk + ONE hero yellow; the 7 colors are "controls," used sparingly. A beautiful instrument that happens to be fun.',
+      mood:'Tasteful · tactile · minimal · deadpan',
+      type:'Mono (Space/Departure) + clean sans',
+      pal:['#0e0e0f','#f3f3ef','#ffd23f','#3da5ff','#ff6fcf'],
+      motion:'Precise, satisfying clicks; restraint; one perfect sound',
+      audience:'Teens, young adults, cool parents, makers (broad — fits your voice)',
+      says:'"A serious toy for people with taste. A little ironic, never childish."',
+      risk:'Could read cold for young kids — but the heart + creatures keep it warm.',
+      refs:[['Teenage Engineering','https://teenage.engineering'],['Panic Playdate','https://play.date'],['Linear','https://linear.app']]
+    },
+    {
+      cls:'dir-net', tag:'Direction D', name:'Internet Maximalist',
+      rec:'+ ENERGY TO BORROW', recBg:'linear-gradient(90deg,#ff6fcf,#a06cff)', recColor:'#fff',
+      specimen:()=>heart(i=>C[i%C.length],14)+`<div style="font-family:'Archivo Black';font-size:14px;background:linear-gradient(90deg,#ff6fcf,#ffd23f);-webkit-background-clip:text;background-clip:text;color:transparent">SHOW IT OFF</div>`,
+      essence:'Loud, expressive, meme-literate. Every color, stickers, gradients, remix culture. Built for sharing and showing off.',
+      mood:'Maximal · social · expressive · alive',
+      type:'Archivo Black + handwritten + emoji energy',
+      pal:['#ff6fcf','#a06cff','#ffd23f','#3da5ff','#3ddc84'],
+      motion:'Confetti, wiggle, reactions, kinetic everything',
+      audience:'Ages 8–12 + teens (Door 2: Show-Off Loop)',
+      says:'"Made by the internet, for showing your friends."',
+      risk:'Hard to keep coherent; can tip into chaos / AI-slop.',
+      refs:[['Gartic Phone','https://garticphone.com'],['Pixilart','https://www.pixilart.com'],['Cosmos','https://www.cosmos.so'],['are.na','https://www.are.na']]
+    }
+  ];
+
+  const host=document.getElementById('dirs');
+  DIRS.forEach(d=>{
+    const el=document.createElement('div');el.className='dir '+d.cls;
+    const rec=d.rec?`<span class="dir-rec" style="background:${d.recBg};color:${d.recColor}">${d.rec}</span>`:'';
+    el.innerHTML=`
+      <div class="dir-head">
+        <div><div class="dir-tag">${d.tag}</div><div class="dir-name">${d.name}</div></div>
+        ${rec}
+      </div>
+      <div class="dir-body">
+        <div class="specimen">${d.specimen()}</div>
+        <div>
+          <div class="essence">${d.essence}</div>
+          <div class="says">${d.says}</div>
+          <div class="meta-grid">
+            <div class="meta"><div class="l">Mood</div><div class="v">${d.mood}</div></div>
+            <div class="meta"><div class="l">Type</div><div class="v">${d.type}</div></div>
+            <div class="meta"><div class="l">Palette</div><div class="v"><div class="sw">${d.pal.map(c=>`<i style="background:${c}"></i>`).join('')}</div></div></div>
+            <div class="meta"><div class="l">Motion / sound</div><div class="v">${d.motion}</div></div>
+            <div class="meta" style="grid-column:1/-1"><div class="l">Who it's for</div><div class="v">${d.audience}</div></div>
+            <div class="meta" style="grid-column:1/-1"><div class="l">Watch out</div><div class="v" style="opacity:.7">${d.risk}</div></div>
+          </div>
+          <div class="refs"><div class="rl">Go look at →</div>${d.refs.map(r=>`<a href="${r[1]}" target="_blank">${r[0]}</a>`).join(' ')}</div>
+          <div style="margin-top:16px"><span class="mini-cta">Go On</span></div>
+        </div>
+      </div>`;
+    host.appendChild(el);
+  });
+</script>
+</body>
+</html>

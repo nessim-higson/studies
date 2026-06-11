@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>WKNDR — colorful field comps II</title>
+<style>
+  :root { --bg:#0a0b0d; --ink:#e9eaec; --mut:rgba(233,234,236,.5); }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{background:var(--bg);color:var(--ink);font-family:ui-monospace,"SF Mono",Menlo,monospace;padding:28px;}
+  h1{font-size:13px;letter-spacing:.32em;text-transform:uppercase;font-weight:600;}
+  .lede{margin:8px 0 22px;font-size:12px;line-height:1.6;color:var(--mut);max-width:64ch;}
+  .grid{display:grid;grid-template-columns:repeat(2,1fr);gap:16px;}
+  @media (max-width:760px){.grid{grid-template-columns:1fr;}}
+  .tile{position:relative;border:1px solid rgba(255,255,255,.08);border-radius:14px;overflow:hidden;aspect-ratio:4/3;background:#000;}
+  .tile canvas{position:absolute;inset:0;width:100%;height:100%;display:block;}
+  .tag{position:absolute;left:14px;top:13px;z-index:2;font-size:10px;letter-spacing:.22em;text-transform:uppercase;mix-blend-mode:difference;color:#fff;}
+  .cap{position:absolute;left:14px;bottom:12px;right:14px;z-index:2;font-size:10px;line-height:1.5;letter-spacing:.03em;mix-blend-mode:difference;color:#fff;opacity:.85;}
+</style>
+</head>
+<body>
+<h1>WKNDR · Colorful Fields II — comps</h1>
+<p class="lede">Four more generative directions — gooey, graphic, cellular, and wave-based. Pure Canvas 2D,
+dependency-free, low-res buffers scaled up where it helps performance + softness.</p>
+<div class="grid" id="grid"></div>
+
+<script>
+// ---------- seeded gradient noise ----------
+function makeNoise(seed){
+  let s=seed>>>0; const rand=()=>{ s=(s*1664525+1013904223)>>>0; return s/4294967296; };
+  const perm=[...Array(256).keys()];
+  for(let i=255;i>0;i--){ const j=(rand()*(i+1))|0; [perm[i],perm[j]]=[perm[j],perm[i]]; }
+  const p=new Uint8Array(512); for(let i=0;i<512;i++) p[i]=perm[i&255];
+  const fade=t=>t*t*t*(t*(t*6-15)+10), lerp=(a,b,t)=>a+(b-a)*t;
+  const grad=(h,x,y)=>((h&1?x:-x)+(h&2?y:-y));
+  const n=(x,y)=>{ const X=Math.floor(x)&255,Y=Math.floor(y)&255; x-=Math.floor(x); y-=Math.floor(y);
+    const u=fade(x),v=fade(y);
+    const aa=p[p[X]+Y],ab=p[p[X]+Y+1],ba=p[p[X+1]+Y],bb=p[p[X+1]+Y+1];
+    return (lerp(lerp(grad(aa,x,y),grad(ba,x-1,y),u),lerp(grad(ab,x,y-1),grad(bb,x-1,y-1),u),v)+1)/2; };
+  n.rand=rand; return n;
+}
+const fbm=(n,x,y,oct=4)=>{ let a=0,amp=.5,f=1,tot=0; for(let i=0;i<oct;i++){a+=amp*n(x*f,y*f);tot+=amp;amp*=.5;f*=2;} return a/tot; };
+const PAL=[[255,59,48],[255,149,0],[255,214,10],[52,199,89],[0,199,190],[10,132,255],[88,86,214],[191,90,242],[255,45,130]];
+const palAt=t=>{ t=(t%1+1)%1; const f=t*PAL.length,i=Math.floor(f),k=f-i;
+  const a=PAL[i%PAL.length],b=PAL[(i+1)%PAL.length];
+  return [a[0]+(b[0]-a[0])*k,a[1]+(b[1]-a[1])*k,a[2]+(b[2]-a[2])*k]; };
+const sstep=(e0,e1,x)=>{ const t=Math.min(1,Math.max(0,(x-e0)/(e1-e0))); return t*t*(3-2*t); };
+
+const GRAIN=(()=>{ const g=document.createElement('canvas'); g.width=g.height=140; const x=g.getContext('2d');
+  const d=x.createImageData(140,140); for(let i=0;i<d.data.length;i+=4){ const v=Math.random()*255|0;
+    d.data[i]=d.data[i+1]=d.data[i+2]=v; d.data[i+3]=255;} x.putImageData(d,0,0); return g; })();
+function grain(ctx,W,H,a,mode='overlay'){ ctx.save(); ctx.globalAlpha=a; ctx.globalCompositeOperation=mode;
+  for(let y=0;y<H;y+=140) for(let x=0;x<W;x+=140) ctx.drawImage(GRAIN,x,y); ctx.restore(); }
+
+function mkBuf(o,div){ o.bw=Math.max(2,Math.ceil(o.W/div)); o.bh=Math.max(2,Math.ceil(o.H/div));
+  o.buf=document.createElement('canvas'); o.buf.width=o.bw; o.buf.height=o.bh;
+  o.bctx=o.buf.getContext('2d'); o.img=o.bctx.createImageData(o.bw,o.bh); }
+function blit(o){ o.bctx.putImageData(o.img,0,0); o.ctx.imageSmoothingEnabled=true;
+  o.ctx.drawImage(o.buf,0,0,o.bw,o.bh,0,0,o.W,o.H); }
+
+// ---------- tiles ----------
+const TILES=[
+{ tag:'Metaball Lava', cap:'Gooey merging color blobs (threshold field) — lava-lamp blending. Live.',
+  animate:true, init(o){ mkBuf(o,5); o.t=0; const n=makeNoise(o.seed),r=n.rand;
+    o.balls=[]; for(let i=0;i<7;i++) o.balls.push({px:r(),py:r(),sx:(r()-.5)*.5,sy:(r()-.5)*.5,ph:r()*6.28,col:palAt(i/7)}); },
+  frame(o){ o.t+=0.006; const {bw,bh,img,balls}=o, d=img.data, asp=bw/bh;
+    for(const b of balls){ b.cx=(0.5+0.42*Math.sin(o.t*0.7*b.sx+b.ph))*bw; b.cy=(0.5+0.42*Math.cos(o.t*0.7*b.sy+b.ph*1.7))*bh; }
+    const R2=(Math.min(bw,bh)*0.30)**2;
+    for(let y=0;y<bh;y++) for(let x=0;x<bw;x++){
+      let f=0,r=0,g=0,bl=0;
+      for(const b of balls){ const dx=x-b.cx,dy=y-b.cy,w=R2/(dx*dx+dy*dy+1); f+=w; r+=w*b.col[0]; g+=w*b.col[1]; bl+=w*b.col[2]; }
+      const cov=sstep(0.7,1.5,f); const i=(y*bw+x)*4;
+      d[i]=(r/f)*cov+12*(1-cov); d[i+1]=(g/f)*cov+12*(1-cov); d[i+2]=(bl/f)*cov+16*(1-cov); d[i+3]=255; }
+    blit(o); grain(o.ctx,o.W,o.H,0.07,'overlay'); }},
+
+{ tag:'Topographic Bands', cap:'Noise quantized into contour zones — poster-like wavy color regions. Live, slow.',
+  animate:true, init(o){ mkBuf(o,3); o.n=makeNoise(o.seed); o.t=0; },
+  frame(o){ o.t+=0.0022; const {bw,bh,img,n}=o,d=img.data; const sc=0.014, BANDS=9;
+    for(let y=0;y<bh;y++) for(let x=0;x<bw;x++){
+      const v=fbm(n,x*sc+o.t, y*sc-o.t*0.4, 4);
+      const band=Math.floor(v*BANDS);
+      const edge=Math.abs(v*BANDS-band-0.5); // 0 at band centre, .5 at boundary
+      let c=palAt(band/BANDS+0.02);
+      const line=sstep(0.46,0.5,edge); // darken near boundaries -> contour line
+      const i=(y*bw+x)*4; const dk=1-line*0.55;
+      d[i]=c[0]*dk; d[i+1]=c[1]*dk; d[i+2]=c[2]*dk; d[i+3]=255; }
+    blit(o); grain(o.ctx,o.W,o.H,0.06,'overlay'); }},
+
+{ tag:'Color Crystals', cap:'Soft Voronoi cells, each a radial palette gradient — stained-glass facets. Static.',
+  once:true, init(o){ mkBuf(o,2); const {bw,bh,img}=o,d=img.data; const n=makeNoise(o.seed),r=n.rand;
+    const K=16, S=[]; for(let i=0;i<K;i++) S.push({x:r()*bw,y:r()*bh,col:palAt(r())});
+    for(let y=0;y<bh;y++) for(let x=0;x<bw;x++){
+      let d1=1e9,d2=1e9,s1=null;
+      for(const s of S){ const dx=x-s.x,dy=y-s.y,dd=dx*dx+dy*dy; if(dd<d1){d2=d1;d1=dd;s1=s;} else if(dd<d2){d2=dd;} }
+      const edge=sstep(0,0.06,(Math.sqrt(d2)-Math.sqrt(d1))/Math.max(bw,bh)); // 0 at cell border
+      const depth=0.55+0.45*edge; // darker toward edges -> facet shading
+      const i=(y*bh? (y*bw+x)*4 : (y*bw+x)*4);
+      d[i]=s1.col[0]*depth; d[i+1]=s1.col[1]*depth; d[i+2]=s1.col[2]*depth; d[i+3]=255; }
+    blit(o); grain(o.ctx,o.W,o.H,0.07,'overlay'); }},
+
+{ tag:'Plasma Interference', cap:'Overlapping sine fields mapped to spectrum — smooth flowing plasma. Live.',
+  animate:true, init(o){ mkBuf(o,4); o.t=0; },
+  frame(o){ o.t+=0.018; const {bw,bh,img}=o,d=img.data, t=o.t, cx=bw/2,cy=bh/2;
+    for(let y=0;y<bh;y++) for(let x=0;x<bw;x++){
+      const v=( Math.sin(x*0.09+t)
+              + Math.sin(y*0.11-t*0.8)
+              + Math.sin((x+y)*0.07+t*0.6)
+              + Math.sin(Math.hypot(x-cx,y-cy)*0.10-t) )/4; // -1..1
+      const c=palAt((v*0.5+0.5)*1.3+t*0.02); const i=(y*bw+x)*4;
+      d[i]=c[0]; d[i+1]=c[1]; d[i+2]=c[2]; d[i+3]=255; }
+    blit(o); grain(o.ctx,o.W,o.H,0.06,'overlay'); }},
+];
+
+// ---------- mount ----------
+const grid=document.getElementById('grid'); const objs=[];
+TILES.forEach((T,idx)=>{ const tile=document.createElement('div'); tile.className='tile';
+  tile.innerHTML=`<span class="tag">${T.tag}</span><span class="cap">${T.cap}</span>`;
+  const cv=document.createElement('canvas'); tile.appendChild(cv); grid.appendChild(tile);
+  objs.push({T,cv,ctx:cv.getContext('2d'),seed:5150+idx*911}); });
+function build(){ const dpr=Math.min(devicePixelRatio,2);
+  for(const o of objs){ const r=o.cv.getBoundingClientRect();
+    o.cv.width=r.width*dpr; o.cv.height=r.height*dpr; o.W=r.width; o.H=r.height; o.dpr=dpr;
+    o.ctx.setTransform(dpr,0,0,dpr,0,0); o.T.init&&o.T.init(o); o.drawnOnce=false; } }
+addEventListener('resize', build); build();
+function loop(){ for(const o of objs){ if(o.T.animate&&o.T.frame){ o.ctx.setTransform(o.dpr,0,0,o.dpr,0,0); o.T.frame(o); } }
+  requestAnimationFrame(loop); }
+requestAnimationFrame(loop);
+</script>
+</body>
+</html>

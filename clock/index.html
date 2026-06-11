@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>IAAH</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<canvas id="canvas"></canvas>
+
+<div id="scene" class="mode-dark">
+  <div id="content" class="scene-content"></div>
+</div>
+
+<div id="controls">
+  <div class="ctrl-group">
+    <span class="ctrl-label">IAAH</span>
+    <span class="ctrl-sep">&middot;</span>
+    <span class="ctrl-label" id="bar-clock"></span>
+  </div>
+
+  <div class="ctrl-group">
+    <button class="ctrl-btn" id="btn-less">Less</button>
+    <span class="ctrl-sep">&middot;</span>
+    <button class="ctrl-btn" id="btn-more">More</button>
+    <span class="ctrl-sep">&middot;</span>
+    <button class="ctrl-btn" id="btn-sound">Sound<span class="sound-dot" id="sound-dot"></span></button>
+    <span class="ctrl-sep">&middot;</span>
+    <div id="beat-dot"></div>
+  </div>
+</div>
+
+<script type="module" src="app.js"></script>
+</body>
+</html>

@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Plai — Logo Types (push the concept)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Space+Mono:wght@400;700&family=Nunito:wght@600;700;800;900&display=swap" rel="stylesheet">
+<style>
+  :root{--ink:#08080a;--panel:#121214;--line:#26262c;--chalk:#f6f6f4;--muted:#8a8a92;--yellow:#ffd23f;
+    --red:#ff4d4d;--orange:#ff9f1c;--green:#3ddc84;--sky:#3da5ff;--grape:#a06cff;--pink:#ff6fcf;}
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:var(--ink);color:var(--chalk);font-family:'Nunito',system-ui,sans-serif;font-weight:600;-webkit-font-smoothing:antialiased}
+  .wrap{max-width:1100px;margin:0 auto;padding:54px 26px 110px}
+  .kick{font-family:'Press Start 2P',monospace;font-size:10px;color:var(--muted);letter-spacing:1px;margin-bottom:18px}
+  h1{font-weight:900;font-size:clamp(28px,4vw,42px);letter-spacing:-.025em;line-height:1.05;margin-bottom:14px}
+  .lede{font-size:17px;color:#c4c4cb;max-width:66ch;line-height:1.55}
+  .lede b{color:#fff}
+  .sectlbl{font-family:'Press Start 2P',monospace;font-size:11px;color:var(--muted);letter-spacing:1px;margin:48px 0 18px}
+
+  .grid{display:grid;grid-template-columns:repeat(2,1fr);gap:18px}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:16px;overflow:hidden;display:flex;flex-direction:column}
+  .stage{height:170px;display:flex;align-items:center;justify-content:center;background:radial-gradient(circle at 50% 40%,#161619,#0d0d0f);position:relative}
+  .card .body{padding:20px 22px 22px}
+  .typetag{font-family:'Space Mono',monospace;font-size:10px;color:var(--yellow);text-transform:uppercase;letter-spacing:1px;margin-bottom:7px}
+  .card h3{font-size:20px;font-weight:900;letter-spacing:-.01em;margin-bottom:8px}
+  .card .def{font-size:13.5px;color:#b6b6bd;line-height:1.5;margin-bottom:12px}
+  .card .bet{font-size:13.5px;font-weight:800;background:rgba(255,210,63,.07);color:var(--yellow);padding:10px 12px;border-radius:9px;margin-bottom:12px}
+  .card .ex{font-size:12px;color:var(--muted);font-family:'Space Mono',monospace}
+  .card .ex b{color:#cfcfd4}
+
+  /* pixel helpers */
+  .pxgrid{display:grid}
+  .pxgrid > div{border-radius:2px}
+  .word{display:flex;gap:6px}
+  .badge-tile{border-radius:24%;display:flex;align-items:center;justify-content:center}
+
+  /* finale */
+  .finale{margin-top:26px;background:linear-gradient(135deg,#15101f,#0a0f1f);border:1px solid #3a2a55;border-radius:22px;padding:42px}
+  .finale .ftag{font-family:'Space Mono',monospace;font-size:11px;color:var(--pink);letter-spacing:1px;margin-bottom:14px}
+  .finale h2{font-weight:900;font-size:clamp(26px,3.4vw,38px);letter-spacing:-.02em;line-height:1.08;margin-bottom:14px}
+  .finale h2 .g{background:linear-gradient(90deg,var(--pink),var(--yellow),var(--sky));-webkit-background-clip:text;background-clip:text;color:transparent}
+  .finale .ftext{font-size:16px;color:#d3d3da;max-width:62ch;line-height:1.55}
+  .finale .ftext b{color:#fff}
+  .gen-row{display:flex;gap:36px;align-items:center;flex-wrap:wrap;margin:30px 0 8px}
+  .gen-stage{width:220px;height:220px;background:#0a0a0e;border-radius:18px;display:flex;align-items:center;justify-content:center;flex:none;border:1px solid #2a2a40;position:relative;overflow:hidden}
+  .gen-cap{font-family:'Space Mono',monospace;font-size:11px;color:var(--muted);text-align:center;margin-top:10px}
+  .provocations{flex:1;min-width:280px;display:flex;flex-direction:column;gap:12px}
+  .prov{display:flex;gap:14px;align-items:flex-start;background:rgba(255,255,255,.03);border:1px solid #2a2a40;border-radius:12px;padding:15px 17px}
+  .prov .n{font-family:'Press Start 2P',monospace;font-size:12px;flex:none;width:22px}
+  .prov .t{font-size:14px;font-weight:800;margin-bottom:3px}
+  .prov .d{font-size:13px;color:#a6a6b2;font-weight:600;line-height:1.45}
+
+  .refs{margin-top:26px;background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:24px}
+  .refs h3{font-family:'Space Mono',monospace;font-size:12px;color:var(--yellow);margin-bottom:16px}
+  .refrow{display:grid;grid-template-columns:200px 1fr;gap:16px;padding:13px 0;border-top:1px dashed var(--line);align-items:baseline}
+  .refrow:first-of-type{border-top:none}
+  .refrow a{color:var(--sky);text-decoration:none;font-weight:800;border-bottom:1px solid currentColor}
+  .refrow .what{font-size:13.5px;color:#b6b6bd;font-weight:600}
+  .steer{margin-top:30px;font-family:'Space Mono',monospace;font-size:13px;color:#8a8a92;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:18px 20px;line-height:1.6}
+  .steer b{color:var(--green)}
+  @media(max-width:820px){.grid{grid-template-columns:1fr}.refrow{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="kick">PLAI · LOGO TYPES — A MAP TO PUSH THE CONCEPT</div>
+  <h1>Don't refine the mark yet. First decide what <em style="font-style:normal;color:var(--yellow)">kind</em> of mark it should be.</h1>
+  <p class="lede">There are seven canonical logo types. Each one would make Plai a different brand. Below, every type is rendered <b>as a possible Plai logo</b> so you can feel the range — not to pick a winner, but to widen the question. Then the last one is the push: the type a tool built on "make anything from pixels" is almost obligated to consider.</p>
+
+  <div class="sectlbl">▼ THE SEVEN TYPES, AS PLAI</div>
+  <div class="grid" id="grid"></div>
+
+  <div class="sectlbl">▼ THE PUSH</div>
+  <div class="finale">
+    <div class="ftag">TYPE 08 — THE DYNAMIC / GENERATIVE MARK</div>
+    <h2>What if the logo is <span class="g">never the same twice</span> — because it's made <em style="font-style:normal">in the product?</em></h2>
+    <p class="ftext">Here's the tension worth sitting in: Plai's entire promise is that <b>anyone can make anything out of pixels.</b> A single fixed mark quietly contradicts that. The truest expression of this product is a logo that is <b>generated, drawn, and alive</b> — a system, not a stamp. This isn't novelty: MIT Media Lab gave every person their own permutation; Nordkyn's mark breathes with the weather; Sagmeister let Casa da Música's logo recolor itself from its surroundings. For Plai, the move is even more native — <b>the logo is something you draw, and everyone's is different.</b> (This is also the through-line back to the "emergent UI" idea you started with.)</p>
+    <div class="gen-row">
+      <div>
+        <div class="gen-stage" id="genStage"></div>
+        <div class="gen-cap" id="genCap">one mark · 40,000 permutations</div>
+      </div>
+      <div class="provocations">
+        <div class="prov"><span class="n" style="color:var(--pink)">A</span><div><div class="t">The logo you draw</div><div class="d">Onboarding ends by asking you to draw your own Plai mark. It becomes your avatar. The brand is literally co-made.</div></div></div>
+        <div class="prov"><span class="n" style="color:var(--yellow)">B</span><div><div class="t">Never the same twice</div><div class="d">A generative system (a seed + the palette + a grid) renders a fresh mark per screen, per user, per day. Recognizable as "Plai," unique every time.</div></div></div>
+        <div class="prov"><span class="n" style="color:var(--sky)">C</span><div><div class="t">The empty grid is the mark</div><div class="d">The most radical: the logo is an empty canvas — an invitation. It fills with what the community makes. The brand is the work.</div></div></div>
+        <div class="prov"><span class="n" style="color:var(--green)">D</span><div><div class="t">The mark is a verb</div><div class="d">A single pixel being placed. The whole identity is the atomic act of creation, animated. "Plai" = the moment one block appears.</div></div></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="refs">
+    <h3>GO LOOK AT → DYNAMIC IDENTITIES THAT PROVE IT WORKS</h3>
+    <div class="refrow"><a href="https://www.pentagram.com/work/mit-media-lab" target="_blank">MIT Media Lab</a><div class="what">An algorithmic logo with <b>40,000 permutations</b> — every person claims their own. The canonical case for "a system, not a stamp."</div></div>
+    <div class="refrow"><a href="https://logoblink.com/dynamic-logos/" target="_blank">Nordkyn (NEUE)</a><div class="what">A "living identity" — the mark is generated from real-time <b>weather data</b>, so it reflects the place it represents.</div></div>
+    <div class="refrow"><a href="https://www.pentagram.com/work/mit-media-lab" target="_blank">Casa da Música (Sagmeister)</a><div class="what">A logo generator that <b>recolors itself</b> from the imagery around each event. Infinite chromatic variation, one shape.</div></div>
+    <div class="refrow"><a href="https://www.fastcompany.com/1663378/mit-media-labs-brilliant-new-logo-has-40000-permutations-video" target="_blank">Further reading</a><div class="what">Whitney Museum's responsive "W", AOL by Wolff Olins, Google Doodles, OCAD U — the lineage of marks that move.</div></div>
+  </div>
+
+  <div class="steer">// HOW TO STEER ME: which type pulls you? Try <b>"the empty grid is the mark"</b> · <b>"mascot — lean into the duck"</b> · <b>"do the generative one for real, show me 20 permutations"</b> · <b>"combination mark, keep it boring/safe."</b> I'll take it from concept to rendered system.</div>
+</div>
+
+<script>
+  const C=['#ff4d4d','#ff9f1c','#ffd23f','#3ddc84','#3da5ff','#a06cff','#ff6fcf'];
+  const F={P:["11110","10001","10001","11110","10000","10000","10000"],L:["10000","10000","10000","10000","10000","10000","11111"],A:["00100","01010","10001","10001","11111","10001","10001"],I:["11111","00100","00100","00100","00100","00100","11111"]};
+  const HEART=["01100110","11111111","11111111","11111111","01111110","00111100","00011000"];
+  const BIGP=["01111100","01100110","01100110","01111100","01100000","01100000","01100000","01100000"];
+  const DUCK=["...yyyy....","..yyyyyy...","..ywkyyy...",".yyyyyyy...",".yyyyyyyyo.",".yyyyyyyy..","..yyyyyy...","...o.o.....","..........."];
+  const DMAP={y:'#ffd23f',o:'#ff9f1c',w:'#f6f6f4',k:'#0a0a0b'};
+  const ARROW=["10000","11000","11100","11110","11111","11100","10110","00011"];
+  const SPARK=["00100","01010","10001","01010","00100"]; // abstract burst
+
+  function bm(bitmap, px, colorFn){
+    const cols=bitmap[0].length;
+    const g=document.createElement('div');g.className='pxgrid';
+    g.style.gridTemplateColumns=`repeat(${cols},${px}px)`;
+    g.style.gridAutoRows=px+'px';g.style.gap='1px';
+    let i=0;
+    bitmap.forEach((r,ri)=>{[...r].forEach((ch,ci)=>{
+      const d=document.createElement('div');d.style.width=px+'px';d.style.height=px+'px';
+      const on = ch!=='0'&&ch!=='.';
+      d.style.background = on ? colorFn(i++,ri,ci,ch) : 'transparent';
+      g.appendChild(d);
+    });});
+    return g;
+  }
+  function word(str,px,colorFn){
+    const w=document.createElement('div');w.className='word';
+    [...str].forEach(ch=>{w.appendChild(bm(F[ch],px,colorFn));});
+    return w;
+  }
+
+  // ---- the seven type cards ----
+  const TYPES=[
+    {tag:'Type 01', name:'Wordmark', def:'The name itself, styled. Fast name recognition — works when the name is short.',
+     bet:'Bet: the word "plai" carries it. Confident, no symbol to explain.', ex:'like <b>Google</b>, <b>FedEx</b>',
+     render:()=>word('PLAI',12,()=> '#f6f6f4')},
+    {tag:'Type 02', name:'Lettermark', def:'The initials. Compact, scalable, great as an app tile or favicon.',
+     bet:'Bet: a single bold "P" becomes the icon everywhere.', ex:'like <b>IBM</b>, <b>HP</b>',
+     render:()=>{const t=document.createElement('div');t.className='badge-tile';t.style.width='110px';t.style.height='110px';t.style.background='linear-gradient(160deg,#1c1c22,#0c0c0e)';t.appendChild(bm(BIGP,11,()=> '#ffd23f'));return t;}},
+    {tag:'Type 03', name:'Pictorial mark', def:'A literal, recognizable symbol. (Your heart is this type — but so is a cursor, a brush, a single pixel.)',
+     bet:'Bet: a symbol so simple it IS the act of drawing.', ex:'like <b>Apple</b>, <b>Nike</b>',
+     render:()=>{const w=document.createElement('div');w.style.display='flex';w.style.gap='20px';w.style.alignItems='center';
+        w.appendChild(bm(ARROW,12,()=> '#f6f6f4')); w.appendChild(bm(['11','11'],26,(i)=>C[(i+2)%C.length])); return w;}},
+    {tag:'Type 04', name:'Abstract mark', def:'A non-literal geometric symbol standing for an idea — energy, play, possibility.',
+     bet:'Bet: an ownable glyph that means "play" without picturing anything.', ex:'like <b>Nike swoosh</b>, <b>Slack</b>',
+     render:()=>bm(SPARK,18,(i,r,c)=>C[(r+c)%C.length])},
+    {tag:'Type 05', name:'Mascot', def:'An illustrated character as the face of the brand. Personality, warmth — perfect for play & family.',
+     bet:'Bet: the creatures (duck, octopus…) ARE the brand. A cast, like Duo.', ex:'like <b>Duolingo</b>, <b>Mailchimp</b>',
+     render:()=>bm(DUCK,11,(i,r,c,ch)=>DMAP[ch]||'#ffd23f')},
+    {tag:'Type 06', name:'Emblem', def:'The name held inside a badge or shape. Feels crafted, contained — like a game cartridge.',
+     bet:'Bet: "PLAI" inside an arcade-cartridge badge. Heritage + container.', ex:'like <b>Starbucks</b>, <b>Harley</b>',
+     render:()=>{const e=document.createElement('div');e.style.border='3px solid #ffd23f';e.style.borderRadius='12px';e.style.padding='16px 18px';e.style.background='#0d0d0f';e.appendChild(word('PLAI',7,()=> '#ffd23f'));return e;}},
+    {tag:'Type 07', name:'Combination mark', def:'Symbol + wordmark together. The safe, flexible default — works split or locked-up.',
+     bet:'Bet: heart + "plai". Conventional, dependable, a little expected.', ex:'like <b>Adidas</b>, <b>Burger King</b>',
+     render:()=>{const w=document.createElement('div');w.style.display='flex';w.style.flexDirection='column';w.style.alignItems='center';w.style.gap='12px';
+        const h=bm(HEART,9,(i)=>C[i%C.length]);w.appendChild(h);w.appendChild(word('PLAI',7,()=> '#f6f6f4'));return w;}}
+  ];
+
+  const grid=document.getElementById('grid');
+  TYPES.forEach(t=>{
+    const card=document.createElement('div');card.className='card';
+    const stage=document.createElement('div');stage.className='stage';
+    stage.appendChild(t.render());
+    card.appendChild(stage);
+    const body=document.createElement('div');body.className='body';
+    body.innerHTML=`<div class="typetag">${t.tag}</div><h3>${t.name}</h3><div class="def">${t.def}</div><div class="bet">${t.bet}</div><div class="ex">${t.ex}</div>`;
+    card.appendChild(body);
+    grid.appendChild(card);
+  });
+
+  // ---- generative finale animation ----
+  const genStage=document.getElementById('genStage');
+  const genCap=document.getElementById('genCap');
+  const caps=['one mark · infinite permutations','everyone draws their own','seeded by the day','generated, never stamped'];
+  let seed=7, tick=0;
+  function rnd(){ seed=(seed*1103515245+12345)&0x7fffffff; return seed/0x7fffffff; }
+  function drawGen(){
+    genStage.innerHTML='';
+    // render a heart silhouette but fill each cell with a random palette color + random presence near edges
+    const px=18;
+    const g=document.createElement('div');g.className='pxgrid';
+    g.style.gridTemplateColumns=`repeat(8,${px}px)`;g.style.gridAutoRows=px+'px';g.style.gap='2px';
+    HEART.forEach((r,ri)=>{[...r].forEach((ch,ci)=>{
+      const d=document.createElement('div');d.style.width=px+'px';d.style.height=px+'px';d.style.borderRadius='2px';
+      d.style.transition='background .4s';
+      if(ch==='1'){ d.style.background=C[Math.floor(rnd()*C.length)]; }
+      else if(rnd()>0.86){ d.style.background=C[Math.floor(rnd()*C.length)]; d.style.opacity='.5'; } // stray pixels
+      else d.style.background='transparent';
+      g.appendChild(d);
+    });});
+    genStage.appendChild(g);
+    genCap.textContent=caps[tick%caps.length];
+    tick++;
+  }
+  drawGen();
+  setInterval(drawGen,1500);
+</script>
+</body>
+</html>

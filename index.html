@@ -1,0 +1,174 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>STUDIES — index</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      background: #0a0b0d;
+      color: #eaeaea;
+      font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+      -webkit-font-smoothing: antialiased;
+      padding: 64px clamp(24px, 8vw, 120px) 120px;
+    }
+    header { margin-bottom: 64px; }
+    h1 {
+      font-size: 13px;
+      font-weight: 500;
+      letter-spacing: 0.4em;
+      color: rgba(255, 255, 255, 0.85);
+    }
+    header p {
+      margin-top: 10px;
+      font-size: 11px;
+      letter-spacing: 0.12em;
+      color: rgba(255, 255, 255, 0.3);
+    }
+    header code {
+      font-family: ui-monospace, Menlo, monospace;
+      color: rgba(255, 255, 255, 0.5);
+    }
+    section { margin-bottom: 48px; }
+    h2 {
+      font-size: 10px;
+      font-weight: 400;
+      letter-spacing: 0.35em;
+      color: rgba(255, 255, 255, 0.32);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+      padding-bottom: 10px;
+      margin-bottom: 4px;
+    }
+    .row {
+      display: flex;
+      align-items: baseline;
+      gap: 18px;
+      padding: 13px 0;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    }
+    .row a.name {
+      font-size: 15px;
+      letter-spacing: 0.18em;
+      color: #e8e8e6;
+      text-decoration: none;
+      text-transform: uppercase;
+    }
+    .row a.name:hover { color: #fff; text-decoration: underline; text-underline-offset: 4px; }
+    .row .note {
+      font-size: 10px;
+      letter-spacing: 0.1em;
+      color: rgba(255, 255, 255, 0.28);
+      flex: 1;
+    }
+    .row .links { display: flex; gap: 14px; }
+    .row .links a {
+      font-size: 10px;
+      letter-spacing: 0.2em;
+      color: rgba(255, 255, 255, 0.45);
+      text-decoration: none;
+      border: 1px solid rgba(255, 255, 255, 0.14);
+      border-radius: 2px;
+      padding: 4px 9px;
+      white-space: nowrap;
+    }
+    .row .links a:hover { color: #fff; border-color: rgba(255, 255, 255, 0.5); }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>STUDIES</h1>
+    <p>
+      every study, one link — frozen versions never change.
+      freeze the current state of a study with
+      <code>./snapshot.sh &lt;study&gt;</code>
+    </p>
+  </header>
+  <main id="list"></main>
+
+  <script>
+    // Served two ways from the same file:
+    //   local  — python http.server on :4190 at /hub/ (studies live at /)
+    //   public — GitHub Pages repo root (studies live at ./)
+    const LOCAL = location.port === '4190'
+    const B = LOCAL ? '/' : './'
+
+    // ── Add a study: one line here. ──────────────────────────────
+    // live:     primary link (path relative to the studies root)
+    // versions: link to the frozen-version archive (omit if none yet)
+    const GROUPS = [
+      {
+        title: 'NAVIGATION',
+        items: [
+          {
+            name: 'Firstborn organic tree',
+            // dev server locally; frozen latest build on the public site
+            live: LOCAL ? 'http://localhost:4189/' : B + 'firstborn-tree/',
+            note: 'type cascade + orb constellation, d3-force',
+            versions: B + '_versions/firstborn-tree/',
+          },
+        ],
+      },
+      {
+        title: 'WKNDR',
+        items: [
+          { name: 'Landing', live: B + 'wkndr-landing/', note: 'maneken-style marketing site, weather-cycling hero' },
+          { name: 'Watercolor', live: B + 'wkndr-watercolor/', note: 'tyler hobbs polygon-deform, 6 weather recipes' },
+          { name: 'Fluid', live: B + 'wkndr-fluid/', note: '' },
+          { name: 'Aura', live: B + 'wkndr-aura/', note: '' },
+          { name: 'Riso', live: B + 'wkndr-riso/', note: '' },
+          { name: 'Seasons', live: B + 'wkndr-seasons/', note: '' },
+          { name: 'Spirit', live: B + 'wkndr-spirit/', note: '' },
+          { name: 'Forms', live: B + 'wkndr-forms/', note: '' },
+          { name: 'Weather', live: B + 'wkndr-weather/', note: 'ambient field engine' },
+        ],
+      },
+      {
+        title: 'ARENA',
+        items: [
+          { name: 'Ring engine', live: B + 'arena-ring/', note: 'instanced three.js teaser recreation' },
+          { name: 'Guidelines', live: LOCAL ? '/arena-guidelines/' : 'https://nessim-higson.github.io/arena-guidelines/', note: 'live brand guidelines · own deployment' },
+          { name: 'Arena', live: B + 'arena/', note: '' },
+        ],
+      },
+      {
+        title: 'TYPE & BRAND',
+        items: [
+          { name: 'Typeforge — breeding', live: LOCAL ? '/typeforge/explorations/breeding/' : B + 'typeforge-breeding/', note: 'breeding-R explorer' },
+          { name: 'JustPlai brand', live: B + 'justplai-brand/', note: 'one-pager' },
+        ],
+      },
+      {
+        title: 'SINGLES & EXPERIMENTS',
+        items: [
+          { name: 'IAAH clock', live: LOCAL ? '/index.html' : B + 'clock/', note: 'uniqlock-style scenes / shader / audio — root prototype' },
+          { name: 'Vincent Lowe lens', live: B + 'vincent-lowe-style.html', note: 'recovered lens-pass GLSL rebuild' },
+          { name: 'Uniqlock clone', live: B + 'uniqlock-clone.html', note: '', versions: B + 'uniqlock-clone-v1.html' },
+          { name: 'AI archive', live: B + 'ai-archive-v10.html', note: 'v10' },
+          { name: 'Prototype 01', live: B + 'prototype-01.html', note: '' },
+          { name: 'Colorful fields', live: B + 'experiments/002-colorful-fields/', note: '', versions: B + 'experiments/003-colorful-fields-2/' },
+        ],
+      },
+    ]
+
+    const list = document.getElementById('list')
+    for (const g of GROUPS) {
+      const sec = document.createElement('section')
+      sec.innerHTML = `<h2>${g.title}</h2>`
+      for (const it of g.items) {
+        const row = document.createElement('div')
+        row.className = 'row'
+        row.innerHTML =
+          `<a class="name" href="${it.live}">${it.name}</a>` +
+          `<span class="note">${it.note || ''}</span>` +
+          `<span class="links">` +
+          `<a href="${it.live}">LIVE</a>` +
+          (it.versions ? `<a href="${it.versions}">VERSIONS</a>` : '') +
+          `</span>`
+        sec.appendChild(row)
+      }
+      list.appendChild(sec)
+    }
+  </script>
+</body>
+</html>

@@ -1,0 +1,453 @@
+<!DOCTYPE html>
+<!--
+  typeforge / breeding — v1
+  One letter (R) bred by selection. The genome is a parametric vector of ~9
+  visually-distinct traits; the render function is pure (genome -> SVG paths).
+  Breeding is DISCRETE: each child gene is inherited whole from one parent, then
+  nudged by a small mutation. No build step. Open this file, it works.
+
+  This is the "safe substrate" (parametric R) that proves the loop reads as
+  heredity. The alien gene pool is a later experiment — see BRIEF.md.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>typeforge · breeding</title>
+<style>
+  :root{
+    --bg:#f3f0e8;
+    --ink:#15140f;
+    --faint:#bdb8a8;
+    --line:#d9d4c6;
+    --accent:#ffcf00;       /* the single loud thing besides the forms */
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%}
+  body{
+    background:var(--bg);
+    color:var(--ink);
+    font:14px/1.5 ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+    -webkit-font-smoothing:antialiased;
+    padding:28px clamp(16px,4vw,56px) 48px;
+  }
+  header{
+    display:flex;align-items:baseline;gap:16px;
+    border-bottom:1px solid var(--line);padding-bottom:14px;margin-bottom:22px;
+  }
+  header h1{font-size:14px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;margin:0}
+  header .sub{color:var(--faint);font-size:12px;letter-spacing:.04em}
+  header .gen{margin-left:auto;color:var(--faint);font-size:12px;letter-spacing:.08em}
+
+  .hint{color:var(--faint);font-size:12px;margin:-8px 0 18px;letter-spacing:.02em}
+
+  .grid{
+    display:grid;grid-template-columns:repeat(4,1fr);gap:14px;max-width:1100px;
+  }
+  @media(max-width:760px){.grid{grid-template-columns:repeat(2,1fr)}}
+
+  .tile{
+    position:relative;background:#fbf9f3;border:1px solid var(--line);
+    border-radius:2px;cursor:pointer;aspect-ratio:1/1.12;
+    display:flex;align-items:center;justify-content:center;
+    transition:border-color .12s,transform .12s;
+    user-select:none;
+  }
+  .tile:hover{border-color:var(--ink)}
+  .tile svg{width:78%;height:78%;display:block}
+  .tile.sel{border-color:var(--ink)}
+  .tile.sel::after{
+    content:attr(data-badge);
+    position:absolute;top:8px;left:8px;
+    background:var(--accent);color:var(--ink);
+    font-size:11px;font-weight:600;letter-spacing:.08em;
+    padding:2px 7px;border-radius:2px;
+  }
+  .tile .idx{position:absolute;bottom:7px;right:9px;color:var(--faint);font-size:10px}
+  .tile .name{position:absolute;bottom:7px;left:9px;color:var(--ink);font-size:10px;letter-spacing:.04em;opacity:.55}
+
+  .controls{
+    display:flex;align-items:center;gap:24px;flex-wrap:wrap;
+    margin:26px 0 8px;max-width:1100px;
+  }
+  button{
+    font:inherit;letter-spacing:.1em;text-transform:uppercase;font-size:12px;
+    border:1px solid var(--ink);background:var(--ink);color:var(--bg);
+    padding:11px 22px;border-radius:2px;cursor:pointer;transition:opacity .12s;
+  }
+  button.ghost{background:transparent;color:var(--ink)}
+  button:disabled{opacity:.28;cursor:not-allowed}
+  .mut{display:flex;align-items:center;gap:12px;color:var(--faint);font-size:12px;letter-spacing:.04em}
+  .mut input{width:170px;accent-color:var(--ink)}
+  .mut b{color:var(--ink);font-variant-numeric:tabular-nums;min-width:34px;display:inline-block}
+
+  .lineage{margin-top:34px;border-top:1px solid var(--line);padding-top:18px;max-width:1100px}
+  .lineage .lh{color:var(--faint);font-size:12px;letter-spacing:.1em;text-transform:uppercase;margin-bottom:12px}
+  .strip{display:flex;align-items:center;gap:6px;overflow-x:auto;padding-bottom:6px}
+  .genstep{display:flex;align-items:center;gap:6px;flex:0 0 auto}
+  .genstep .pair{display:flex;flex-direction:column;gap:3px}
+  .genstep .pair .mini{width:46px;height:52px;background:#fbf9f3;border:1px solid var(--line);border-radius:2px}
+  .genstep .arrow{color:var(--faint);font-size:16px;padding:0 2px}
+  .genstep .num{color:var(--faint);font-size:10px;writing-mode:vertical-rl;transform:rotate(180deg);letter-spacing:.1em}
+  .lineage .empty{color:var(--faint);font-size:12px;font-style:italic}
+</style>
+</head>
+<body>
+<header>
+  <h1>typeforge</h1>
+  <span class="sub">breeding · the letter R, by selection</span>
+  <span class="gen" id="genLabel">generation 0</span>
+</header>
+
+<p class="hint" id="hint">Eight recognized type canons. Pick two to cross.</p>
+
+<div class="grid" id="grid"></div>
+
+<div class="controls">
+  <button id="breedBtn" disabled>Breed</button>
+  <button id="resetBtn" class="ghost">Reset to canons</button>
+  <label class="mut">
+    mutation
+    <input type="range" id="mut" min="0" max="100" value="22">
+    <b id="mutVal">0.22</b>
+  </label>
+</div>
+
+<div class="lineage">
+  <div class="lh">Lineage — the parents picked each generation</div>
+  <div class="strip" id="strip"><span class="empty">no crosses yet — the trail of chosen parents shows up here</span></div>
+</div>
+
+<script>
+/* ----------------------------------------------------------------------------
+   GENOME
+   14 genes, each a normalized scalar 0..1. Named, visually-distinct traits so
+   "that leg came from parent A" can be read by eye. Render maps 0..1 -> real
+   geometry. Breeding only ever operates on these numbers.
+
+   The genome is chosen so the recognized type CANONS (Didone, Slab, Grotesque…)
+   are each a specific point in it. The defining axes of those canons are serif
+   treatment, stroke contrast and stress — so those are first-class genes here.
+   We start from the canons and breed ACROSS traditions, rather than sampling a
+   raw parameter cube (which lands off the manifold of coherent letterforms).
+---------------------------------------------------------------------------- */
+const GENES = [
+  {key:'stem',     label:'stem weight'},
+  {key:'contrast', label:'stroke contrast'}, // reverse-contrast … high contrast
+  {key:'width',    label:'set width / bowl reach'},
+  {key:'bowl',     label:'bowl height'},
+  {key:'round',    label:'bowl roundness'},
+  {key:'aperture', label:'bowl aperture'},   // closed bowl … open beak
+  {key:'stress',   label:'stress axis'},     // oblique (humanist) … vertical (modern)
+  {key:'junc',     label:'junction'},
+  {key:'leg',      label:'leg spread'},
+  {key:'legCurve', label:'leg curvature'},   // straight diagonal … bowed tail
+  {key:'serif',    label:'serif length'},    // 0 = sans … long
+  {key:'serifWt',  label:'serif weight'},    // hairline … slab
+  {key:'serifBr',  label:'serif bracketing'},// flat … bracketed
+  {key:'slant',    label:'slant'},
+];
+
+const rand = () => Math.random();
+const clamp01 = v => v < 0 ? 0 : v > 1 ? 1 : v;
+const lerp = (a,b,t) => a + (b-a)*t;
+
+// push a 0..1 draw toward the edges, so a sample is rarely "medium everything"
+function biasedGene(){
+  const u = rand();
+  return u < 0.5 ? Math.pow(u*2, 1.7)/2 : 1 - Math.pow((1-u)*2, 1.7)/2;
+}
+
+function randomGenome(){
+  const g = {};
+  for (const {key} of GENES) g[key] = biasedGene();
+  return g;
+}
+
+// a spread of 8 values, shuffled — used to stratify the strongest axes so the
+// starting pool is guaranteed to span them instead of clustering in the middle.
+function shuffled(){
+  const v = [0.03,0.17,0.31,0.45,0.59,0.73,0.87,0.98];
+  for (let i = v.length-1; i > 0; i--){
+    const j = Math.floor(rand()*(i+1));
+    [v[i],v[j]] = [v[j],v[i]];
+  }
+  return v;
+}
+
+// 8 genomes that deliberately span the loudest axes (weight, roundness,
+// contrast, slant, width) via stratified sampling; the rest stay edge-biased.
+function diversePool(){
+  const stem = shuffled(), round = shuffled(), contrast = shuffled(),
+        slant = shuffled(), width = shuffled();
+  return Array.from({length:8}, (_, i) => {
+    const g = randomGenome();
+    g.stem = stem[i]; g.round = round[i]; g.contrast = contrast[i];
+    g.slant = slant[i]; g.width = width[i];
+    return g;
+  });
+}
+
+/* ----------------------------------------------------------------------------
+   RENDER  (pure: genome -> svg string)
+   The R is built from three filled pieces — stem, bowl (a D-ring via evenodd),
+   leg — in a fixed viewBox. Slant is a baseline-pivoted shear on the group.
+   Geometry constants are tuned only so the genes stay legible, not for beauty.
+---------------------------------------------------------------------------- */
+const VB_W = 600, VB_H = 620;
+const CAP_TOP = 80, BASE = 540, CAP_H = BASE - CAP_TOP;
+const X_STEM_L = 110;
+
+// a right-bulging D outline from (xL+topOff,topY)->(xL+botOff,botY) reaching to
+// rightX. botOff opens the bowl bottom (aperture); top/bot offsets differing tilts
+// the counter for oblique stress.
+function dPath(xL, topY, botY, rightX, round, topOff = 0, botOff = 0){
+  const midY = (topY + botY) / 2;
+  const ch = lerp(0.12, 0.94, round);            // vertical handle length
+  const dx = (rightX - xL) * lerp(0.32, 1.05, round); // top/bottom horiz pull
+  const xt = xL + topOff, xb = xL + botOff;
+  return `M ${xt} ${topY} `
+       + `C ${xt+dx} ${topY}, ${rightX} ${midY-(midY-topY)*ch}, ${rightX} ${midY} `
+       + `C ${rightX} ${midY+(botY-midY)*ch}, ${xb+dx} ${botY}, ${xb} ${botY} Z`;
+}
+
+// a serif slab spanning the stroke edges [xa,xb] at line y, projecting `len`
+// beyond each edge with thickness `thk`; dir = -1 foot (slab points up into the
+// glyph), +1 cap (points down). `br` adds concave bracket fillets at the joins.
+// Returns '' when there is no serif (sans canons), so presence is a real gene.
+function serif(xa, xb, y, dir, len, thk, br){
+  if (len < 1 || thk < 1) return '';
+  const ty = y + dir * thk;
+  const x0 = xa - len, x1 = xb + len;
+  let p = `M ${x0} ${y} L ${x1} ${y} L ${x1} ${ty} L ${x0} ${ty} Z`;
+  if (br > 0.04){
+    const r = br * Math.min(thk * 1.7, len + thk);
+    p += ` M ${xa - r} ${ty} Q ${xa} ${ty} ${xa} ${ty + dir*r} L ${xa} ${ty} Z`;
+    p += ` M ${xb + r} ${ty} Q ${xb} ${ty} ${xb} ${ty + dir*r} L ${xb} ${ty} Z`;
+  }
+  return p;
+}
+
+function genomeToSVG(g, {pieceColor='var(--ink)'} = {}){
+  const stemW   = lerp(28, 205, g.stem);                  // hairline … ultra-black
+  const xSL = X_STEM_L, xSR = xSL + stemW;
+
+  const bowlBotY = CAP_TOP + CAP_H * lerp(0.50, 0.74, g.bowl);
+  const bowlReach = lerp(95, 290, g.width);               // condensed … wide
+  const xBR = xSR + bowlReach;
+
+  // contrast runs from reverse (heavy bowl foot) through mono to high (thin foot)
+  const topThk = stemW * lerp(0.55, 0.92, g.contrast);
+  const botThk = stemW * lerp(1.15, 0.16, g.contrast);
+  const ringR  = (topThk + botThk) / 2 * 0.92;
+  // aperture opening scaled to the bowl-foot weight, so thin bowls don't leave
+  // a floating hairline sliver, and capped so the bowl never fully detaches
+  const gap    = g.aperture * Math.min(52, botThk * 1.2); // bowl opening at bottom
+
+  // stress: oblique (humanist) tilts the counter by leaning only its bottom to the
+  // right; vertical (modern) is upright. The counter's top stays anchored to the
+  // stem so it can't detach into a spike.
+  const oblique = Math.max(0, g.stress - 0.5) * 42;
+
+  // bowl: solid outer D minus inner counter (evenodd)
+  const outer = dPath(xSR, CAP_TOP, bowlBotY, xBR, g.round, 0, gap);
+  const inner = dPath(xSR, CAP_TOP + topThk, bowlBotY - botThk, xBR - ringR, g.round,
+                      0, gap + oblique);
+  const bowl = `<path fill-rule="evenodd" d="${outer} ${inner}"/>`;
+
+  // stem: a plain vertical bar. Its right edge overlaps a few px under the bowl
+  // so the two abutting fills don't leave an antialiasing seam at the junction.
+  const xSO = xSR + 3;
+  const stem = `<path d="M ${xSL} ${CAP_TOP} L ${xSO} ${CAP_TOP} `
+             + `L ${xSO} ${BASE} L ${xSL} ${BASE} Z"/>`;
+
+  // leg: thick stroke from a junction point on the stem to a foot bottom-right.
+  // legCurve bows the centerline into a tail; legW tracks contrast.
+  const legStartX = lerp(xSL + stemW*0.25, xSR - 2, g.junc);
+  const legStartY = bowlBotY - 2;
+  const xFoot = Math.min(xSR + lerp(35, bowlReach + 70, g.leg), VB_W - 14);
+  const dxv = xFoot - legStartX, dyv = BASE - legStartY;
+  const len = Math.hypot(dxv, dyv) || 1;
+  // stroke width floored so the leg never vanishes (R must keep its leg) and
+  // clamped to the leg length so a short heavy leg can't bowtie
+  const legW  = Math.min(Math.max(stemW * lerp(0.95, 0.62, g.contrast), 22), len * 0.8);
+  const ux = dxv/len, uy = dyv/len;
+  const nx = -uy * legW/2, ny = ux * legW/2;             // normal * half width
+  const bow = lerp(0, 0.42, g.legCurve) * len;           // perpendicular bow
+  const mx = (legStartX + xFoot)/2 + nx/(legW/2)*bow;    // bowed control centre
+  const my = (legStartY + BASE)/2 + ny/(legW/2)*bow;
+  // two parallel curved edges (+n side down, cap, -n side up) — keep the signs
+  // consistent per edge or the ribbon twists and pinches a triangle at the foot
+  const leg = `<path d="M ${legStartX+nx} ${legStartY+ny} `
+            + `Q ${mx+nx} ${my+ny} ${xFoot+nx} ${BASE+ny} `
+            + `L ${xFoot-nx} ${BASE-ny} `
+            + `Q ${mx-nx} ${my-ny} ${legStartX-nx} ${legStartY-ny} Z"/>`;
+
+  // serifs — the canon-defining axis. length/weight/bracket are genes; serif=0
+  // means a sans (no serif drawn at all). Placed at stem foot, stem cap (left
+  // projection only, since the bowl owns the top-right), and the leg foot.
+  const sLen = lerp(0, 64, g.serif);
+  const sThk = lerp(10, 52, g.serifWt);
+  const sBr  = g.serifBr;
+  let serifs = '';
+  if (sLen >= 1){
+    serifs += `<path d="${serif(xSL, xSR, BASE, -1, sLen, sThk, sBr)}"/>`;
+    serifs += `<path d="${serif(xSL, xSL, CAP_TOP, 1, sLen, sThk, sBr)}"/>`;
+    const lw = legW * 0.45;
+    serifs += `<path d="${serif(xFoot - lw, xFoot + lw, BASE, -1, sLen*0.8, sThk, sBr)}"/>`;
+  }
+
+  const deg = lerp(-12, 26, g.slant);                    // back-slant … strong forward
+  const tf = `translate(0 ${BASE}) skewX(${-deg}) translate(0 ${-BASE})`;
+
+  return `<svg viewBox="0 0 ${VB_W} ${VB_H}" xmlns="http://www.w3.org/2000/svg" `
+       + `fill="${pieceColor}" preserveAspectRatio="xMidYMid meet">`
+       + `<g transform="${tf}">${stem}${serifs}${bowl}${leg}</g></svg>`;
+}
+
+/* ----------------------------------------------------------------------------
+   BREEDING  (discrete inheritance + small mutation)
+   Each child gene is taken WHOLE from one randomly-chosen parent, then nudged
+   by noise scaled to the mutation rate. Discrete (not blended) so heredity
+   reads: a gene is one parent's or the other's, then slightly drifted.
+---------------------------------------------------------------------------- */
+function breed(a, b, rate){
+  const child = {};
+  for (const {key} of GENES){
+    const inherited = rand() < 0.5 ? a[key] : b[key];
+    const nudge = (rand()*2 - 1) * rate * 0.45;          // small by default
+    child[key] = clamp01(inherited + nudge);
+  }
+  return child;
+}
+
+/* ----------------------------------------------------------------------------
+   THE CANONS  (the IP — authored points on the manifold of real letterforms)
+   Each is a complete genome tuned to evoke a recognized type genus. These are
+   the starting pool, so the operator begins from coherent, pedigreed forms and
+   breeds ACROSS traditions (a Didone × Grotesque), instead of from parameter
+   noise. Values are deliberate taste calls, not derived — edit them freely.
+---------------------------------------------------------------------------- */
+function canon(name, o){
+  const base = {stem:.45,contrast:.5,width:.5,bowl:.5,round:.55,aperture:.06,
+    stress:.5,junc:.82,leg:.55,legCurve:.4,serif:0,serifWt:.3,serifBr:.4,slant:.4};
+  return {name, genome:Object.assign(base, o)};
+}
+const CANONS = [
+  canon('Humanist',   {stem:.42,contrast:.55,round:.62,stress:.92,leg:.55,legCurve:.62,serif:.58,serifWt:.34,serifBr:.85,aperture:.12}),
+  canon('Garalde',    {stem:.38,contrast:.64,round:.55,stress:.66,leg:.60,legCurve:.72,serif:.62,serifWt:.30,serifBr:.82}),
+  canon('Transitional',{stem:.42,contrast:.78,round:.50,stress:.40,leg:.55,legCurve:.42,serif:.60,serifWt:.26,serifBr:.58}),
+  canon('Didone',     {stem:.50,contrast:1.0,round:.55,stress:.05,leg:.50,legCurve:.12,serif:.56,serifWt:.10,serifBr:.04}),
+  canon('Slab',       {stem:.64,contrast:.42,round:.50,stress:.22,leg:.55,legCurve:.30,serif:.72,serifWt:.95,serifBr:.55}),
+  canon('Grotesque',  {stem:.56,contrast:.36,round:.55,stress:.32,leg:.50,legCurve:.35,serif:0}),
+  canon('Geometric',  {stem:.48,contrast:.50,round:1.0,stress:.50,leg:.62,legCurve:.10,serif:0,bowl:.58}),
+  canon('Humanist sans',{stem:.50,contrast:.44,round:.60,stress:.78,leg:.68,legCurve:.55,serif:0}),
+];
+function canonPool(){
+  return {
+    genomes: CANONS.map(c => ({...c.genome})),
+    names:   CANONS.map(c => c.name),
+  };
+}
+
+/* ----------------------------------------------------------------------------
+   STATE + UI
+---------------------------------------------------------------------------- */
+const initial = canonPool();
+let pool = initial.genomes;
+let poolNames = initial.names;   // canon labels for gen 0; null once we breed hybrids
+let selected = [];           // up to 2 indices into pool
+let generation = 0;
+let lineage = [];            // [{parents:[genomeA, genomeB]}] per breed
+let mutRate = 0.22;
+
+const grid = document.getElementById('grid');
+const breedBtn = document.getElementById('breedBtn');
+const resetBtn = document.getElementById('resetBtn');
+const mut = document.getElementById('mut');
+const mutVal = document.getElementById('mutVal');
+const genLabel = document.getElementById('genLabel');
+const strip = document.getElementById('strip');
+const hint = document.getElementById('hint');
+
+function renderGrid(){
+  grid.innerHTML = '';
+  pool.forEach((g, i) => {
+    const tile = document.createElement('div');
+    tile.className = 'tile' + (selected.includes(i) ? ' sel' : '');
+    if (selected.includes(i)) tile.dataset.badge = 'P' + (selected.indexOf(i)+1);
+    const name = poolNames ? `<span class="name">${poolNames[i]}</span>` : '';
+    tile.innerHTML = genomeToSVG(g) + name + `<span class="idx">${i+1}</span>`;
+    tile.addEventListener('click', () => toggle(i));
+    grid.appendChild(tile);
+  });
+  breedBtn.disabled = selected.length !== 2;
+  genLabel.textContent = 'generation ' + generation;
+  hint.textContent = selected.length === 2
+    ? 'Two traditions chosen. Breed to cross them.'
+    : selected.length === 1
+      ? 'One parent chosen — pick one more.'
+      : poolNames
+        ? 'Eight recognized type canons. Pick two to cross.'
+        : 'Pick two forms with pull. They become the parents. Then breed.';
+}
+
+function toggle(i){
+  const at = selected.indexOf(i);
+  if (at !== -1) selected.splice(at, 1);
+  else { if (selected.length === 2) selected.shift(); selected.push(i); }
+  renderGrid();
+}
+
+function renderLineage(){
+  if (!lineage.length){
+    strip.innerHTML = '<span class="empty">no crosses yet — the trail of chosen parents shows up here</span>';
+    return;
+  }
+  strip.innerHTML = '';
+  lineage.forEach((step, gi) => {
+    const cell = document.createElement('div');
+    cell.className = 'genstep';
+    const mini = step.parents.map(p =>
+      `<div class="mini">${genomeToSVG(p)}</div>`).join('');
+    cell.innerHTML = `<span class="num">gen ${gi+1}</span>`
+      + `<div class="pair">${mini}</div>`
+      + (gi < lineage.length-1 ? '<span class="arrow">→</span>' : '');
+    strip.appendChild(cell);
+  });
+  strip.scrollLeft = strip.scrollWidth;
+}
+
+breedBtn.addEventListener('click', () => {
+  if (selected.length !== 2) return;
+  const a = pool[selected[0]], b = pool[selected[1]];
+  lineage.push({parents:[a, b]});
+  pool = Array.from({length:8}, () => breed(a, b, mutRate));
+  poolNames = null;            // children are hybrids, no single canon name
+  selected = [];
+  generation++;
+  renderGrid();
+  renderLineage();
+});
+
+resetBtn.addEventListener('click', () => {
+  const fresh = canonPool();
+  pool = fresh.genomes;
+  poolNames = fresh.names;
+  selected = [];
+  generation = 0;
+  lineage = [];
+  renderGrid();
+  renderLineage();
+});
+
+mut.addEventListener('input', () => {
+  mutRate = mut.value / 100;
+  mutVal.textContent = mutRate.toFixed(2);
+});
+
+renderGrid();
+renderLineage();
+</script>
+</body>
+</html>

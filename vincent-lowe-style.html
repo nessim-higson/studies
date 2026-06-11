@@ -1,0 +1,433 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Studio — Lens Tunnel Prototype</title>
+
+<!--
+═══════════════════════════════════════════════════════════════════════
+  LENS-TUNNEL PORTFOLIO PROTOTYPE — faithful to vincent-lowe.info
+  Reverse-engineered from the shipped bundle (June 2026).
+
+  HOW THE REAL SITE WORKS (and how this file mirrors it):
+
+  1. The whole site is ONE WebGL canvas. No <img> tags anywhere —
+     project images are textures on flat planes, stacked vertically,
+     viewed by an orthographic camera, moved by native page scroll.
+
+  2. That scene renders into an offscreen render target ("tex1").
+
+  3. A fullscreen quad then applies the LENS PASS — the recovered
+     fragment shader: a radial magnification term ("outCircle") bulges
+     the flat stack into the fisheye tunnel, and a scroll-velocity
+     sine wobble smears it vertically while you scroll. The curved
+     "horizon" you see is just the seam between two stacked images,
+     bent into an arc by the lens.
+
+  4. On project detail routes the site tweens `displacement` to 0 —
+     lens off, images flat. The LENS button below demos that.
+
+  TO PLUG IN YOUR OWN WORK: edit the PROJECTS array below. Give each
+  entry an `image` URL (must allow CORS, e.g. your own CDN) or leave
+  null to get a bold procedural placeholder poster.
+═══════════════════════════════════════════════════════════════════════
+-->
+
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body {
+    background: #000;
+    color: #fff;
+    font-family: "SF Mono", ui-monospace, Menlo, monospace;
+    font-size: 11px;
+    letter-spacing: 0.08em;
+  }
+  /* hide scrollbar but keep native scroll — the site does the same trick */
+  html { scrollbar-width: none; }
+  body::-webkit-scrollbar { display: none; }
+
+  #gl { position: fixed; inset: 0; z-index: 1; display: block; }
+
+  /* native-scroll spacer: gives the page real height to scroll */
+  #spacer { position: relative; width: 100%; }
+
+  .overlay { position: fixed; inset: 0; z-index: 10; pointer-events: none; }
+  .overlay > * { pointer-events: auto; }
+
+  /* centered studio pill — translucent blur capsule like the original */
+  .pill {
+    position: absolute; left: 50%; top: 50%;
+    transform: translate(-50%, -50%);
+    width: min(90%, 400px);
+    padding: 12px 24px;
+    text-align: center;
+    text-transform: uppercase;
+    line-height: 1.6;
+    background: rgba(0,0,0,0.20);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    border-radius: 16px;
+    box-shadow: 0 8px 30px rgba(0,0,0,0.35);
+    cursor: pointer; user-select: none;
+  }
+  .pill b { font-weight: 700; }
+
+  /* bottom project chip */
+  .chip {
+    position: absolute; left: 50%; bottom: 14px;
+    transform: translateX(-50%);
+    padding: 6px 14px;
+    text-transform: uppercase;
+    background: rgba(0,0,0,0.25);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border-radius: 999px;
+    white-space: nowrap;
+  }
+
+  .lens-btn {
+    position: absolute; left: 14px; bottom: 14px;
+    padding: 6px 14px;
+    text-transform: uppercase;
+    background: rgba(0,0,0,0.25);
+    color: #fff; border: 0; font: inherit; letter-spacing: inherit;
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border-radius: 999px;
+    cursor: pointer;
+  }
+  .lens-btn:hover { background: rgba(255,255,255,0.15); }
+</style>
+</head>
+<body>
+
+<canvas id="gl"></canvas>
+<div id="spacer"></div>
+
+<div class="overlay">
+  <div class="pill" id="pill"><b>STUDIO of [YOUR NAME]</b><br>Creative Direction &amp; Design</div>
+  <div class="chip" id="chip">—</div>
+  <button class="lens-btn" id="lens-btn">Lens: on</button>
+</div>
+
+<script type="importmap">
+{ "imports": { "three": "https://esm.sh/three@0.160.0" } }
+</script>
+
+<script type="module">
+import * as THREE from 'three';
+
+/* ════════════════════════════════════════════════════════════════════
+   PLUG-IN POINT — your projects.
+   image: a CORS-enabled URL (your CDN / Sanity / Cloudinary), or null
+   for a procedural placeholder poster.
+   ──────────────────────────────────────────────────────────────────── */
+const PROJECTS = [
+  { client: 'ACME',      title: 'Brand System',    year: 2025, image: null },
+  { client: 'HELIOS',    title: 'Launch Campaign', year: 2025, image: null },
+  { client: 'NORTHSTAR', title: 'Site Redesign',   year: 2024, image: null },
+  { client: 'MARU',      title: 'Editorial',       year: 2024, image: null },
+  { client: 'FORMA',     title: 'Film Direction',  year: 2023, image: null },
+];
+
+// Recovered defaults from the live site
+const DISTORTION_SIZE = 0.4;   // their "distortionSize" debug value
+const SCROLL_SMOOTH   = 0.05;  // their scrollDif lerp factor
+
+/* ════════════════════════════════════════════════════════════════════
+   PLACEHOLDER POSTERS — bold type on color so the lens has edges
+   to chew on. Replaced by your images when PROJECTS[i].image is set.
+   ──────────────────────────────────────────────────────────────────── */
+const PALETTES = [
+  ['#0f4d2e', '#e9ffd0'], ['#101010', '#f5f5f0'], ['#1c2f6b', '#ffd23e'],
+  ['#5e0f1f', '#f2d8c9'], ['#3a3a14', '#d7ff45'],
+];
+function makePoster(i, p) {
+  const W = 1080, H = 1440;
+  const c = document.createElement('canvas');
+  c.width = W; c.height = H;
+  const x = c.getContext('2d');
+  const [bg, fg] = PALETTES[i % PALETTES.length];
+  x.fillStyle = bg; x.fillRect(0, 0, W, H);
+
+  // big ring — gives the lens a curve to distort
+  x.strokeStyle = fg; x.lineWidth = 90;
+  x.beginPath(); x.arc(W * 0.5, H * 0.42, 330, 0, Math.PI * 2); x.stroke();
+
+  x.fillStyle = fg;
+  x.font = '900 210px Helvetica, Arial, sans-serif';
+  x.textAlign = 'center';
+  x.fillText(String(i + 1).padStart(2, '0'), W / 2, H * 0.5);
+  x.font = '700 84px Helvetica, Arial, sans-serif';
+  x.fillText(p.client, W / 2, H * 0.82);
+  x.font = '400 52px Helvetica, Arial, sans-serif';
+  x.fillText(p.title.toUpperCase() + ' — ' + p.year, W / 2, H * 0.89);
+
+  const t = new THREE.CanvasTexture(c);
+  t.colorSpace = THREE.SRGBColorSpace;
+  return t;
+}
+
+/* ════════════════════════════════════════════════════════════════════
+   RENDERER + TWO SCENES
+   sceneA: image stack  →  renders into `rt` (this is their tex1)
+   sceneB: fullscreen lens quad → renders to screen
+   Both use orthographic cameras in pixel units, like the original.
+   ──────────────────────────────────────────────────────────────────── */
+const renderer = new THREE.WebGLRenderer({ canvas: document.getElementById('gl'), antialias: true });
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+
+let VW = window.innerWidth, VH = window.innerHeight;
+
+const camA = new THREE.OrthographicCamera(-1, 1, 1, -1, 0.1, 100);
+const camB = new THREE.OrthographicCamera(-1, 1, 1, -1, 0.1, 100);
+camA.position.z = 10; camB.position.z = 10;
+
+const sceneA = new THREE.Scene();
+sceneA.background = new THREE.Color(0x000000);
+const sceneB = new THREE.Scene();
+
+let rt = new THREE.WebGLRenderTarget(VW * renderer.getPixelRatio(), VH * renderer.getPixelRatio());
+
+/* ── image-plane material (their shader #1: texture + luminance grain) ── */
+const imageVert = /* glsl */`
+  varying vec2 vUv;
+  void main() {
+    gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+    vUv = uv;
+  }
+`;
+const imageFrag = /* glsl */`
+  varying vec2 vUv;
+  uniform sampler2D map;
+  uniform float time;
+  uniform float detailMode;   // 1 = full image, 0 = luminance-grain ghost
+  uniform float opacity;
+
+  float hash(vec2 p) {
+    return fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.5453123);
+  }
+
+  void main() {
+    float grain = hash(vUv + fract(sin(vec2(time, time * 1.3)) * 100.0));
+    vec4 outColor = texture2D(map, vUv);
+    float avg = (outColor.r + outColor.g + outColor.b) / 3.0;
+    outColor.rgb = outColor.rgb * detailMode
+                 + vec3((1.0 - detailMode) * avg * (grain * 5.5 * (1.0 - avg)));
+    gl_FragColor = vec4(outColor.rgb, outColor.a * opacity);
+  }
+`;
+
+const planeGeo = new THREE.PlaneGeometry(1, 1);
+const slides = PROJECTS.map((p, i) => {
+  const tex = makePoster(i, p);
+  if (p.image) {
+    new THREE.TextureLoader().setCrossOrigin('anonymous').load(p.image, (loaded) => {
+      loaded.colorSpace = THREE.SRGBColorSpace;
+      mat.uniforms.map.value = loaded;
+      slide.imgW = loaded.image.naturalWidth;
+      slide.imgH = loaded.image.naturalHeight;
+      fitCover(slide);
+    });
+  }
+  const mat = new THREE.ShaderMaterial({
+    vertexShader: imageVert,
+    fragmentShader: imageFrag,
+    uniforms: {
+      map:        { value: tex },
+      time:       { value: 0 },
+      detailMode: { value: 1 },
+      opacity:    { value: 1 },
+    },
+  });
+  const mesh = new THREE.Mesh(planeGeo, mat);
+  sceneA.add(mesh);
+  const slide = { mesh, mat, imgW: 1080, imgH: 1440 };
+  return slide;
+});
+
+// cover-fit a texture to the viewport-sized plane via UV transform
+function fitCover(slide) {
+  const tex = slide.mat.uniforms.map.value;
+  const s = Math.max(VW / slide.imgW, VH / slide.imgH);
+  const visW = VW / (slide.imgW * s);
+  const visH = VH / (slide.imgH * s);
+  tex.wrapS = tex.wrapT = THREE.ClampToEdgeWrapping;
+  tex.repeat.set(visW, visH);
+  tex.offset.set((1 - visW) / 2, (1 - visH) / 2);
+}
+
+/* ── lens pass (their shader #3, recovered verbatim logic) ── */
+const lensFrag = /* glsl */`
+  varying vec2 vUv;
+  uniform sampler2D tex1;
+  uniform float textureScale;   // distortionSize, 0.4
+  uniform float time;           // accumulated ms
+  uniform float opacity;        // page-transition fade
+  uniform float saturation;     // dims to gray when overlays open
+  uniform float displacement;   // 1 home / 0 detail — the lens amount
+  uniform float scrollDif;      // smoothed scroll velocity
+
+  void main() {
+    vec4 outColor1 = texture2D(tex1, vUv);
+    float lum1 = (outColor1.r + outColor1.g + outColor1.b) / 3.0;
+
+    vec2 cVuv = vUv - vec2(0.5);
+    float outCircle = (0.5 - distance(cVuv, vec2(0.0))) * (textureScale * 10.0);
+
+    vec2 nVuv = vUv - vec2(0.5);
+    // radial magnification: zoomed out at center, zoomed in at the rim
+    // → flat stack becomes the fisheye tunnel
+    nVuv.xy *= 1.0 + 0.5 * displacement - (1.0 - outCircle) * displacement * 0.5;
+    // scroll-velocity smear: per-pixel vertical sine wobble keyed to
+    // x-position and source luminance
+    nVuv.y  *= 1.0 - sin(time * 0.001 + vUv.x * 10.1 + lum1 * 10.1) * scrollDif * 0.01;
+    nVuv += vec2(0.5);
+
+    vec4 outColor = texture2D(tex1, nVuv);
+    float avg = (outColor.r + outColor.g + outColor.b) / 3.0;
+    outColor.rgb = outColor.rgb * vec3(saturation)
+                 + vec3(1.0 - avg) * vec3(0.4) * vec3(1.0 - saturation);
+    outColor.a = opacity;
+    gl_FragColor = outColor;
+  }
+`;
+
+const lensMat = new THREE.ShaderMaterial({
+  vertexShader: imageVert,
+  fragmentShader: lensFrag,
+  transparent: true,
+  uniforms: {
+    tex1:         { value: rt.texture },
+    textureScale: { value: DISTORTION_SIZE },
+    time:         { value: 0 },
+    opacity:      { value: 0 },
+    saturation:   { value: 1 },
+    displacement: { value: 0 },
+    scrollDif:    { value: 0 },
+  },
+});
+const lensQuad = new THREE.Mesh(planeGeo, lensMat);
+sceneB.add(lensQuad);
+
+/* ════════════════════════════════════════════════════════════════════
+   NATIVE SCROLL → VIRTUAL LOOP
+   Real page height drives scrolling (like the site). We rebase the
+   scrollbar when near the ends so the project loop is endless.
+   ──────────────────────────────────────────────────────────────────── */
+const spacer = document.getElementById('spacer');
+const LOOPS = 6; // virtual copies of the cycle in the scrollable height
+function cycleH() { return PROJECTS.length * VH; }
+function layout() {
+  VW = window.innerWidth; VH = window.innerHeight;
+  renderer.setSize(VW, VH);
+  rt.setSize(VW * renderer.getPixelRatio(), VH * renderer.getPixelRatio());
+  for (const cam of [camA, camB]) {
+    cam.left = -VW / 2; cam.right = VW / 2;
+    cam.top = VH / 2; cam.bottom = -VH / 2;
+    cam.updateProjectionMatrix();
+  }
+  lensQuad.scale.set(VW, VH, 1);
+  slides.forEach(s => { s.mesh.scale.set(VW, VH, 1); fitCover(s); });
+  spacer.style.height = (LOOPS * cycleH()) + 'px';
+}
+layout();
+window.addEventListener('resize', layout);
+
+// start mid-way so we can scroll both directions
+window.scrollTo(0, Math.floor(LOOPS / 2) * cycleH());
+
+let smooth = window.scrollY, lastSmooth = smooth, scrollDif = 0;
+
+function rebase() {
+  const y = window.scrollY, total = LOOPS * cycleH(), cyc = cycleH();
+  if (y < cyc || y > total - cyc - VH) {
+    const mid = Math.floor(LOOPS / 2) * cyc + (y % cyc);
+    const shift = mid - y;
+    window.scrollTo(0, mid);
+    smooth += shift; lastSmooth += shift; // keep motion continuous
+  }
+}
+window.addEventListener('scroll', rebase, { passive: true });
+
+/* ════════════════════════════════════════════════════════════════════
+   TWEENS (svelte-tweened equivalents) + UI
+   ──────────────────────────────────────────────────────────────────── */
+function tween(obj, key, to, ms) {
+  const from = obj[key], t0 = performance.now();
+  obj[`_tw_${key}`] = (now) => {
+    const k = Math.min(1, (now - t0) / ms);
+    const e = 1 - Math.pow(1 - k, 3); // cubicOut
+    obj[key] = from + (to - from) * e;
+    return k < 1;
+  };
+}
+const state = { displacement: 0, opacity: 0, saturation: 1 };
+// intro, matching the site: opacity 0→1 over 1.5s, lens 0→1 over 2s
+tween(state, 'opacity', 1, 1500);
+tween(state, 'displacement', 1, 2000);
+
+let lensOn = true;
+const lensBtn = document.getElementById('lens-btn');
+lensBtn.addEventListener('click', () => {
+  lensOn = !lensOn;
+  // their route transition: 1 over 2s going home, 0 over 100ms entering detail
+  tween(state, 'displacement', lensOn ? 1 : 0, lensOn ? 2000 : 100);
+  lensBtn.textContent = `Lens: ${lensOn ? 'on' : 'off'}`;
+});
+
+const chip = document.getElementById('chip');
+function updateChip() {
+  const idx = ((Math.round(smooth / VH) % PROJECTS.length) + PROJECTS.length) % PROJECTS.length;
+  const p = PROJECTS[idx];
+  chip.textContent = `${p.client} — ${p.title}`;
+}
+
+/* ════════════════════════════════════════════════════════════════════
+   RENDER LOOP
+   ──────────────────────────────────────────────────────────────────── */
+const start = performance.now();
+function frame(now) {
+  // run active tweens
+  for (const k of Object.keys(state)) {
+    const fn = state[`_tw_${k}`];
+    if (fn && !fn(now)) delete state[`_tw_${k}`];
+  }
+
+  // smoothed scroll + velocity (their B += (target-B)*0.05)
+  smooth += (window.scrollY - smooth) * 0.1;
+  scrollDif += ((smooth - lastSmooth) - scrollDif) * SCROLL_SMOOTH;
+  lastSmooth = smooth;
+
+  // lay the stack out around the wrapped scroll position
+  const cyc = cycleH();
+  const pos = ((smooth % cyc) + cyc) % cyc;
+  slides.forEach((s, i) => {
+    let d = i * VH - pos;                    // distance from viewport
+    d = ((d % cyc) + cyc * 1.5) % cyc - cyc / 2; // wrap to nearest copy
+    s.mesh.position.y = -d;
+    s.mat.uniforms.time.value = now - start;
+  });
+
+  const ms = now - start;
+  lensMat.uniforms.time.value = ms;
+  lensMat.uniforms.displacement.value = state.displacement;
+  lensMat.uniforms.opacity.value = state.opacity;
+  lensMat.uniforms.saturation.value = state.saturation;
+  lensMat.uniforms.scrollDif.value = THREE.MathUtils.clamp(scrollDif, -40, 40);
+
+  renderer.setRenderTarget(rt);
+  renderer.clear();
+  renderer.render(sceneA, camA);
+  renderer.setRenderTarget(null);
+  renderer.clear();
+  renderer.render(sceneB, camB);
+
+  updateChip();
+  requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>

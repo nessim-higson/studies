@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Plai Pix — Icon Lab (8-bit iteration)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Space+Mono:wght@400;700&family=Nunito:wght@600;700;800;900&display=swap" rel="stylesheet">
+<style>
+  :root{--ink:#0a0a0b;--panel:#121214;--line:#26262c;--chalk:#f6f6f4;--muted:#8a8a92;--yellow:#ffd23f;}
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:#070708;color:var(--chalk);font-family:'Nunito',system-ui,sans-serif;font-weight:600;-webkit-font-smoothing:antialiased}
+  .top{padding:34px 30px 18px;border-bottom:1px solid var(--line)}
+  .kick{font-family:'Press Start 2P',monospace;font-size:10px;color:var(--muted);letter-spacing:1px;margin-bottom:14px}
+  h1{font-weight:900;font-size:26px;letter-spacing:-.02em}
+  .sub{color:#b6b6bd;font-size:14px;margin-top:6px;max-width:74ch}
+  .app{display:grid;grid-template-columns:300px 1fr;gap:0;min-height:calc(100vh - 120px)}
+
+  /* ---- controls ---- */
+  .controls{border-right:1px solid var(--line);padding:24px;display:flex;flex-direction:column;gap:22px;background:#0b0b0d}
+  .ctl .lbl{font-family:'Space Mono',monospace;font-size:10px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin-bottom:10px;display:flex;justify-content:space-between}
+  .seg{display:flex;flex-wrap:wrap;gap:6px}
+  .seg button{background:#16161a;border:1px solid var(--line);color:#cfcfd4;font-family:'Nunito';font-weight:800;font-size:12px;padding:8px 11px;border-radius:8px;cursor:pointer}
+  .seg button.on{background:var(--yellow);color:#1a1300;border-color:var(--yellow)}
+  input[type=range]{width:100%;accent-color:var(--yellow)}
+  .pal-opts{display:flex;flex-direction:column;gap:7px}
+  .pal-opt{display:flex;align-items:center;gap:10px;padding:7px 9px;border:1px solid var(--line);border-radius:9px;cursor:pointer;background:#16161a}
+  .pal-opt.on{border-color:var(--yellow);background:rgba(255,210,63,.08)}
+  .pal-opt .sw{display:flex;gap:3px}
+  .pal-opt .sw i{width:13px;height:13px;border-radius:2px}
+  .pal-opt .nm{font-size:12px;font-weight:800}
+  .actions{display:flex;gap:8px;margin-top:4px}
+  .actions button{flex:1;padding:11px;border-radius:10px;border:none;font-family:'Nunito';font-weight:900;font-size:13px;cursor:pointer}
+  .btn-shuffle{background:var(--yellow);color:#1a1300}
+  .btn-reset{background:#1c1c20;color:var(--chalk);border:1px solid var(--line)}
+
+  /* ---- stage ---- */
+  .stage{padding:30px;display:flex;flex-direction:column;gap:26px;overflow:auto}
+  .hero-row{display:flex;gap:26px;align-items:flex-start;flex-wrap:wrap}
+  .preview-card{background:#0d0d0f;border:1px solid var(--line);border-radius:16px;padding:30px;display:flex;flex-direction:column;align-items:center;gap:16px}
+  .canvas-host{width:340px;height:340px;display:flex;align-items:center;justify-content:center;border-radius:14px;position:relative;overflow:hidden}
+  .sizes{display:flex;gap:18px;align-items:flex-end}
+  .size-chip{display:flex;flex-direction:column;align-items:center;gap:8px}
+  .size-chip .cap{font-family:'Space Mono',monospace;font-size:9px;color:var(--muted)}
+  .size-host{border-radius:10px;display:flex;align-items:center;justify-content:center;overflow:hidden}
+
+  .readout{flex:1;min-width:220px;background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:20px}
+  .readout h3{font-family:'Space Mono',monospace;font-size:11px;color:var(--yellow);margin-bottom:14px;letter-spacing:.5px}
+  .ro-row{display:flex;justify-content:space-between;font-size:13px;padding:7px 0;border-top:1px dashed var(--line)}
+  .ro-row:first-of-type{border-top:none}
+  .ro-row .k{color:var(--muted);font-family:'Space Mono';font-size:11px}
+  .ro-row .v{font-weight:800}
+  .tip{font-size:12px;color:var(--muted);margin-top:14px;line-height:1.5;border-top:1px dashed var(--line);padding-top:12px}
+
+  .grid-lbl{font-family:'Press Start 2P',monospace;font-size:11px;color:var(--muted);letter-spacing:1px;margin-top:4px}
+  .var-grid{display:grid;grid-template-columns:repeat(6,1fr);gap:14px}
+  .var{aspect-ratio:1;border-radius:12px;border:1px solid var(--line);display:flex;align-items:center;justify-content:center;cursor:pointer;position:relative;overflow:hidden}
+  .var:hover{border-color:var(--yellow)}
+  .var .meta{position:absolute;bottom:0;left:0;right:0;font-family:'Space Mono',monospace;font-size:7px;color:#fff;background:rgba(0,0,0,.55);padding:3px 4px;opacity:0;transition:.15s}
+  .var:hover .meta{opacity:1}
+
+  @media(max-width:900px){.app{grid-template-columns:1fr}.controls{border-right:none;border-bottom:1px solid var(--line)}.var-grid{grid-template-columns:repeat(3,1fr)}}
+
+  /* scanline overlay */
+  .crt::after{content:"";position:absolute;inset:0;background:repeating-linear-gradient(rgba(0,0,0,0) 0,rgba(0,0,0,0) 2px,rgba(0,0,0,.28) 3px,rgba(0,0,0,.28) 4px);pointer-events:none;mix-blend-mode:multiply}
+</style>
+</head>
+<body>
+  <div class="top">
+    <div class="kick">PLAI PIX · ICON LAB — PARAMETRIC 8-BIT ITERATION</div>
+    <h1>One mark. Four levers. Infinite approaches.</h1>
+    <p class="sub">Turn the levers and the icon re-iterates live. The four levers ARE the difference between every 8-bit icon style: <b>palette</b>, <b>dimensionality</b>, <b>outline</b>, <b>chunk size</b>. Hit <b>Shuffle</b> to throw 12 random combos and spot directions; click any to load it.</p>
+  </div>
+
+  <div class="app">
+    <div class="controls">
+      <div class="ctl">
+        <div class="lbl">Mark</div>
+        <div class="seg" id="markSeg"></div>
+      </div>
+      <div class="ctl">
+        <div class="lbl">Palette</div>
+        <div class="pal-opts" id="palOpts"></div>
+      </div>
+      <div class="ctl">
+        <div class="lbl">Dimensionality</div>
+        <div class="seg" id="dimSeg"></div>
+      </div>
+      <div class="ctl">
+        <div class="lbl">Outline</div>
+        <div class="seg" id="outSeg"></div>
+      </div>
+      <div class="ctl">
+        <div class="lbl">Chunk size <span id="chunkVal" style="color:var(--yellow)"></span></div>
+        <input type="range" id="chunk" min="14" max="34" step="2" value="22">
+      </div>
+      <div class="ctl">
+        <div class="lbl">Tile</div>
+        <div class="seg" id="tileSeg"></div>
+      </div>
+      <div class="ctl">
+        <div class="lbl">CRT glow</div>
+        <div class="seg" id="crtSeg"></div>
+      </div>
+      <div class="actions">
+        <button class="btn-shuffle" id="shuffle">⤮ Shuffle 12</button>
+        <button class="btn-reset" id="reset">Reset</button>
+      </div>
+    </div>
+
+    <div class="stage">
+      <div class="hero-row">
+        <div class="preview-card">
+          <div class="canvas-host" id="host"></div>
+          <div class="sizes" id="sizes"></div>
+        </div>
+        <div class="readout">
+          <h3>CURRENT RECIPE</h3>
+          <div class="ro-row"><span class="k">mark</span><span class="v" id="r-mark"></span></div>
+          <div class="ro-row"><span class="k">palette</span><span class="v" id="r-pal"></span></div>
+          <div class="ro-row"><span class="k">dimensionality</span><span class="v" id="r-dim"></span></div>
+          <div class="ro-row"><span class="k">outline</span><span class="v" id="r-out"></span></div>
+          <div class="ro-row"><span class="k">tile</span><span class="v" id="r-tile"></span></div>
+          <div class="tip">The small row under the icon is the <b>squint test</b> — 48 / 28 / 16px. If it survives at 16px, it's a real icon. 8-bit usually wins here because it's already a grid.</div>
+        </div>
+      </div>
+      <div class="grid-lbl">▼ SHUFFLE BOARD</div>
+      <div class="var-grid" id="varGrid"></div>
+    </div>
+  </div>
+
+<script>
+  // ---------- bitmaps ----------
+  const BITMAPS = {
+    Heart: ["01100110","11111111","11111111","11111111","01111110","00111100","00011000"],
+    "P-mark": ["01111100","01100110","01100110","01111100","01100000","01100000","01100000","01100000"],
+    Duck: ["...yyyy....","..yyyyyy...","..ywkyyy...",".yyyyyyy...",".yyyyyyyyo.",".yyyyyyyy..","..yyyyyy...","...o.o.....","..........."]
+  };
+  const DUCKMAP={y:'#ffd23f',o:'#ff9f1c',w:'#f6f6f4',k:'#0a0a0b'};
+
+  // ---------- palettes ----------
+  const PALETTES = {
+    "Arcade 7": ['#ff4d4d','#ff9f1c','#ffd23f','#3ddc84','#3da5ff','#a06cff','#ff6fcf'],
+    "DMG Green": ['#9bbc0f','#8bac0f','#306230','#0f380f'],
+    "1-bit": ['#f6f6f4'],
+    "Sweet16": ['#f94144','#f3722c','#f9c74f','#90be6d','#43aa8b','#577590','#f15bb5','#9b5de5'],
+    "Candy": ['#ff8fab','#ffb3c6','#ffd23f','#a0e7e5','#b4f8c8','#fbe7c6'],
+    "Mono Ink": ['#ffd23f']
+  };
+
+  // ---------- option configs ----------
+  const DIMS = ["Flat","Bevel","Iso"];
+  const OUTS = ["None","Black","White"];
+  const TILES = ["None","Dark","Rounded","Color"];
+  const MARKS = Object.keys(BITMAPS);
+
+  let state = { mark:"Heart", pal:"Arcade 7", dim:"Flat", out:"None", chunk:22, tile:"Rounded", crt:"Off" };
+
+  // ---------- core renderer ----------
+  // returns a DOM element rendering the mark at given pixel size with the recipe
+  function renderIcon(s, px){
+    const raw = BITMAPS[s.mark];
+    const isDuck = s.mark === "Duck";
+    const rows = raw.length, cols = raw[0].length;
+    // build fill matrix
+    const fill = raw.map(r => [...r].map(c => isDuck ? (c!=='.'? c : 0) : (c==='1'?1:0)));
+
+    // outline dilation
+    const outline = s.out!=="None";
+    const outColor = s.out==="Black" ? '#0a0a0b' : '#ffffff';
+    function isFilled(r,c){ return r>=0&&r<rows&&c>=0&&c<cols&&fill[r][c]; }
+    const border = {};
+    if(outline){
+      for(let r=-1;r<=rows;r++)for(let c=-1;c<=cols;c++){
+        if(isFilled(r,c))continue;
+        if(isFilled(r-1,c)||isFilled(r+1,c)||isFilled(r,c-1)||isFilled(r,c+1)||isFilled(r-1,c-1)||isFilled(r-1,c+1)||isFilled(r+1,c-1)||isFilled(r+1,c+1))
+          border[r+'_'+c]=true;
+      }
+    }
+
+    const palArr = PALETTES[s.pal];
+    const minR = outline?-1:0, maxR = outline?rows:rows-1;
+    const minC = outline?-1:0, maxC = outline?cols:cols-1;
+    const W = (maxC-minC+1), H=(maxR-minR+1);
+
+    const grid = document.createElement('div');
+    grid.style.display='grid';
+    grid.style.gridTemplateColumns=`repeat(${W},${px}px)`;
+    grid.style.gridTemplateRows=`repeat(${H},${px}px)`;
+    grid.style.gap = s.dim==="Iso" ? '0px' : '1px';
+
+    let idx=0;
+    for(let r=minR;r<=maxR;r++)for(let c=minC;c<=maxC;c++){
+      const d=document.createElement('div');
+      d.style.width=px+'px';d.style.height=px+'px';
+      const f = isFilled(r,c);
+      let color='transparent';
+      if(f){
+        if(isDuck) color = DUCKMAP[fill[r][c]] || '#ffd23f';
+        else color = palArr[idx++ % palArr.length];
+        d.style.borderRadius = s.dim==="Iso" ? '0' : '2px';
+        if(s.dim==="Bevel"){
+          d.style.boxShadow=`inset ${px*0.18}px ${px*0.18}px 0 rgba(255,255,255,.35), inset -${px*0.18}px -${px*0.18}px 0 rgba(0,0,0,.30)`;
+        }
+        if(s.dim==="Iso"){
+          const dep=Math.round(px*0.32);
+          d.style.boxShadow=`${dep}px ${dep}px 0 rgba(0,0,0,.45)`;
+        }
+      } else if(outline && border[r+'_'+c]){
+        color=outColor;
+        d.style.borderRadius = s.dim==="Iso"?'0':'2px';
+        if(s.dim==="Iso"){const dep=Math.round(px*0.32);d.style.boxShadow=`${dep}px ${dep}px 0 rgba(0,0,0,.35)`;}
+      }
+      d.style.background=color;
+      grid.appendChild(d);
+    }
+    if(s.dim==="Iso"){
+      grid.style.transform='rotateX(52deg) rotateZ(45deg)';
+      grid.style.transformOrigin='center';
+    }
+    return grid;
+  }
+
+  function tileStyle(s){
+    switch(s.tile){
+      case "Dark": return {bg:'#101012', rad:'14px'};
+      case "Rounded": return {bg:'linear-gradient(160deg,#1a1a1e,#0c0c0e)', rad:'22%'};
+      case "Color": return {bg:'#1a1320', rad:'22%'};
+      default: return {bg:'transparent', rad:'0'};
+    }
+  }
+
+  function paintHost(host, s, sizePx){
+    host.innerHTML='';
+    const t=tileStyle(s);
+    host.style.background=t.bg;
+    host.style.borderRadius=t.rad;
+    host.classList.toggle('crt', s.crt==="On");
+    const inner=document.createElement('div');
+    inner.style.transformStyle='preserve-3d';
+    inner.style.display='flex';inner.style.alignItems='center';inner.style.justifyContent='center';
+    inner.appendChild(renderIcon(s, sizePx));
+    if(s.crt==="On"){ host.style.boxShadow='inset 0 0 40px rgba(155,255,106,.04)'; inner.style.filter='drop-shadow(0 0 6px rgba(255,255,255,.25))';}
+    else host.style.boxShadow='none';
+    host.appendChild(inner);
+  }
+
+  // ---------- UI wiring ----------
+  function buildSeg(id, opts, key){
+    const host=document.getElementById(id);host.innerHTML='';
+    opts.forEach(o=>{
+      const b=document.createElement('button');b.textContent=o;
+      b.className=state[key]===o?'on':'';
+      b.onclick=()=>{state[key]=o;rebuild();};
+      host.appendChild(b);
+    });
+  }
+  function buildPalOpts(){
+    const host=document.getElementById('palOpts');host.innerHTML='';
+    Object.entries(PALETTES).forEach(([nm,arr])=>{
+      const el=document.createElement('div');el.className='pal-opt'+(state.pal===nm?' on':'');
+      el.innerHTML=`<div class="sw">${arr.slice(0,8).map(c=>`<i style="background:${c}"></i>`).join('')}</div><div class="nm">${nm}</div>`;
+      el.onclick=()=>{state.pal=nm;rebuild();};
+      host.appendChild(el);
+    });
+  }
+
+  function rebuild(){
+    buildSeg('markSeg',MARKS,'mark');
+    buildSeg('dimSeg',DIMS,'dim');
+    buildSeg('outSeg',OUTS,'out');
+    buildSeg('tileSeg',TILES,'tile');
+    buildSeg('crtSeg',['Off','On'],'crt');
+    buildPalOpts();
+    document.getElementById('chunk').value=state.chunk;
+    document.getElementById('chunkVal').textContent=state.chunk+'px';
+    // main preview
+    paintHost(document.getElementById('host'), state, state.chunk*0.62);
+    // size chips (squint test)
+    const sizes=document.getElementById('sizes');sizes.innerHTML='';
+    [[48,'48'],[28,'28'],[16,'16']].forEach(([s,cap])=>{
+      const chip=document.createElement('div');chip.className='size-chip';
+      const sh=document.createElement('div');sh.className='size-host';sh.style.width=s+'px';sh.style.height=s+'px';
+      const t=tileStyle(state);sh.style.background=t.bg;sh.style.borderRadius=state.tile==="None"?'0':(state.tile==="Dark"?'4px':'22%');
+      sh.appendChild(renderIcon(state, Math.max(2, Math.floor(s/ (BITMAPS[state.mark][0].length+ (state.out!=="None"?2:0)) ))));
+      chip.appendChild(sh);
+      const cp=document.createElement('div');cp.className='cap';cp.textContent=cap+'px';chip.appendChild(cp);
+      sizes.appendChild(chip);
+    });
+    // readout
+    document.getElementById('r-mark').textContent=state.mark;
+    document.getElementById('r-pal').textContent=state.pal;
+    document.getElementById('r-dim').textContent=state.dim;
+    document.getElementById('r-out').textContent=state.out;
+    document.getElementById('r-tile').textContent=state.tile;
+  }
+
+  document.getElementById('chunk').oninput=(e)=>{state.chunk=+e.target.value;rebuild();};
+
+  // ---------- shuffle ----------
+  function rnd(a){return a[Math.floor(Math.random()*a.length)];}
+  function shuffle(){
+    const grid=document.getElementById('varGrid');grid.innerHTML='';
+    for(let i=0;i<12;i++){
+      const v={
+        mark: rnd(MARKS),
+        pal: rnd(Object.keys(PALETTES)),
+        dim: rnd(DIMS),
+        out: rnd(OUTS),
+        tile: rnd(TILES),
+        crt: rnd(['Off','On','Off']),
+        chunk: state.chunk
+      };
+      const cell=document.createElement('div');cell.className='var';
+      const t=tileStyle(v);cell.style.background=t.bg==='transparent'?'#0c0c0e':t.bg;
+      const inner=document.createElement('div');inner.style.transformStyle='preserve-3d';
+      inner.appendChild(renderIcon(v, 9));
+      if(v.crt==="On")inner.style.filter='drop-shadow(0 0 4px rgba(255,255,255,.25))';
+      cell.appendChild(inner);
+      const meta=document.createElement('div');meta.className='meta';
+      meta.textContent=`${v.pal} · ${v.dim} · ${v.out!=="None"?v.out+' edge':'no edge'}`;
+      cell.appendChild(meta);
+      cell.onclick=()=>{Object.assign(state,v);rebuild();window.scrollTo({top:0,behavior:'smooth'});};
+      grid.appendChild(cell);
+    }
+  }
+  document.getElementById('shuffle').onclick=shuffle;
+  document.getElementById('reset').onclick=()=>{state={mark:"Heart",pal:"Arcade 7",dim:"Flat",out:"None",chunk:22,tile:"Rounded",crt:"Off"};rebuild();};
+
+  rebuild();
+  shuffle();
+</script>
+</body>
+</html>
