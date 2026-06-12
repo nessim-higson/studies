@@ -1,0 +1,925 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>ARENA / Composer</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  :root {
+    --bg: #000;
+    --fg: #fff;
+    --muted: #6b6b6b;
+    --line: #1f1f1f;
+    --hi: #fff;
+    --accent: #ff3a1f;
+    --panel: #050505;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body {
+    height: 100%;
+    background: var(--bg);
+    color: var(--fg);
+    font: 12px/1.4 ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    -webkit-font-smoothing: antialiased;
+    overflow: hidden;
+  }
+  main {
+    display: grid;
+    grid-template-columns: 360px 1fr;
+    height: 100vh;
+  }
+  aside {
+    border-right: 1px solid var(--line);
+    overflow-y: auto;
+    padding: 16px 18px;
+    background: var(--panel);
+  }
+  .brand {
+    font: 600 11px/1 ui-monospace, monospace;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    margin-bottom: 4px;
+  }
+  .sub {
+    color: var(--muted);
+    font-size: 10px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    margin-bottom: 22px;
+  }
+  fieldset {
+    border: 0;
+    border-top: 1px solid var(--line);
+    padding: 14px 0 10px;
+    margin: 0;
+  }
+  fieldset:first-of-type { border-top: 0; padding-top: 0; }
+  legend {
+    color: var(--muted);
+    font-size: 10px;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    padding: 0 0 12px;
+    width: 100%;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  legend .actions { display: flex; gap: 4px; }
+  .row {
+    display: grid;
+    grid-template-columns: 1fr 56px;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 8px;
+  }
+  .row label {
+    color: var(--muted);
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+  }
+  .row .val {
+    text-align: right;
+    color: var(--fg);
+    font-variant-numeric: tabular-nums;
+    font-size: 11px;
+  }
+  input[type=range] {
+    grid-column: 1 / -1;
+    width: 100%;
+    appearance: none;
+    background: transparent;
+    height: 14px;
+    margin: 0;
+  }
+  input[type=range]::-webkit-slider-runnable-track { height: 1px; background: var(--line); }
+  input[type=range]::-webkit-slider-thumb {
+    appearance: none;
+    width: 10px; height: 10px;
+    background: var(--fg);
+    border-radius: 0;
+    margin-top: -5px;
+    cursor: ew-resize;
+  }
+  input[type=range]:focus { outline: none; }
+  input[type=range]:focus::-webkit-slider-thumb { background: var(--accent); }
+  button.btn {
+    appearance: none;
+    background: transparent;
+    color: var(--fg);
+    border: 1px solid var(--line);
+    padding: 7px 8px;
+    font: 600 9px/1 ui-monospace, monospace;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: background 80ms, border-color 80ms;
+  }
+  button.btn:hover { border-color: var(--fg); }
+  button.btn.primary { background: var(--fg); color: var(--bg); border-color: var(--fg); }
+  button.btn.primary:hover { background: var(--accent); border-color: var(--accent); color: var(--fg); }
+  button.btn.tiny { padding: 4px 6px; font-size: 8px; }
+  button.btn.danger:hover { border-color: var(--accent); color: var(--accent); }
+  .btnrow { display: grid; grid-template-columns: repeat(2, 1fr); gap: 6px; }
+  .btnrow-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+  .btnrow-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; }
+  .marks-list { display: flex; flex-direction: column; gap: 4px; max-height: 144px; overflow-y: auto; }
+  .mark-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border: 1px solid var(--line);
+    padding: 6px 8px;
+    font-size: 10px;
+    letter-spacing: 0.12em;
+    cursor: pointer;
+    transition: border-color 80ms;
+  }
+  .mark-item:hover { border-color: var(--muted); }
+  .mark-item.selected { border-color: var(--fg); background: rgba(255,255,255,0.04); }
+  .mark-item .swatch {
+    display: inline-block; width: 10px; height: 10px; border: 1px solid var(--line); margin-right: 8px;
+  }
+  .ring-tabs {
+    display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; margin-bottom: 10px;
+  }
+  .ring-tab {
+    appearance: none;
+    background: transparent;
+    color: var(--muted);
+    border: 1px solid var(--line);
+    padding: 5px 0;
+    font: 600 9px/1 ui-monospace, monospace;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    cursor: pointer;
+  }
+  .ring-tab.active { background: var(--fg); color: var(--bg); border-color: var(--fg); }
+  .swatches {
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    gap: 4px;
+  }
+  .swatch-pick {
+    height: 22px;
+    border: 1px solid var(--line);
+    cursor: pointer;
+  }
+  .swatch-pick.active {
+    border-color: var(--fg);
+    box-shadow: inset 0 0 0 2px rgba(0,0,0,0.4);
+  }
+  .lib-list {
+    display: flex; flex-direction: column; gap: 4px;
+    max-height: 200px; overflow-y: auto;
+  }
+  .lib-item {
+    display: flex; align-items: center; justify-content: space-between;
+    border: 1px solid var(--line); padding: 6px 8px;
+    font-size: 10px; letter-spacing: 0.1em;
+  }
+  .lib-item .name { color: var(--fg); cursor: pointer; flex: 1; }
+  .lib-item .name:hover { color: var(--accent); }
+  .lib-item .delete { color: var(--muted); cursor: pointer; padding: 2px 6px; }
+  .lib-item .delete:hover { color: var(--accent); }
+  .empty { color: var(--muted); font-size: 10px; padding: 8px 0; }
+  .toggles { display: flex; gap: 4px; flex-wrap: wrap; }
+  .toggles .btn { flex: 1; min-width: 0; }
+  .toggles .btn.on { background: var(--fg); color: var(--bg); border-color: var(--fg); }
+
+  section#stage {
+    position: relative;
+    display: grid;
+    place-items: center;
+    background: var(--stage-bg, #000);
+    overflow: hidden;
+    transition: background 120ms;
+  }
+  #stage::before {
+    content: "";
+    position: absolute; inset: 0;
+    background-image:
+      linear-gradient(to right, rgba(255,255,255,0.025) 1px, transparent 1px),
+      linear-gradient(to bottom, rgba(255,255,255,0.025) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+    opacity: var(--grid-opacity, 0);
+    transition: opacity 120ms;
+  }
+  svg#canvas {
+    width: min(96vw, calc(100vh * 1.78));
+    height: auto;
+    display: block;
+    z-index: 1;
+  }
+  .mark-grp { cursor: pointer; }
+  .mark-grp.dragging { cursor: grabbing; }
+  .selection-frame {
+    fill: none;
+    stroke: #ff3a1f;
+    stroke-width: 1;
+    stroke-dasharray: 4 4;
+    pointer-events: none;
+  }
+  .stage-meta {
+    position: absolute;
+    top: 18px;
+    right: 22px;
+    color: var(--muted);
+    font-size: 10px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    z-index: 2;
+    text-align: right;
+    line-height: 1.6;
+    pointer-events: none;
+  }
+  .stage-meta b { color: var(--fg); font-weight: 600; }
+  .stage-toolbar {
+    position: absolute;
+    bottom: 18px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    gap: 6px;
+    z-index: 2;
+  }
+  .toast {
+    position: fixed;
+    top: 20px;
+    left: 50%;
+    transform: translate(-50%, -120%);
+    background: var(--fg);
+    color: var(--bg);
+    padding: 8px 16px;
+    font: 600 10px/1 ui-monospace, monospace;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    transition: transform 240ms cubic-bezier(.2,.7,.3,1);
+    z-index: 100;
+    pointer-events: none;
+  }
+  .toast.show { transform: translate(-50%, 0); }
+  .modal-bg {
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,0.7);
+    display: none;
+    align-items: center; justify-content: center;
+    z-index: 200;
+  }
+  .modal-bg.show { display: flex; }
+  .modal {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    padding: 28px;
+    width: 360px;
+  }
+  .modal h2 {
+    font: 600 11px/1 ui-monospace, monospace;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    margin-bottom: 18px;
+  }
+  .modal input[type=text] {
+    width: 100%;
+    background: transparent;
+    border: 1px solid var(--line);
+    color: var(--fg);
+    padding: 10px;
+    font: 12px/1 ui-monospace, monospace;
+    letter-spacing: 0.06em;
+    margin-bottom: 18px;
+  }
+  .modal input[type=text]:focus { outline: none; border-color: var(--fg); }
+</style>
+</head>
+<body>
+<main>
+  <aside>
+    <div class="brand">ARENA</div>
+    <div class="sub">Composer · v0.1</div>
+
+    <!-- COMPOSITION: mark list + add mark -->
+    <fieldset>
+      <legend>Composition
+        <span class="actions">
+          <button class="btn tiny" id="addMark">+ Mark</button>
+          <button class="btn tiny" id="duplicateMark">Dup</button>
+        </span>
+      </legend>
+      <div class="marks-list" id="marksList"></div>
+    </fieldset>
+
+    <!-- MARK: selected mark's transform -->
+    <fieldset>
+      <legend>Selected Mark
+        <span class="actions"><button class="btn tiny danger" id="deleteMark">Del</button></span>
+      </legend>
+      <div class="row"><label>Position X</label><span class="val" id="v-mx">0.50</span><input id="mx" type="range" min="0" max="1" step="0.005" value="0.5"></div>
+      <div class="row"><label>Position Y</label><span class="val" id="v-my">0.50</span><input id="my" type="range" min="0" max="1" step="0.005" value="0.5"></div>
+      <div class="row"><label>Scale</label><span class="val" id="v-mscale">1.00</span><input id="mscale" type="range" min="0.1" max="3" step="0.01" value="1"></div>
+      <div class="row"><label>Rotation</label><span class="val" id="v-mrot">0</span><input id="mrot" type="range" min="-180" max="180" step="1" value="0"></div>
+      <div class="row"><label>Color</label><span class="val">FG</span></div>
+      <div class="swatches" data-target="mcolor">
+        <div class="swatch-pick active" data-c="#fff" style="background:#fff"></div>
+        <div class="swatch-pick" data-c="#000" style="background:#000"></div>
+        <div class="swatch-pick" data-c="#ff3a1f" style="background:#ff3a1f"></div>
+        <div class="swatch-pick" data-c="#ffe600" style="background:#ffe600"></div>
+        <div class="swatch-pick" data-c="#0a3cff" style="background:#0a3cff"></div>
+        <div class="swatch-pick" data-c="#6b6b6b" style="background:#6b6b6b"></div>
+      </div>
+    </fieldset>
+
+    <!-- RINGS: per-ring controls -->
+    <fieldset>
+      <legend>Rings
+        <span class="actions">
+          <button class="btn tiny" id="ringsRecipe">Reset</button>
+          <button class="btn tiny" id="ringAdd">+</button>
+          <button class="btn tiny" id="ringRemove">−</button>
+        </span>
+      </legend>
+      <div class="ring-tabs" id="ringTabs"></div>
+      <div class="row"><label>Width</label><span class="val" id="v-rW">736</span><input id="rW" type="range" min="20" max="1800" step="2" value="736"></div>
+      <div class="row"><label>Height</label><span class="val" id="v-rH">415</span><input id="rH" type="range" min="20" max="900" step="2" value="415"></div>
+      <div class="row"><label>Corner R</label><span class="val" id="v-rR">72</span><input id="rR" type="range" min="0" max="450" step="1" value="72"></div>
+      <div class="row"><label>Band V</label><span class="val" id="v-rBy">24.5</span><input id="rBy" type="range" min="0" max="80" step="0.5" value="24.5"></div>
+      <div class="row"><label>Band H</label><span class="val" id="v-rBx">8.6</span><input id="rBx" type="range" min="0" max="80" step="0.5" value="8.6"></div>
+      <div class="row"><label>Band R Δ</label><span class="val" id="v-rDr">10.7</span><input id="rDr" type="range" min="0" max="50" step="0.1" value="10.7"></div>
+    </fieldset>
+
+    <!-- COLOR + VIEW -->
+    <fieldset>
+      <legend>Stage</legend>
+      <div class="swatches" data-target="bg">
+        <div class="swatch-pick active" data-c="#000" style="background:#000"></div>
+        <div class="swatch-pick" data-c="#fff" style="background:#fff"></div>
+        <div class="swatch-pick" data-c="#ff3a1f" style="background:#ff3a1f"></div>
+        <div class="swatch-pick" data-c="#ffe600" style="background:#ffe600"></div>
+        <div class="swatch-pick" data-c="#0a3cff" style="background:#0a3cff"></div>
+        <div class="swatch-pick" data-c="#1a1a1a" style="background:#1a1a1a"></div>
+      </div>
+      <div class="toggles" style="margin-top:10px">
+        <button class="btn" id="t-grid">Grid</button>
+        <button class="btn" id="t-axis">Axis</button>
+      </div>
+    </fieldset>
+
+    <!-- LIBRARY -->
+    <fieldset>
+      <legend>Library
+        <span class="actions"><button class="btn tiny" id="saveBtn">Save</button></span>
+      </legend>
+      <div class="lib-list" id="libList"></div>
+    </fieldset>
+
+    <!-- EXPORT + SHARE -->
+    <fieldset>
+      <legend>Export & Share</legend>
+      <div class="btnrow">
+        <button class="btn" id="copyURL">Copy URL</button>
+        <button class="btn" id="copySVG">Copy SVG</button>
+      </div>
+      <div class="btnrow" style="margin-top:6px">
+        <button class="btn primary" id="downloadSVG">Download SVG</button>
+        <button class="btn" id="reset">Reset</button>
+      </div>
+    </fieldset>
+  </aside>
+
+  <section id="stage">
+    <svg id="canvas" viewBox="0 0 1920 1080" preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg">
+      <rect id="bg" width="1920" height="1080" fill="#000"/>
+      <g id="axis" style="display:none">
+        <line x1="0" y1="540" x2="1920" y2="540" stroke="#ff3a1f" stroke-width="0.5" opacity="0.4"/>
+        <line x1="960" y1="0" x2="960" y2="1080" stroke="#ff3a1f" stroke-width="0.5" opacity="0.4"/>
+      </g>
+      <g id="marksG"></g>
+      <g id="selectionG"></g>
+    </svg>
+    <div class="stage-meta">
+      MARKS <b id="meta-marks">1</b><br>
+      SELECTED <b id="meta-selected">M1</b>
+    </div>
+  </section>
+</main>
+
+<div class="toast" id="toast">READY</div>
+<div class="modal-bg" id="saveModal">
+  <div class="modal">
+    <h2>Save composition</h2>
+    <input type="text" id="saveName" placeholder="Composition name" maxlength="40">
+    <div class="btnrow">
+      <button class="btn" id="saveCancel">Cancel</button>
+      <button class="btn primary" id="saveConfirm">Save</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(() => {
+  // ─── canonical recipe (the brand baseline)
+  const RECIPE = { W: 736.17, H: 415.03, R: 72.10, bandX: 8.6, bandY: 24.53, gapX: 77.72, gapY: 22.28, dRb: 10.69, dRg: 3.78 };
+
+  function computeRingsFromRecipe(n = 4) {
+    const out = [];
+    let w = RECIPE.W, h = RECIPE.H, r = RECIPE.R;
+    for (let i = 0; i < n; i++) {
+      out.push({ W: w, H: h, R: r, bandX: RECIPE.bandX, bandY: RECIPE.bandY, dRb: RECIPE.dRb });
+      const iw = w - 2 * RECIPE.bandX;
+      const ih = h - 2 * RECIPE.bandY;
+      const ir = Math.max(0, r - RECIPE.dRb);
+      w = iw - 2 * RECIPE.gapX;
+      h = ih - 2 * RECIPE.gapY;
+      r = Math.max(0, ir - RECIPE.dRg);
+    }
+    return out;
+  }
+
+  // ─── default state
+  function defaultMark(idx, presetPos = null) {
+    return {
+      id: "m" + idx,
+      x: presetPos?.x ?? 0.5,
+      y: presetPos?.y ?? 0.5,
+      scale: 1,
+      rot: 0,
+      color: "#fff",
+      rings: computeRingsFromRecipe(4)
+    };
+  }
+
+  const state = {
+    nextId: 2,
+    marks: [defaultMark(1)],
+    selected: "m1",
+    selectedRingIdx: 0,
+    bg: "#000",
+    grid: false,
+    axis: false
+  };
+
+  // ─── helpers
+  const $ = id => document.getElementById(id);
+  const VW = 1920, VH = 1080;
+
+  function roundedRect(cx, cy, w, h, r) {
+    if (w <= 0 || h <= 0) return "";
+    r = Math.max(0, Math.min(r, w/2, h/2));
+    const x = cx - w/2, y = cy - h/2;
+    if (r < 0.5) return `M${x},${y}H${x+w}V${y+h}H${x}Z`;
+    return `M${x+r},${y}H${x+w-r}A${r},${r} 0 0 1 ${x+w},${y+r}V${y+h-r}A${r},${r} 0 0 1 ${x+w-r},${y+h}H${x+r}A${r},${r} 0 0 1 ${x},${y+h-r}V${y+r}A${r},${r} 0 0 1 ${x+r},${y}Z`;
+  }
+
+  function markPath(mark) {
+    const sub = [];
+    for (const ring of mark.rings) {
+      if (ring.W <= 0 || ring.H <= 0) continue;
+      sub.push(roundedRect(0, 0, ring.W, ring.H, ring.R));
+      const iw = ring.W - 2 * ring.bandX;
+      const ih = ring.H - 2 * ring.bandY;
+      const ir = Math.max(0, ring.R - ring.dRb);
+      if (iw > 0 && ih > 0) sub.push(roundedRect(0, 0, iw, ih, ir));
+    }
+    return sub.join(" ");
+  }
+
+  function findMark(id) { return state.marks.find(m => m.id === id); }
+  function selectedMark() { return findMark(state.selected); }
+
+  // ─── render
+  const marksG = $("marksG");
+  const selectionG = $("selectionG");
+
+  function render() {
+    // bg
+    $("bg").setAttribute("fill", state.bg);
+    document.documentElement.style.setProperty("--stage-bg", state.bg);
+    document.documentElement.style.setProperty("--grid-opacity", state.grid ? "1" : "0");
+    $("axis").style.display = state.axis ? "block" : "none";
+
+    // marks
+    let html = "";
+    for (const m of state.marks) {
+      const cx = m.x * VW;
+      const cy = m.y * VH;
+      const transform = `translate(${cx} ${cy}) rotate(${m.rot}) scale(${m.scale})`;
+      html += `<g class="mark-grp" data-mark-id="${m.id}" transform="${transform}"><path d="${markPath(m)}" fill="${m.color}" fill-rule="evenodd"/></g>`;
+    }
+    marksG.innerHTML = html;
+
+    // selection frame around selected mark
+    const sel = selectedMark();
+    if (sel) {
+      const outer = sel.rings[0];
+      const cx = sel.x * VW;
+      const cy = sel.y * VH;
+      const w = outer.W * sel.scale;
+      const h = outer.H * sel.scale;
+      // padded outline
+      const pad = 12;
+      selectionG.innerHTML = `<g transform="translate(${cx} ${cy}) rotate(${sel.rot})">
+        <rect class="selection-frame" x="${-w/2 - pad}" y="${-h/2 - pad}" width="${w + pad*2}" height="${h + pad*2}"/>
+      </g>`;
+    } else {
+      selectionG.innerHTML = "";
+    }
+
+    // attach click handlers
+    marksG.querySelectorAll(".mark-grp").forEach(g => {
+      g.addEventListener("mousedown", onMarkMouseDown);
+    });
+
+    syncPanel();
+    syncURL();
+    $("meta-marks").textContent = state.marks.length;
+    $("meta-selected").textContent = state.selected?.toUpperCase() ?? "—";
+  }
+
+  // ─── drag
+  let drag = null;
+  function clientToCanvasPt(e) {
+    const rect = $("canvas").getBoundingClientRect();
+    return {
+      x: ((e.clientX - rect.left) / rect.width) * VW,
+      y: ((e.clientY - rect.top) / rect.height) * VH
+    };
+  }
+  function onMarkMouseDown(e) {
+    const id = e.currentTarget.dataset.markId;
+    const m = findMark(id);
+    if (!m) return;
+    state.selected = id;
+    const pt = clientToCanvasPt(e);
+    drag = { id, startX: pt.x, startY: pt.y, startMx: m.x, startMy: m.y };
+    e.currentTarget.classList.add("dragging");
+    render();
+    e.preventDefault();
+  }
+  window.addEventListener("mousemove", e => {
+    if (!drag) return;
+    const pt = clientToCanvasPt(e);
+    const m = findMark(drag.id);
+    if (!m) return;
+    m.x = Math.max(0, Math.min(1, drag.startMx + (pt.x - drag.startX) / VW));
+    m.y = Math.max(0, Math.min(1, drag.startMy + (pt.y - drag.startY) / VH));
+    render();
+  });
+  window.addEventListener("mouseup", () => {
+    if (drag) {
+      drag = null;
+      marksG.querySelectorAll(".dragging").forEach(g => g.classList.remove("dragging"));
+    }
+  });
+
+  // ─── panel sync
+  function syncPanel() {
+    // marks list
+    const list = $("marksList");
+    list.innerHTML = "";
+    state.marks.forEach((m, i) => {
+      const item = document.createElement("div");
+      item.className = "mark-item" + (m.id === state.selected ? " selected" : "");
+      item.innerHTML = `<span><span class="swatch" style="background:${m.color}"></span>MARK ${m.id.slice(1).padStart(2, "0")}</span><span style="color:var(--muted); font-size:9px">${m.rings.length}R</span>`;
+      item.addEventListener("click", () => { state.selected = m.id; render(); });
+      list.appendChild(item);
+    });
+
+    const sel = selectedMark();
+    if (!sel) return;
+
+    // mark transform sliders
+    $("mx").value = sel.x; $("v-mx").textContent = sel.x.toFixed(2);
+    $("my").value = sel.y; $("v-my").textContent = sel.y.toFixed(2);
+    $("mscale").value = sel.scale; $("v-mscale").textContent = sel.scale.toFixed(2);
+    $("mrot").value = sel.rot; $("v-mrot").textContent = sel.rot.toFixed(0);
+    document.querySelectorAll(".swatches[data-target='mcolor'] .swatch-pick").forEach(s =>
+      s.classList.toggle("active", s.dataset.c === sel.color)
+    );
+
+    // ring tabs
+    const tabs = $("ringTabs");
+    tabs.innerHTML = "";
+    sel.rings.forEach((r, i) => {
+      const tab = document.createElement("button");
+      tab.className = "ring-tab" + (i === state.selectedRingIdx ? " active" : "");
+      tab.textContent = "R" + (i + 1);
+      tab.addEventListener("click", () => { state.selectedRingIdx = i; syncPanel(); });
+      tabs.appendChild(tab);
+    });
+
+    // ring sliders
+    const ring = sel.rings[Math.min(state.selectedRingIdx, sel.rings.length - 1)];
+    if (ring) {
+      $("rW").value = ring.W; $("v-rW").textContent = ring.W.toFixed(0);
+      $("rH").value = ring.H; $("v-rH").textContent = ring.H.toFixed(0);
+      $("rR").value = ring.R; $("v-rR").textContent = ring.R.toFixed(0);
+      $("rBx").value = ring.bandX; $("v-rBx").textContent = ring.bandX.toFixed(1);
+      $("rBy").value = ring.bandY; $("v-rBy").textContent = ring.bandY.toFixed(1);
+      $("rDr").value = ring.dRb; $("v-rDr").textContent = ring.dRb.toFixed(1);
+    }
+
+    // bg swatches
+    document.querySelectorAll(".swatches[data-target='bg'] .swatch-pick").forEach(s =>
+      s.classList.toggle("active", s.dataset.c === state.bg)
+    );
+
+    // toggles
+    $("t-grid").classList.toggle("on", state.grid);
+    $("t-axis").classList.toggle("on", state.axis);
+  }
+
+  // ─── input bindings
+  const MARK_KEYS = { mx: "x", my: "y", mscale: "scale", mrot: "rot" };
+  Object.entries(MARK_KEYS).forEach(([id, key]) => {
+    $(id).addEventListener("input", () => {
+      const sel = selectedMark();
+      if (!sel) return;
+      sel[key] = parseFloat($(id).value);
+      render();
+    });
+  });
+  const RING_KEYS = { rW: "W", rH: "H", rR: "R", rBx: "bandX", rBy: "bandY", rDr: "dRb" };
+  Object.entries(RING_KEYS).forEach(([id, key]) => {
+    $(id).addEventListener("input", () => {
+      const sel = selectedMark();
+      if (!sel) return;
+      const ring = sel.rings[Math.min(state.selectedRingIdx, sel.rings.length - 1)];
+      if (!ring) return;
+      ring[key] = parseFloat($(id).value);
+      render();
+    });
+  });
+
+  // mark color swatches
+  document.querySelectorAll(".swatches[data-target='mcolor']").forEach(g => {
+    g.addEventListener("click", e => {
+      const s = e.target.closest(".swatch-pick");
+      if (!s) return;
+      const sel = selectedMark();
+      if (!sel) return;
+      sel.color = s.dataset.c;
+      render();
+    });
+  });
+  // bg swatches
+  document.querySelectorAll(".swatches[data-target='bg']").forEach(g => {
+    g.addEventListener("click", e => {
+      const s = e.target.closest(".swatch-pick");
+      if (!s) return;
+      state.bg = s.dataset.c;
+      render();
+    });
+  });
+  // toggles
+  $("t-grid").addEventListener("click", () => { state.grid = !state.grid; render(); });
+  $("t-axis").addEventListener("click", () => { state.axis = !state.axis; render(); });
+
+  // composition controls
+  $("addMark").addEventListener("click", () => {
+    const id = "m" + state.nextId++;
+    const offset = (state.marks.length % 6) * 0.05;
+    const m = defaultMark(state.nextId - 1, { x: 0.5 + offset, y: 0.5 + offset });
+    m.id = id;
+    state.marks.push(m);
+    state.selected = id;
+    render();
+    toast("MARK ADDED");
+  });
+  $("duplicateMark").addEventListener("click", () => {
+    const sel = selectedMark();
+    if (!sel) return;
+    const id = "m" + state.nextId++;
+    const copy = JSON.parse(JSON.stringify(sel));
+    copy.id = id;
+    copy.x = Math.min(0.95, copy.x + 0.05);
+    copy.y = Math.min(0.95, copy.y + 0.05);
+    state.marks.push(copy);
+    state.selected = id;
+    render();
+    toast("DUPLICATED");
+  });
+  $("deleteMark").addEventListener("click", () => {
+    if (state.marks.length <= 1) { toast("CAN'T DELETE LAST"); return; }
+    state.marks = state.marks.filter(m => m.id !== state.selected);
+    state.selected = state.marks[0]?.id ?? null;
+    render();
+    toast("DELETED");
+  });
+  $("ringsRecipe").addEventListener("click", () => {
+    const sel = selectedMark();
+    if (!sel) return;
+    sel.rings = computeRingsFromRecipe(sel.rings.length);
+    state.selectedRingIdx = 0;
+    render();
+    toast("RINGS RESET");
+  });
+  $("ringAdd").addEventListener("click", () => {
+    const sel = selectedMark();
+    if (!sel || sel.rings.length >= 14) return;
+    // derive next ring from the innermost existing
+    const last = sel.rings[sel.rings.length - 1];
+    const next = {
+      W: Math.max(20, last.W - 2 * last.bandX - 2 * RECIPE.gapX),
+      H: Math.max(20, last.H - 2 * last.bandY - 2 * RECIPE.gapY),
+      R: Math.max(0, last.R - last.dRb - RECIPE.dRg),
+      bandX: last.bandX, bandY: last.bandY, dRb: last.dRb
+    };
+    sel.rings.push(next);
+    state.selectedRingIdx = sel.rings.length - 1;
+    render();
+  });
+  $("ringRemove").addEventListener("click", () => {
+    const sel = selectedMark();
+    if (!sel || sel.rings.length <= 1) return;
+    sel.rings.pop();
+    state.selectedRingIdx = Math.min(state.selectedRingIdx, sel.rings.length - 1);
+    render();
+  });
+
+  // ─── URL state
+  function encodeState() {
+    const compact = {
+      m: state.marks.map(m => ({
+        x: +m.x.toFixed(3), y: +m.y.toFixed(3),
+        s: +m.scale.toFixed(3), r: +m.rot.toFixed(1),
+        c: m.color,
+        g: m.rings.map(r => [
+          +r.W.toFixed(1), +r.H.toFixed(1), +r.R.toFixed(1),
+          +r.bandX.toFixed(1), +r.bandY.toFixed(1), +r.dRb.toFixed(1)
+        ])
+      })),
+      b: state.bg
+    };
+    return btoa(unescape(encodeURIComponent(JSON.stringify(compact))));
+  }
+  function decodeState(hash) {
+    try {
+      const obj = JSON.parse(decodeURIComponent(escape(atob(hash))));
+      state.marks = obj.m.map((m, i) => ({
+        id: "m" + (i + 1),
+        x: +m.x, y: +m.y, scale: +m.s, rot: +m.r, color: m.c,
+        rings: m.g.map(g => ({ W: +g[0], H: +g[1], R: +g[2], bandX: +g[3], bandY: +g[4], dRb: +g[5] }))
+      }));
+      state.nextId = state.marks.length + 1;
+      state.selected = state.marks[0]?.id ?? null;
+      state.bg = obj.b;
+      return true;
+    } catch (e) { return false; }
+  }
+  let urlTimer;
+  function syncURL() {
+    clearTimeout(urlTimer);
+    urlTimer = setTimeout(() => {
+      const hash = encodeState();
+      history.replaceState(null, "", "#c=" + hash);
+    }, 200);
+  }
+  // load from URL on init
+  function loadFromHash() {
+    const m = location.hash.match(/c=([A-Za-z0-9+/=_-]+)/);
+    if (m && decodeState(m[1])) return true;
+    return false;
+  }
+
+  // ─── export
+  function serializeSVG() {
+    let inner = "";
+    for (const m of state.marks) {
+      const cx = m.x * VW, cy = m.y * VH;
+      inner += `<g transform="translate(${cx} ${cy}) rotate(${m.rot}) scale(${m.scale})"><path d="${markPath(m)}" fill="${m.color}" fill-rule="evenodd"/></g>`;
+    }
+    return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1920 1080"><rect width="1920" height="1080" fill="${state.bg}"/>${inner}</svg>`;
+  }
+  $("copySVG").addEventListener("click", async () => {
+    try { await navigator.clipboard.writeText(serializeSVG()); toast("SVG COPIED"); }
+    catch (e) { toast("COPY FAILED"); }
+  });
+  $("downloadSVG").addEventListener("click", () => {
+    const blob = new Blob([serializeSVG()], { type: "image/svg+xml" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `arena-composition-${state.marks.length}m.svg`;
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(url), 500);
+    toast("DOWNLOADED");
+  });
+  $("copyURL").addEventListener("click", async () => {
+    syncURL();
+    setTimeout(async () => {
+      try { await navigator.clipboard.writeText(location.href); toast("URL COPIED"); }
+      catch (e) { toast("COPY FAILED"); }
+    }, 220);
+  });
+  $("reset").addEventListener("click", () => {
+    if (!confirm("Reset everything to a single canonical mark?")) return;
+    state.marks = [defaultMark(1)];
+    state.nextId = 2;
+    state.selected = "m1";
+    state.selectedRingIdx = 0;
+    state.bg = "#000";
+    render();
+    toast("RESET");
+  });
+
+  // ─── library (localStorage)
+  const LIB_KEY = "arenaCompositionsV1";
+  function getLib() { try { return JSON.parse(localStorage.getItem(LIB_KEY) || "[]"); } catch (e) { return []; } }
+  function saveLib(items) { localStorage.setItem(LIB_KEY, JSON.stringify(items)); }
+  function renderLibList() {
+    const list = $("libList");
+    const items = getLib();
+    if (items.length === 0) { list.innerHTML = '<div class="empty">No saved compositions yet</div>'; return; }
+    list.innerHTML = "";
+    items.forEach(item => {
+      const row = document.createElement("div");
+      row.className = "lib-item";
+      const name = document.createElement("span");
+      name.className = "name";
+      name.textContent = item.name;
+      name.addEventListener("click", () => loadFromLib(item.name));
+      const del = document.createElement("span");
+      del.className = "delete";
+      del.textContent = "×";
+      del.addEventListener("click", e => {
+        e.stopPropagation();
+        if (!confirm(`Delete "${item.name}"?`)) return;
+        saveLib(getLib().filter(x => x.name !== item.name));
+        renderLibList();
+      });
+      row.appendChild(name);
+      row.appendChild(del);
+      list.appendChild(row);
+    });
+  }
+  function loadFromLib(name) {
+    const item = getLib().find(x => x.name === name);
+    if (!item) return;
+    if (decodeState(item.hash)) { render(); renderLibList(); toast("LOADED " + name.toUpperCase()); }
+  }
+
+  // save modal
+  $("saveBtn").addEventListener("click", () => {
+    $("saveModal").classList.add("show");
+    $("saveName").value = "";
+    setTimeout(() => $("saveName").focus(), 80);
+  });
+  $("saveCancel").addEventListener("click", () => $("saveModal").classList.remove("show"));
+  $("saveConfirm").addEventListener("click", () => {
+    const name = $("saveName").value.trim();
+    if (!name) return;
+    const items = getLib().filter(x => x.name !== name);
+    items.unshift({ name, hash: encodeState(), savedAt: new Date().toISOString() });
+    saveLib(items);
+    renderLibList();
+    $("saveModal").classList.remove("show");
+    toast("SAVED " + name.toUpperCase());
+  });
+  $("saveName").addEventListener("keydown", e => {
+    if (e.key === "Enter") $("saveConfirm").click();
+    if (e.key === "Escape") $("saveCancel").click();
+  });
+
+  // ─── toast
+  let toastTimer;
+  function toast(msg) {
+    const t = $("toast");
+    t.textContent = msg;
+    t.classList.add("show");
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => t.classList.remove("show"), 1500);
+  }
+
+  // ─── keyboard
+  window.addEventListener("keydown", e => {
+    if (e.target.tagName === "INPUT") return;
+    const sel = selectedMark();
+    if (e.key === "Delete" || e.key === "Backspace") { $("deleteMark").click(); }
+    else if (e.key === "d" || e.key === "D") { $("duplicateMark").click(); }
+    else if (e.key === "n" || e.key === "N") { $("addMark").click(); }
+    else if (e.key === "Escape") { state.selected = null; render(); }
+    else if (e.key === "ArrowLeft" && sel)  { sel.x = Math.max(0, sel.x - 0.01); render(); }
+    else if (e.key === "ArrowRight" && sel) { sel.x = Math.min(1, sel.x + 0.01); render(); }
+    else if (e.key === "ArrowUp" && sel)    { sel.y = Math.max(0, sel.y - 0.01); render(); }
+    else if (e.key === "ArrowDown" && sel)  { sel.y = Math.min(1, sel.y + 0.01); render(); }
+  });
+
+  // click outside mark to deselect (stage background)
+  $("stage").addEventListener("mousedown", e => {
+    if (e.target.closest(".mark-grp")) return;
+    if (e.target === $("canvas") || e.target === $("bg")) {
+      // don't deselect — keep selection for ring editing
+    }
+  });
+
+  // ─── init
+  loadFromHash();
+  renderLibList();
+  render();
+  toast("READY");
+})();
+</script>
+</body>
+</html>

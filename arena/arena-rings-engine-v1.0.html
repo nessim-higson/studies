@@ -1,0 +1,1318 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>ARENA / Ring Engine</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
+<meta name="build-version" content="v1.0"><!-- band profile drives band+gap+radius; pure-motion presets; accRot decays -->
+<meta name="build-date" content="2026-05-15">
+<style>
+  :root {
+    --bg: #000;
+    --fg: #fff;
+    --muted: #6b6b6b;
+    --line: #1f1f1f;
+    --accent: #ff3a1f;
+    --panel: #050505;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body {
+    height: 100%;
+    background: var(--bg);
+    color: var(--fg);
+    font: 12px/1.4 ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    -webkit-font-smoothing: antialiased;
+    overflow: hidden;
+  }
+  main {
+    display: grid;
+    grid-template-columns: 340px 1fr;
+    height: 100vh;
+  }
+  aside {
+    border-right: 1px solid var(--line);
+    overflow-y: auto;
+    padding: 16px 18px;
+    background: var(--panel);
+  }
+  .brand {
+    font: 600 11px/1 ui-monospace, monospace;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    margin-bottom: 4px;
+  }
+  .sub {
+    color: var(--muted);
+    font-size: 10px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    margin-bottom: 22px;
+  }
+  fieldset {
+    border: 0;
+    border-top: 1px solid var(--line);
+    padding: 14px 0 10px;
+    margin: 0;
+  }
+  fieldset:first-of-type { border-top: 0; padding-top: 0; }
+  legend {
+    color: var(--muted);
+    font-size: 10px;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    padding: 0 0 12px;
+    width: 100%;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  legend .actions { display: flex; gap: 4px; }
+  .row {
+    display: grid;
+    grid-template-columns: 1fr 56px;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 8px;
+  }
+  .row label {
+    color: var(--muted);
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+  }
+  .row .val {
+    text-align: right;
+    color: var(--fg);
+    font-variant-numeric: tabular-nums;
+    font-size: 11px;
+  }
+  input[type=range] {
+    grid-column: 1 / -1;
+    width: 100%;
+    appearance: none;
+    background: transparent;
+    height: 14px;
+    margin: 0;
+  }
+  input[type=range]::-webkit-slider-runnable-track { height: 1px; background: var(--line); }
+  input[type=range]::-webkit-slider-thumb {
+    appearance: none;
+    width: 10px; height: 10px;
+    background: var(--fg);
+    border-radius: 0;
+    margin-top: -5px;
+    cursor: ew-resize;
+  }
+  input[type=range]:focus { outline: none; }
+  input[type=range]:focus::-webkit-slider-thumb { background: var(--accent); }
+  button.btn {
+    appearance: none;
+    background: transparent;
+    color: var(--fg);
+    border: 1px solid var(--line);
+    padding: 7px 6px;
+    font: 600 10px/1 ui-monospace, monospace;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: background 80ms, color 80ms, border-color 80ms;
+  }
+  button.btn:hover { border-color: var(--fg); }
+  button.btn.primary { background: var(--fg); color: var(--bg); border-color: var(--fg); }
+  button.btn.primary:hover { background: var(--accent); border-color: var(--accent); color: var(--fg); }
+  button.btn.tiny { padding: 4px 6px; font-size: 8px; }
+  button.btn.on { background: var(--fg); color: var(--bg); border-color: var(--fg); }
+  .btnrow { display: grid; grid-template-columns: repeat(2, 1fr); gap: 6px; }
+  .btnrow-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+  .swatches { display: grid; grid-template-columns: repeat(6, 1fr); gap: 4px; }
+  .swatch-pick {
+    height: 22px;
+    border: 1px solid var(--line);
+    cursor: pointer;
+  }
+  .swatch-pick.active {
+    border-color: var(--fg);
+    box-shadow: inset 0 0 0 2px rgba(0,0,0,0.4);
+  }
+  /* motion row: toggle button + speed slider + optional 2nd param */
+  .motion-row {
+    display: grid;
+    grid-template-columns: 76px 1fr 1fr;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 6px;
+  }
+  .motion-row .toggle {
+    padding: 6px 0;
+    font-size: 9px;
+    letter-spacing: 0.16em;
+  }
+  .motion-row .mslider {
+    appearance: none; background: transparent; height: 14px; margin: 0;
+  }
+  .motion-row .mslider::-webkit-slider-runnable-track { height: 1px; background: var(--line); }
+  .motion-row .mslider::-webkit-slider-thumb {
+    appearance: none; width: 8px; height: 8px; background: var(--muted); margin-top: -4px; cursor: ew-resize;
+  }
+  .motion-row.on .mslider::-webkit-slider-thumb { background: var(--fg); }
+  .preset-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 6px; }
+
+  section#stage {
+    position: relative;
+    display: grid;
+    place-items: center;
+    background: #181818;
+    overflow: hidden;
+    padding: 24px;
+  }
+  /* subtle frame around the canvas so the format is unmistakable on any bg */
+  svg#canvas {
+    box-shadow: 0 0 0 1px rgba(255,255,255,0.05);
+  }
+  /* collapsible fieldsets */
+  fieldset.collapsible > *:not(legend) {
+    transition: opacity 120ms;
+  }
+  fieldset.collapsible.collapsed > *:not(legend) {
+    display: none;
+  }
+  fieldset.collapsible > legend {
+    cursor: pointer;
+    user-select: none;
+  }
+  fieldset.collapsible > legend::before {
+    content: "▾";
+    display: inline-block;
+    width: 12px;
+    margin-right: 4px;
+    opacity: 0.6;
+    font-size: 9px;
+    text-align: center;
+  }
+  fieldset.collapsible.collapsed > legend::before {
+    content: "▸";
+  }
+  fieldset.collapsible > legend:hover { color: var(--fg); }
+  #stage::before {
+    content: "";
+    position: absolute; inset: 0;
+    background-image:
+      linear-gradient(to right, rgba(255,255,255,0.025) 1px, transparent 1px),
+      linear-gradient(to bottom, rgba(255,255,255,0.025) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+    opacity: var(--grid-opacity, 0);
+    transition: opacity 120ms;
+  }
+  svg#canvas {
+    display: block;
+    z-index: 1;
+    /* width / height set explicitly by fitCanvas() in JS so the canvas always
+       grows to fill the available stage area regardless of chosen format */
+  }
+  .format-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 6px;
+    margin-bottom: 8px;
+  }
+  .format-btn {
+    appearance: none;
+    background: transparent;
+    color: var(--muted);
+    border: 1px solid var(--line);
+    padding: 8px 0;
+    font: 600 9px/1 ui-monospace, monospace;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: border-color 80ms, background 80ms, color 80ms;
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    align-items: center;
+  }
+  .format-btn .sub {
+    color: var(--muted);
+    font-size: 8px;
+    letter-spacing: 0.16em;
+    font-weight: 400;
+  }
+  .format-btn:hover { border-color: var(--muted); color: var(--fg); }
+  .format-btn.active { background: var(--fg); color: var(--bg); border-color: var(--fg); }
+  .format-btn.active .sub { color: var(--bg); opacity: 0.7; }
+  /* mini ring-stack preview shown inside Band Profile buttons */
+  .prof-icon {
+    width: 88%;
+    height: 48px;
+    display: block;
+    margin: 2px auto 6px;
+    color: var(--fg);
+  }
+  .format-btn.active .prof-icon { color: var(--bg); }
+  .prof-icon path { fill: currentColor; }
+  .stage-meta {
+    position: absolute;
+    top: 18px;
+    right: 22px;
+    color: var(--muted);
+    font-size: 10px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    z-index: 2;
+    text-align: right;
+    line-height: 1.6;
+    pointer-events: none;
+  }
+  .stage-meta b { color: var(--fg); font-weight: 600; }
+  .stage-controls {
+    position: absolute;
+    bottom: 18px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    gap: 6px;
+    z-index: 2;
+    background: rgba(0,0,0,0.5);
+    border: 1px solid var(--line);
+    padding: 6px;
+  }
+  .stage-controls .btn { padding: 6px 10px; font-size: 9px; }
+  .toast {
+    position: fixed;
+    top: 20px;
+    left: 50%;
+    transform: translate(-50%, -120%);
+    background: var(--fg);
+    color: var(--bg);
+    padding: 8px 16px;
+    font: 600 10px/1 ui-monospace, monospace;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    transition: transform 240ms cubic-bezier(.2,.7,.3,1);
+    z-index: 100;
+    pointer-events: none;
+  }
+  .toast.show { transform: translate(-50%, 0); }
+  .screensaver-banner {
+    position: absolute;
+    top: 18px;
+    left: 22px;
+    color: var(--accent);
+    font: 600 10px/1.4 ui-monospace, monospace;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    z-index: 2;
+    pointer-events: none;
+    display: none;
+  }
+  .screensaver-banner.on { display: block; }
+</style>
+</head>
+<body>
+<main>
+  <aside>
+    <div class="brand">ARENA</div>
+    <div class="sub">Ring Engine · <span id="buildVersion">v1.0</span> · <span id="buildDate">15 MAY 2026</span></div>
+
+    <fieldset>
+      <legend>Format</legend>
+      <div class="format-grid" id="formatGrid">
+        <button class="format-btn active" data-width="1920" data-height="1080">16:9<span class="sub">1920×1080</span></button>
+        <button class="format-btn" data-width="1440" data-height="1440">1:1<span class="sub">1440²</span></button>
+        <button class="format-btn" data-width="1080" data-height="1920">9:16<span class="sub">1080×1920</span></button>
+        <button class="format-btn" data-width="3000" data-height="2000">3:2<span class="sub">3000×2000</span></button>
+        <button class="format-btn" data-width="2000" data-height="3000">2:3<span class="sub">2000×3000</span></button>
+        <button class="format-btn" data-width="2480" data-height="3508">A4<span class="sub">PRINT</span></button>
+      </div>
+      <div class="row"><label>Custom W</label><span class="val" id="v-fW">1920</span><input id="fW" type="range" min="540" max="6000" step="20" value="1920"></div>
+      <div class="row"><label>Custom H</label><span class="val" id="v-fH">1080</span><input id="fH" type="range" min="540" max="6000" step="20" value="1080"></div>
+    </fieldset>
+
+    <fieldset class="collapsible">
+      <legend>Stack
+        <span class="actions">
+          <button class="btn tiny" id="remixStack">Remix</button>
+          <button class="btn tiny" id="reseed">Reset</button>
+        </span>
+      </legend>
+      <div class="row"><label>Ring Count</label><span class="val" id="v-N">22</span><input id="N" type="range" min="1" max="60" step="1" value="22"></div>
+      <div class="row"><label>Position X</label><span class="val" id="v-px">0.50</span><input id="px" type="range" min="-0.5" max="1.5" step="0.005" value="0.5"></div>
+      <div class="row"><label>Position Y</label><span class="val" id="v-py">0.50</span><input id="py" type="range" min="-0.5" max="1.5" step="0.005" value="0.5"></div>
+      <div class="row"><label>Rotation</label><span class="val" id="v-rot">0</span><input id="rot" type="range" min="-180" max="180" step="1" value="0"></div>
+      <div class="row"><label>Scale</label><span class="val" id="v-scale">1.00</span><input id="scale" type="range" min="0.1" max="4" step="0.01" value="1"></div>
+      <div class="row"><label>Spacing Curve</label><span class="val" id="v-curve">1.00</span><input id="curve" type="range" min="0.6" max="1.6" step="0.01" value="1.00"></div>
+    </fieldset>
+
+    <fieldset class="collapsible">
+      <legend>Anchor Ring
+        <span class="actions"><button class="btn tiny" id="remixAnchor">Remix</button></span>
+      </legend>
+      <div class="row"><label>Width</label><span class="val" id="v-bW">160</span><input id="bW" type="range" min="20" max="800" step="2" value="160"></div>
+      <div class="row"><label>Height</label><span class="val" id="v-bH">90</span><input id="bH" type="range" min="20" max="500" step="2" value="90"></div>
+      <div class="row"><label>Corner R</label><span class="val" id="v-bR">18</span><input id="bR" type="range" min="0" max="240" step="1" value="18"></div>
+      <div class="row"><label>Band V</label><span class="val" id="v-by">14</span><input id="by" type="range" min="1" max="60" step="0.5" value="14"></div>
+      <div class="row"><label>Band H</label><span class="val" id="v-bx">5</span><input id="bx" type="range" min="1" max="60" step="0.5" value="5"></div>
+      <div class="row"><label>Gap V</label><span class="val" id="v-gy">14</span><input id="gy" type="range" min="0" max="80" step="0.5" value="14"></div>
+      <div class="row"><label>Gap H</label><span class="val" id="v-gx">28</span><input id="gx" type="range" min="0" max="160" step="0.5" value="28"></div>
+    </fieldset>
+
+    <fieldset class="collapsible">
+      <legend>Band Profile
+        <span class="actions"><button class="btn tiny" id="remixProfile">Remix</button></span>
+      </legend>
+      <div class="format-grid" id="bandProfileGrid" style="grid-template-columns:repeat(2,1fr)">
+        <button class="format-btn active" data-profile="UNIFORM">Uniform<span class="sub">all equal</span></button>
+        <button class="format-btn" data-profile="TAPER_OUT">Taper Out<span class="sub">thick →</span></button>
+        <button class="format-btn" data-profile="TAPER_IN">Taper In<span class="sub">← thick</span></button>
+        <button class="format-btn" data-profile="ALTERNATE">Alternate<span class="sub">thk / thn</span></button>
+        <button class="format-btn" data-profile="TIERED">Tiered<span class="sub">every 4th</span></button>
+        <button class="format-btn" data-profile="HOURGLASS">Hourglass<span class="sub">edges thick</span></button>
+      </div>
+      <div class="row" style="margin-top:10px"><label>Variation</label><span class="val" id="v-bandVar">0.50</span><input id="bandVar" type="range" min="0" max="1" step="0.01" value="0.5"></div>
+    </fieldset>
+
+    <fieldset>
+      <legend>Motion
+        <span class="actions">
+          <button class="btn tiny" id="allOn">All</button>
+          <button class="btn tiny" id="allOff">None</button>
+        </span>
+      </legend>
+      <div id="motionRows"></div>
+    </fieldset>
+
+    <fieldset>
+      <legend>Motion Presets
+        <span class="actions"><button class="btn tiny" id="ssRandom">Random</button></span>
+      </legend>
+      <div class="preset-grid" id="ssStateGrid"></div>
+      <div class="btnrow" style="margin-top:8px">
+        <button class="btn" id="ssToggle">Auto Cycle</button>
+        <button class="btn" id="motionsOff">Stop All</button>
+      </div>
+    </fieldset>
+
+    <fieldset>
+      <legend>Color</legend>
+      <div class="row"><label>Stage</label><span class="val">BG</span></div>
+      <div class="swatches" data-target="bg">
+        <div class="swatch-pick active" data-c="#000" style="background:#000"></div>
+        <div class="swatch-pick" data-c="#fff" style="background:#fff"></div>
+        <div class="swatch-pick" data-c="#ff3a1f" style="background:#ff3a1f"></div>
+        <div class="swatch-pick" data-c="#ffe600" style="background:#ffe600"></div>
+        <div class="swatch-pick" data-c="#0a3cff" style="background:#0a3cff"></div>
+        <div class="swatch-pick" data-c="#1a1a1a" style="background:#1a1a1a"></div>
+      </div>
+      <div class="row" style="margin-top:10px"><label>Mark</label><span class="val">FG</span></div>
+      <div class="swatches" data-target="fg">
+        <div class="swatch-pick active" data-c="#fff" style="background:#fff"></div>
+        <div class="swatch-pick" data-c="#000" style="background:#000"></div>
+        <div class="swatch-pick" data-c="#ff3a1f" style="background:#ff3a1f"></div>
+        <div class="swatch-pick" data-c="#ffe600" style="background:#ffe600"></div>
+        <div class="swatch-pick" data-c="#0a3cff" style="background:#0a3cff"></div>
+        <div class="swatch-pick" data-c="#6b6b6b" style="background:#6b6b6b"></div>
+      </div>
+      <div class="btnrow" style="margin-top:10px">
+        <button class="btn" id="t-grid">Grid</button>
+        <button class="btn" id="t-invert">Invert</button>
+      </div>
+    </fieldset>
+
+    <fieldset>
+      <legend>Presets</legend>
+      <div class="preset-grid">
+        <button class="btn" data-preset="diagonal-pyramid">Diagonal Stack</button>
+        <button class="btn" data-preset="off-center-stack">Off-Center</button>
+        <button class="btn" data-preset="dense-frame">Dense Frame</button>
+        <button class="btn" data-preset="thick-frame">Thick Frame</button>
+        <button class="btn" data-preset="thin-many">Thin · Many</button>
+        <button class="btn" data-preset="portrait-tall">Tall Portrait</button>
+        <button class="btn" data-preset="wide-horizon">Wide Horizon</button>
+        <button class="btn" data-preset="square">Square Stack</button>
+      </div>
+    </fieldset>
+
+    <fieldset>
+      <legend>Export</legend>
+      <div class="btnrow">
+        <button class="btn" id="copySVG">Copy SVG</button>
+        <button class="btn primary" id="downloadSVG">Download</button>
+      </div>
+      <div class="btnrow" style="margin-top:6px">
+        <button class="btn" id="copyURL">Copy URL</button>
+        <button class="btn" id="resetBtn">Reset</button>
+      </div>
+    </fieldset>
+  </aside>
+
+  <section id="stage">
+    <svg id="canvas" viewBox="0 0 1920 1080" preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg">
+      <rect id="bg" width="1920" height="1080" fill="#000"/>
+      <g id="root"></g>
+    </svg>
+    <div class="screensaver-banner" id="ssBanner">Screensaver · <span id="ssBannerName">—</span></div>
+    <div class="stage-meta">
+      <b id="meta-N">22</b> RINGS<br>
+      <b id="meta-time">0.0s</b><br>
+      <b id="meta-state">STATIC</b><br>
+      <span style="opacity:0.45">BUILD v1.0</span>
+    </div>
+    <div class="stage-controls">
+      <button class="btn" id="playPause">▶ Play Motion</button>
+      <button class="btn" id="snap">Freeze</button>
+    </div>
+  </section>
+</main>
+
+<div class="toast" id="toast">READY</div>
+
+<script>
+(() => {
+  const $ = id => document.getElementById(id);
+  let VW = 1920, VH = 1080;
+
+  // ─── state
+  const DEFAULT_STATE = () => ({
+    fW: 1920, fH: 1080,
+    N: 22,
+    px: 0.5, py: 0.5,
+    rot: 0,
+    scale: 1.0,
+    curve: 1.0,
+    bW: 160, bH: 90, bR: 18,
+    bx: 5, by: 14,
+    gx: 28, gy: 14, dRb: 6, dRg: 3,
+    bandProfile: "UNIFORM",
+    bandVar: 0.5,
+    motion: {
+      // accRot fields accumulate rotation only while weight > 0; phases free-run.
+      // This decouples each motion's internal time from the global timeAccum,
+      // so changing speed mid-flight just changes the future rate (no phase jump)
+      // and toggling off freezes the visible state (no unwind).
+      tilt:    { on: false, speed: 0.6, amount: 1.0,  weight: 0, accRot: 0 },
+      breathe: { on: false, speed: 0.5, amount: 0.22, weight: 0, phase: 0 },
+      cascade: { on: false, speed: 0.5, amount: 26,   weight: 0, phase: 0 },
+      counter: { on: false, speed: 0.35,amount: 18,   weight: 0, accRot: 0 },
+      drift:   { on: false, speed: 0.4, amount: 0.20, weight: 0, phase: 0 },
+      shift:   { on: false, speed: 0.5, amount: 38,   weight: 0, phase: 0 },
+      grow:    { on: false, speed: 0.5, amount: 1.0,  weight: 0, phase: 0 },
+      morph:   { on: false, speed: 0.4, amount: 0.30, weight: 0, phase: 0 }
+    },
+    screensaver: false,
+    ssStateIdx: 0,
+    ssElapsed: 0,
+    bg: "#000",
+    color: "#fff",
+    view: { grid: false, invert: false },
+    playing: false,
+    timeAccum: 0
+  });
+  let state = DEFAULT_STATE();
+
+  // ─── geometry
+  function roundedRect(cx, cy, w, h, r) {
+    if (w <= 0 || h <= 0) return "";
+    r = Math.max(0, Math.min(r, w/2, h/2));
+    const x = cx - w/2, y = cy - h/2;
+    if (r < 0.5) return `M${x},${y}H${x+w}V${y+h}H${x}Z`;
+    return `M${x+r},${y}H${x+w-r}A${r},${r} 0 0 1 ${x+w},${y+r}V${y+h-r}A${r},${r} 0 0 1 ${x+w-r},${y+h}H${x+r}A${r},${r} 0 0 1 ${x},${y+h-r}V${y+r}A${r},${r} 0 0 1 ${x+r},${y}Z`;
+  }
+
+  // ─── Band Profile (zero-sum)
+  // Each profile defines a per-ring DELTA (positive = thicker, negative = thinner).
+  // We normalize so the deltas SUM TO ZERO across the stack — meaning the profile
+  // redistributes thickness rather than adding to it. Outer envelope stays roughly
+  // the same regardless of which profile you pick, so the mark stays in viewport.
+  function computeProfileDeltas(N, profile) {
+    const deltas = new Array(N);
+    for (let i = 0; i < N; i++) {
+      const t = N > 1 ? i / (N - 1) : 0;  // 0 = innermost, 1 = outermost
+      let d = 0;
+      switch (profile) {
+        case "TAPER_OUT": d = (t * 2 - 1); break;                    // thin → thick outward
+        case "TAPER_IN":  d = (1 - t * 2); break;                    // thick → thin outward
+        case "ALTERNATE": d = (i % 2 === 0 ? -1 : 1); break;         // thk / thn / thk / thn
+        case "TIERED":    d = (i % 4 === 3 ? 1.5 : -0.5); break;     // every 4th hero
+        case "HOURGLASS": d = (Math.abs(t - 0.5) * 4 - 1); break;    // peak at edges, valley middle
+      }
+      deltas[i] = d;
+    }
+    // Zero-mean normalize so cumulative stack growth ≈ Uniform case.
+    let mean = 0;
+    for (let i = 0; i < N; i++) mean += deltas[i];
+    mean /= N;
+    for (let i = 0; i < N; i++) deltas[i] -= mean;
+    return deltas;
+  }
+
+  // Turn a normalized delta into multipliers for band / gap / radius.
+  // Tuned amplitudes (0.6 / 0.25 / 0.4) so even at full variation, the stack
+  // remains coherent and stays inside the canvas.
+  function profileFromDelta(delta, amount) {
+    const k = delta * amount;
+    return {
+      band:   Math.max(0.2, 1 + k * 0.6),
+      gap:    Math.max(0.2, 1 + k * 0.25),
+      radius: Math.max(0.2, 1 + k * 0.4)
+    };
+  }
+
+  // Compute ring outer-edge sizes from anchor (innermost), growing outward.
+  // Per-ring band / gap / radius are shaped by the (zero-sum) Band Profile.
+  function computeRings(s) {
+    const deltas = computeProfileDeltas(s.N, s.bandProfile);
+    const out = [];
+    let w = s.bW, h = s.bH, r = s.bR;
+    out.push({ W: w, H: h, R: r, ps: profileFromDelta(deltas[0], s.bandVar) });
+    for (let i = 1; i < s.N; i++) {
+      const cf = Math.pow(s.curve, i - 1);
+      const ps = profileFromDelta(deltas[i], s.bandVar);
+      w = w + 2 * (s.bx * ps.band + s.gx * ps.gap * cf);
+      h = h + 2 * (s.by * ps.band + s.gy * ps.gap * cf);
+      r = r + (s.dRb * ps.band + s.dRg * ps.gap * cf) * ps.radius;
+      out.push({ W: w, H: h, R: r, ps });
+    }
+    return out;
+  }
+
+  function ringPath(ring, bx, by, dRb) {
+    const outer = roundedRect(0, 0, ring.W, ring.H, ring.R);
+    const iw = ring.W - 2 * bx;
+    const ih = ring.H - 2 * by;
+    const ir = Math.max(0, ring.R - dRb);
+    const inner = (iw > 0 && ih > 0) ? roundedRect(0, 0, iw, ih, ir) : "";
+    return outer + " " + inner;
+  }
+
+  // ─── motion definitions
+  const MOTIONS = [
+    { key: "tilt",    label: "Tilt",    hasAmount: false },
+    { key: "breathe", label: "Breathe", hasAmount: true, amountLabel: "Depth",  amountRange: [0, 0.5, 0.005] },
+    { key: "cascade", label: "Cascade", hasAmount: true, amountLabel: "Amt",    amountRange: [0, 60, 1] },
+    { key: "counter", label: "Counter", hasAmount: true, amountLabel: "Spd",    amountRange: [0, 40, 0.5] },
+    { key: "drift",   label: "Drift",   hasAmount: true, amountLabel: "Radius", amountRange: [0, 0.5, 0.01] },
+    { key: "shift",   label: "Shift",   hasAmount: true, amountLabel: "Amt",    amountRange: [0, 80, 1] },
+    { key: "grow",    label: "Grow",    hasAmount: false },
+    { key: "morph",   label: "Morph",   hasAmount: true, amountLabel: "Depth",  amountRange: [0, 0.4, 0.005] }
+  ];
+
+  function buildMotionRows() {
+    const container = $("motionRows");
+    container.innerHTML = "";
+    for (const m of MOTIONS) {
+      const motionState = state.motion[m.key];
+      const row = document.createElement("div");
+      row.className = "motion-row" + (motionState.on ? " on" : "");
+      row.dataset.key = m.key;
+      const amountCell = m.hasAmount
+        ? `<input class="mslider" type="range" min="${m.amountRange[0]}" max="${m.amountRange[1]}" step="${m.amountRange[2]}" value="${motionState.amount}" data-param="amount" title="${m.amountLabel}">`
+        : `<div></div>`;
+      row.innerHTML = `
+        <button class="btn toggle" data-param="toggle">${m.label}</button>
+        <input class="mslider" type="range" min="0" max="2" step="0.01" value="${motionState.speed}" data-param="speed" title="Speed">
+        ${amountCell}
+      `;
+      row.querySelector('[data-param="toggle"]').addEventListener("click", () => {
+        motionState.on = !motionState.on;
+        row.classList.toggle("on", motionState.on);
+        if (motionState.on && !state.playing) togglePlay();
+      });
+      const speed = row.querySelector('[data-param="speed"]');
+      speed.addEventListener("input", () => motionState.speed = parseFloat(speed.value));
+      const amt = row.querySelector('[data-param="amount"]');
+      if (amt) amt.addEventListener("input", () => motionState.amount = parseFloat(amt.value));
+      container.appendChild(row);
+    }
+  }
+
+  function syncMotionRowsUI() {
+    document.querySelectorAll(".motion-row").forEach(row => {
+      const key = row.dataset.key;
+      const m = state.motion[key];
+      row.classList.toggle("on", m.on);
+      const speed = row.querySelector('[data-param="speed"]');
+      if (speed) speed.value = m.speed;
+      const amount = row.querySelector('[data-param="amount"]');
+      if (amount) amount.value = m.amount;
+    });
+  }
+
+  // ─── screensaver state library
+  // Each preset isolates one motion (high contrast) or layers two for variety.
+  // Pure presets first so users immediately see what each behavior does.
+  const SS_STATES = [
+    { name: "TILT",          tilt: 0.65, breathe: 0,    cascade: 0,    counter: 0,    drift: 0,    shift: 0,    grow: 0,    morph: 0 },
+    { name: "BREATH",        tilt: 0,    breathe: 0.80, cascade: 0,    counter: 0,    drift: 0,    shift: 0,    grow: 0,    morph: 0 },
+    { name: "CASCADE",       tilt: 0,    breathe: 0,    cascade: 0.85, counter: 0,    drift: 0,    shift: 0,    grow: 0,    morph: 0 },
+    { name: "COUNTER",       tilt: 0,    breathe: 0,    cascade: 0,    counter: 0.75, drift: 0,    shift: 0,    grow: 0,    morph: 0 },
+    { name: "DRIFT",         tilt: 0,    breathe: 0,    cascade: 0,    counter: 0,    drift: 0.65, shift: 0,    grow: 0,    morph: 0 },
+    { name: "SHIFT WEAVE",   tilt: 0,    breathe: 0,    cascade: 0,    counter: 0,    drift: 0,    shift: 0.80, grow: 0,    morph: 0 },
+    { name: "GROW",          tilt: 0,    breathe: 0,    cascade: 0,    counter: 0,    drift: 0,    shift: 0,    grow: 0.60, morph: 0 },
+    { name: "MORPH PULSE",   tilt: 0,    breathe: 0,    cascade: 0,    counter: 0,    drift: 0,    shift: 0,    grow: 0,    morph: 0.75 },
+    { name: "TILT + BREATH", tilt: 0.40, breathe: 0.55, cascade: 0,    counter: 0,    drift: 0,    shift: 0,    grow: 0,    morph: 0 },
+    { name: "FULL ENGINE",   tilt: 0.25, breathe: 0.35, cascade: 0.45, counter: 0,    drift: 0.30, shift: 0.30, grow: 0,    morph: 0.30 }
+  ];
+  const SS_STATE_DURATION_MS = 9000;
+  const SS_FADE_MS = 2200;
+
+  function applySSState(idx, blend) {
+    const s = SS_STATES[idx];
+    for (const m of MOTIONS) {
+      const key = m.key;
+      const target = s[key] || 0;
+      const m_state = state.motion[key];
+      m_state.speed += (target - m_state.speed) * blend;
+      m_state.on = target > 0.04;  // gate by target, not current speed (smoother)
+    }
+  }
+
+  // Apply a screensaver state directly (no blending) — used for button clicks
+  // and auto-play on load. Weight blending in the animation loop ensures smooth
+  // visual fade between motions, even though speed is set instantly.
+  function applySSStateInstant(idx) {
+    const s = SS_STATES[idx];
+    for (const m of MOTIONS) {
+      const target = s[m.key] || 0;
+      state.motion[m.key].speed = target;
+      state.motion[m.key].on = target > 0.04;
+    }
+    state.ssStateIdx = idx;
+    state.ssElapsed = 0;
+    syncMotionRowsUI();
+    syncSSStateUI();
+  }
+
+  function syncSSStateUI() {
+    document.querySelectorAll("#ssStateGrid [data-ss-idx]").forEach(b => {
+      b.classList.toggle("on", +b.dataset.ssIdx === state.ssStateIdx);
+    });
+  }
+
+  function buildSSStateGrid() {
+    const grid = $("ssStateGrid");
+    grid.innerHTML = "";
+    SS_STATES.forEach((s, i) => {
+      const b = document.createElement("button");
+      b.className = "btn";
+      b.dataset.ssIdx = i;
+      b.textContent = s.name;
+      b.addEventListener("click", () => {
+        applySSStateInstant(i);
+        if (!state.playing) togglePlay();
+      });
+      grid.appendChild(b);
+    });
+  }
+
+  // ─── render
+  const root = $("root");
+  function render() {
+    const rings = computeRings(state);
+    // motion weights (smooth fade in/out of each behavior)
+    const wTilt    = state.motion.tilt.weight;
+    const wBreathe = state.motion.breathe.weight;
+    const wCascade = state.motion.cascade.weight;
+    const wCounter = state.motion.counter.weight;
+    const wDrift   = state.motion.drift.weight;
+    const wShift   = state.motion.shift.weight;
+    const wGrow    = state.motion.grow.weight;
+    const wMorph   = state.motion.morph.weight;
+
+    // Drift uses a free-running phase: position is sin(phase) * amount * weight.
+    // When weight drops, the mark glides smoothly back to its base position.
+    let cx = state.px * VW;
+    let cy = state.py * VH;
+    const driftPhase = state.motion.drift.phase;
+    cx += Math.sin(driftPhase) * 240 * state.motion.drift.amount * wDrift;
+    cy += Math.cos(driftPhase * 0.83) * 180 * state.motion.drift.amount * wDrift;
+
+    // Tilt uses accumulated rotation, not "time × speed × weight". This means
+    // disabling tilt freezes the current rotation (no unwind back to 0).
+    const markRot = state.rot + state.motion.tilt.accRot;
+
+    // Breathe uses free-running phase too — speed changes don't cause phase jumps.
+    const markScale = state.scale * (1 + Math.sin(state.motion.breathe.phase) * state.motion.breathe.amount * wBreathe);
+
+    const morphPhase = state.motion.morph.phase;
+    const morphRadius = 1 + Math.sin(morphPhase) * state.motion.morph.amount * wMorph;
+    const morphAspect = 1 + Math.cos(morphPhase * 0.7) * state.motion.morph.amount * 0.5 * wMorph;
+
+    // grow offset weighted so disabling lets rings settle to their canonical positions
+    const growOffset = (state.motion.grow.phase % 1) * wGrow;
+
+    const fg = state.view.invert ? state.bg : state.color;
+    const bg = state.view.invert ? state.color : state.bg;
+    $("bg").setAttribute("fill", bg);
+    document.documentElement.style.setProperty("--grid-opacity", state.view.grid ? "1" : "0");
+
+    let svg = "";
+    for (let i = 0; i < rings.length; i++) {
+      let ring = rings[i];
+      let opacity = 1;
+      if (wGrow > 0.001) {
+        const effI = i + growOffset;
+        ring = ringAtFloat(state, effI, rings);
+        if (effI > rings.length - 1) opacity = Math.max(0, rings.length - effI);
+        else if (effI < 1)           opacity = Math.max(0, effI);
+        // fade between non-grown and grown rendering by weight
+        if (wGrow < 1) {
+          const r0 = rings[i];
+          ring = {
+            W: r0.W + (ring.W - r0.W) * wGrow,
+            H: r0.H + (ring.H - r0.H) * wGrow,
+            R: r0.R + (ring.R - r0.R) * wGrow,
+            ps: r0.ps
+          };
+          opacity = 1 - (1 - opacity) * wGrow;
+        }
+      }
+      const W = ring.W * (1 + (morphAspect - 1) * 0.5);
+      const H = ring.H * (1 - (morphAspect - 1) * 0.5);
+      const R = ring.R * morphRadius;
+      const morphedRing = { W, H, R };
+
+      // Per-ring phase offsets read from each motion's free-running phase.
+      const shiftPhase = state.motion.shift.phase + i * 0.45;
+      const dx = Math.sin(shiftPhase) * state.motion.shift.amount * wShift;
+      const dy = Math.cos(shiftPhase + 0.6) * state.motion.shift.amount * 0.55 * wShift;
+
+      const cascadePhase = state.motion.cascade.phase + i * 0.55;
+      const cascadeRot = Math.sin(cascadePhase) * state.motion.cascade.amount * wCascade;
+      // Counter uses accumulated rotation, signed per ring index — freezes on toggle off.
+      const counterSign = (i % 2 === 0) ? 1 : -1;
+      const counterRot  = counterSign * state.motion.counter.accRot;
+      const drot = cascadeRot + counterRot;
+
+      const totalRot = markRot + drot;
+      const ps = ring.ps ?? { band: 1, gap: 1, radius: 1 };
+      // Band Profile drives band thickness AND the visible corner radius —
+      // not just the band, so the whole ring shape responds to the profile.
+      const morphedRingWithRadius = { W, H, R: R * ps.radius };
+      const path = ringPath(morphedRingWithRadius, state.bx * ps.band, state.by * ps.band, state.dRb * ps.band);
+      const op = opacity < 0.999 ? ` opacity="${opacity.toFixed(3)}"` : "";
+      svg += `<g transform="translate(${(cx + dx).toFixed(2)} ${(cy + dy).toFixed(2)}) rotate(${totalRot.toFixed(2)}) scale(${markScale.toFixed(4)})"${op}><path d="${path}" fill="${fg}" fill-rule="evenodd"/></g>`;
+    }
+    root.innerHTML = svg;
+
+    // hud
+    $("meta-N").textContent = state.N;
+    $("meta-time").textContent = state.timeAccum.toFixed(1) + "s";
+    $("meta-state").textContent = state.playing ? (state.screensaver ? "AUTO" : "MOTION") : "STATIC";
+    $("ssBanner").classList.toggle("on", state.screensaver);
+    $("ssBannerName").textContent = SS_STATES[state.ssStateIdx].name;
+
+    syncURL();
+  }
+
+  // interpolate ring sizes between integer indices for smooth grow effect
+  function ringAtFloat(s, idx, ringsCache) {
+    const i0 = Math.floor(idx);
+    const t = idx - i0;
+    const a = (i0 >= 0 && i0 < ringsCache.length) ? ringsCache[i0] : null;
+    const b = (i0 + 1 >= 0 && i0 + 1 < ringsCache.length) ? ringsCache[i0 + 1] : null;
+    // if extrapolating past the last ring, project the step pattern
+    if (a && !b) {
+      // beyond outermost: project one more step
+      const cf = Math.pow(s.curve, ringsCache.length - 1);
+      return {
+        W: a.W + 2 * (s.bx + s.gx * cf) * t,
+        H: a.H + 2 * (s.by + s.gy * cf) * t,
+        R: a.R + (s.dRb + s.dRg * cf) * t
+      };
+    }
+    if (!a && b) {
+      // before innermost: shrink toward zero (used when idx is fractional below 0)
+      return { W: b.W * t, H: b.H * t, R: b.R * t };
+    }
+    if (!a && !b) return { W: 0, H: 0, R: 0 };
+    return {
+      W: a.W + (b.W - a.W) * t,
+      H: a.H + (b.H - a.H) * t,
+      R: a.R + (b.R - a.R) * t
+    };
+  }
+
+  // ─── animation loop
+  let rafId = null;
+  let lastFrame = performance.now();
+  // Per-motion phase frequency factors (used to be inline as t * speed * X).
+  // Free-running phases (advance regardless of weight) so the wave's underlying
+  // rhythm stays coherent. Speed-rate accumulators (tilt, counter) only advance
+  // when weight > 0 so disabling freezes the visible rotation rather than unwinding it.
+  const PHASE_RATE = { breathe: 1.4, cascade: 2.1, drift: 0.5, shift: 1.6, grow: 0.4, morph: 1.0 };
+
+  function frame(now) {
+    const dt = Math.min(0.1, (now - lastFrame) / 1000);
+    lastFrame = now;
+    // Weight blending: gentler (10% per frame at 60fps) — fluid handoff, not snappy.
+    const k = 1 - Math.pow(0.90, dt * 60);
+    for (const key in state.motion) {
+      const m = state.motion[key];
+      const target = m.on ? 1 : 0;
+      m.weight += (target - m.weight) * k;
+    }
+    if (state.playing) {
+      state.timeAccum += dt;
+      // Advance each oscillator's phase at its own rate.
+      // These are free-running so amplitude (driven by weight) is the only thing that
+      // changes when toggling — no phase discontinuity, no rate jumps from preset changes.
+      for (const key in PHASE_RATE) {
+        state.motion[key].phase += dt * state.motion[key].speed * PHASE_RATE[key];
+      }
+      // Tilt + counter accumulate while their weight is high, and decay back to 0
+      // when weight is low. Decay is proportional to (1 - weight) so an active
+      // motion doesn't decay; a disabled one winds down gently. This avoids both
+      // the sharp unwind from before AND the residual-rotation-across-presets
+      // problem of pure freeze.
+      const decayBase = Math.pow(0.96, dt * 60);
+      state.motion.tilt.accRot    *= 1 - (1 - decayBase) * (1 - state.motion.tilt.weight);
+      state.motion.counter.accRot *= 1 - (1 - decayBase) * (1 - state.motion.counter.weight);
+      state.motion.tilt.accRot    += dt * state.motion.tilt.speed * 18 * state.motion.tilt.weight;
+      state.motion.counter.accRot += dt * state.motion.counter.speed * state.motion.counter.amount * 1.4 * state.motion.counter.weight;
+
+      if (state.screensaver) {
+        state.ssElapsed += dt * 1000;
+        applySSState(state.ssStateIdx, k * 0.5);
+        syncMotionRowsUI();
+        if (state.ssElapsed > SS_STATE_DURATION_MS) {
+          state.ssStateIdx = (state.ssStateIdx + 1) % SS_STATES.length;
+          state.ssElapsed = 0;
+          syncSSStateUI();
+        }
+      }
+    }
+    render();
+    rafId = requestAnimationFrame(frame);
+  }
+  function togglePlay() {
+    state.playing = !state.playing;
+    $("playPause").textContent = state.playing ? "❚❚ Pause" : "▶ Play Motion";
+    lastFrame = performance.now();
+    if (!state.playing) {
+      state.screensaver = false;
+      $("ssToggle").classList.remove("on");
+    }
+    render();
+  }
+
+  function toggleScreensaver() {
+    state.screensaver = !state.screensaver;
+    $("ssToggle").classList.toggle("on", state.screensaver);
+    $("ssToggle").textContent = state.screensaver ? "■ Stop Auto" : "Auto Cycle";
+    if (state.screensaver) {
+      if (!state.playing) togglePlay();
+      state.ssElapsed = 0;
+    }
+  }
+
+
+  // ─── format
+  function fitCanvas() {
+    const stage = $("stage");
+    const canvas = $("canvas");
+    const rect = stage.getBoundingClientRect();
+    if (rect.width === 0 || rect.height === 0) return;
+    const pad = 24; // breathing room matching CSS stage padding
+    const availW = Math.max(40, rect.width - pad * 2);
+    const availH = Math.max(40, rect.height - pad * 2);
+    const aspect = state.fW / state.fH;
+    let w, h;
+    if (availW / availH > aspect) {
+      // height-limited
+      h = availH;
+      w = h * aspect;
+    } else {
+      // width-limited
+      w = availW;
+      h = w / aspect;
+    }
+    canvas.style.width = w + "px";
+    canvas.style.height = h + "px";
+  }
+
+  function applyFormat() {
+    VW = state.fW;
+    VH = state.fH;
+    const canvas = $("canvas");
+    canvas.setAttribute("viewBox", `0 0 ${VW} ${VH}`);
+    $("bg").setAttribute("width", VW);
+    $("bg").setAttribute("height", VH);
+    document.documentElement.style.setProperty("--aspect", (VW / VH).toFixed(4));
+    // update format buttons
+    document.querySelectorAll(".format-btn").forEach(b => {
+      b.classList.toggle("active", +b.dataset.width === VW && +b.dataset.height === VH);
+    });
+    // sync custom sliders
+    $("fW").value = VW; $("v-fW").textContent = VW;
+    $("fH").value = VH; $("v-fH").textContent = VH;
+    fitCanvas();
+  }
+
+  window.addEventListener("resize", fitCanvas);
+  document.querySelectorAll(".format-btn").forEach(b => {
+    b.addEventListener("click", () => {
+      state.fW = +b.dataset.width;
+      state.fH = +b.dataset.height;
+      applyFormat();
+      render();
+    });
+  });
+  $("fW").addEventListener("input", () => {
+    state.fW = parseInt($("fW").value);
+    applyFormat();
+    render();
+  });
+  $("fH").addEventListener("input", () => {
+    state.fH = parseInt($("fH").value);
+    applyFormat();
+    render();
+  });
+
+  // ─── band profile
+  // Mini ring-stack preview for each profile button. Uses the same zero-sum
+  // profile logic as the engine, so the icon is a true miniature of what
+  // clicking the profile does to the main canvas — at a representative
+  // variation (0.85) so the character reads cleanly at icon size.
+  function buildProfilePreviewSVG(profile, amount = 0.85) {
+    const N = 7;
+    const cfg = { bW: 6, bH: 3, bR: 0.8, bx: 0.35, by: 0.85, dRb: 0.35, gx: 1.2, gy: 0.55, dRg: 0.15 };
+    const deltas = computeProfileDeltas(N, profile);
+    const rings = [];
+    let w = cfg.bW, h = cfg.bH, r = cfg.bR;
+    rings.push({ w, h, r, ps: profileFromDelta(deltas[0], amount) });
+    for (let i = 1; i < N; i++) {
+      const ps = profileFromDelta(deltas[i], amount);
+      w = w + 2 * (cfg.bx * ps.band + cfg.gx * ps.gap);
+      h = h + 2 * (cfg.by * ps.band + cfg.gy * ps.gap);
+      r = r + (cfg.dRb * ps.band + cfg.dRg * ps.gap) * ps.radius;
+      rings.push({ w, h, r, ps });
+    }
+    const last = rings[N - 1];
+    const vw = last.w + 2;
+    const vh = last.h + 2;
+    let d = "";
+    for (const ring of rings) {
+      d += roundedRect(0, 0, ring.w, ring.h, ring.r);
+      const iw = ring.w - 2 * cfg.bx * ring.ps.band;
+      const ih = ring.h - 2 * cfg.by * ring.ps.band;
+      const ir = Math.max(0, (ring.r - cfg.dRb * ring.ps.band) * ring.ps.radius);
+      if (iw > 0 && ih > 0) d += " " + roundedRect(0, 0, iw, ih, ir);
+    }
+    return `<svg class="prof-icon" viewBox="${(-vw/2).toFixed(2)} ${(-vh/2).toFixed(2)} ${vw.toFixed(2)} ${vh.toFixed(2)}" preserveAspectRatio="xMidYMid meet"><path d="${d}" fill-rule="evenodd"/></svg>`;
+  }
+
+  function injectProfileIcons() {
+    document.querySelectorAll("#bandProfileGrid .format-btn").forEach(b => {
+      const profile = b.dataset.profile;
+      // Skip if already injected
+      if (b.querySelector(".prof-icon")) return;
+      const labelHTML = b.innerHTML;
+      b.innerHTML = buildProfilePreviewSVG(profile) + labelHTML;
+    });
+  }
+
+  function syncBandProfileUI() {
+    document.querySelectorAll("#bandProfileGrid .format-btn").forEach(b => {
+      b.classList.toggle("active", b.dataset.profile === state.bandProfile);
+    });
+    $("bandVar").value = state.bandVar;
+    $("v-bandVar").textContent = state.bandVar.toFixed(2);
+  }
+  document.querySelectorAll("#bandProfileGrid .format-btn").forEach(b => {
+    b.addEventListener("click", () => {
+      state.bandProfile = b.dataset.profile;
+      syncBandProfileUI();
+      render();
+    });
+  });
+  $("bandVar").addEventListener("input", () => {
+    state.bandVar = parseFloat($("bandVar").value);
+    $("v-bandVar").textContent = state.bandVar.toFixed(2);
+    render();
+  });
+
+  // ─── input bindings
+  const STACK_KEYS = {
+    N: "N", px: "px", py: "py", rot: "rot", scale: "scale", curve: "curve",
+    bW: "bW", bH: "bH", bR: "bR", bx: "bx", by: "by", gx: "gx", gy: "gy"
+  };
+  Object.entries(STACK_KEYS).forEach(([id, key]) => {
+    $(id).addEventListener("input", () => {
+      const v = parseFloat($(id).value);
+      state[key] = key === "N" ? Math.round(v) : v;
+      const fmt = key === "N" ? v=>v.toFixed(0) :
+                  (["scale","curve","px","py"].includes(key) ? v=>v.toFixed(2) :
+                  (["bx","by","gx","gy"].includes(key) ? v=>v.toFixed(1) : v=>v.toFixed(0)));
+      $("v-" + id).textContent = fmt(state[key]);
+      render();
+    });
+  });
+
+  // swatches
+  document.querySelectorAll(".swatches").forEach(g => {
+    g.addEventListener("click", e => {
+      const sw = e.target.closest(".swatch-pick");
+      if (!sw) return;
+      const target = g.dataset.target;
+      if (target === "bg") state.bg = sw.dataset.c;
+      if (target === "fg") state.color = sw.dataset.c;
+      g.querySelectorAll(".swatch-pick").forEach(x => x.classList.toggle("active", x === sw));
+      render();
+    });
+  });
+  $("t-grid").addEventListener("click", () => { state.view.grid = !state.view.grid; $("t-grid").classList.toggle("on", state.view.grid); render(); });
+  $("t-invert").addEventListener("click", () => { state.view.invert = !state.view.invert; $("t-invert").classList.toggle("on", state.view.invert); render(); });
+
+  $("playPause").addEventListener("click", togglePlay);
+  $("snap").addEventListener("click", () => {
+    if (state.playing) togglePlay();
+    toast("FROZEN @ " + state.timeAccum.toFixed(1) + "s");
+  });
+  $("ssToggle").addEventListener("click", toggleScreensaver);
+  $("ssRandom").addEventListener("click", () => {
+    let i;
+    do { i = Math.floor(Math.random() * SS_STATES.length); } while (i === state.ssStateIdx && SS_STATES.length > 1);
+    applySSStateInstant(i);
+    if (!state.playing) togglePlay();
+    toast(SS_STATES[i].name);
+  });
+  $("motionsOff").addEventListener("click", () => {
+    for (const m of MOTIONS) state.motion[m.key].on = false;
+    syncMotionRowsUI();
+    if (state.screensaver) toggleScreensaver();
+  });
+
+  $("allOn").addEventListener("click", () => {
+    for (const m of MOTIONS) state.motion[m.key].on = true;
+    syncMotionRowsUI();
+    if (!state.playing) togglePlay();
+  });
+  $("allOff").addEventListener("click", () => {
+    for (const m of MOTIONS) state.motion[m.key].on = false;
+    syncMotionRowsUI();
+  });
+
+  // presets — recreate reference imagery starting points
+  const PRESETS = {
+    "diagonal-pyramid": {
+      N: 26, px: 0.5, py: 0.65, rot: 35, scale: 1.0, curve: 1.0,
+      bW: 200, bH: 110, bR: 24, bx: 4, by: 12, gx: 32, gy: 16
+    },
+    "off-center-stack": {
+      N: 14, px: 0.18, py: 0.22, rot: -22, scale: 1.0, curve: 1.0,
+      bW: 280, bH: 150, bR: 36, bx: 8, by: 22, gx: 70, gy: 28
+    },
+    "dense-frame": {
+      N: 4, px: 0.5, py: 0.5, rot: 0, scale: 1.5, curve: 1.0,
+      bW: 320, bH: 180, bR: 32, bx: 6, by: 18, gx: 110, gy: 36
+    },
+    "thick-frame": {
+      N: 3, px: 0.5, py: 0.5, rot: 0, scale: 1.4, curve: 1.0,
+      bW: 380, bH: 220, bR: 30, bx: 18, by: 36, gx: 80, gy: 28
+    },
+    "thin-many": {
+      N: 40, px: 0.5, py: 0.5, rot: 0, scale: 1.0, curve: 1.0,
+      bW: 120, bH: 68, bR: 14, bx: 2, by: 6, gx: 14, gy: 5
+    },
+    "portrait-tall": {
+      N: 10, px: 0.5, py: 0.5, rot: 0, scale: 1.0, curve: 1.0,
+      bW: 260, bH: 420, bR: 90, bx: 10, by: 8, gx: 24, gy: 38
+    },
+    "wide-horizon": {
+      N: 14, px: 0.5, py: 0.5, rot: 0, scale: 1.0, curve: 1.0,
+      bW: 760, bH: 90, bR: 44, bx: 4, by: 18, gx: 20, gy: 8
+    },
+    "square": {
+      N: 16, px: 0.5, py: 0.5, rot: 0, scale: 1.0, curve: 1.0,
+      bW: 90, bH: 90, bR: 18, bx: 4, by: 4, gx: 22, gy: 22
+    }
+  };
+  document.querySelectorAll("[data-preset]").forEach(b => {
+    b.addEventListener("click", () => {
+      const p = PRESETS[b.dataset.preset];
+      if (!p) return;
+      Object.assign(state, p);
+      syncAllSliders();
+      render();
+      toast(b.dataset.preset.toUpperCase());
+    });
+  });
+
+  function syncAllSliders() {
+    Object.entries(STACK_KEYS).forEach(([id, key]) => {
+      $(id).value = state[key];
+      const fmt = key === "N" ? v=>v.toFixed(0) :
+                  (["scale","curve","px","py"].includes(key) ? v=>v.toFixed(2) :
+                  (["bx","by","gx","gy"].includes(key) ? v=>v.toFixed(1) : v=>v.toFixed(0)));
+      $("v-" + id).textContent = fmt(state[key]);
+    });
+    document.querySelectorAll(".swatches[data-target='bg'] .swatch-pick").forEach(s => s.classList.toggle("active", s.dataset.c === state.bg));
+    document.querySelectorAll(".swatches[data-target='fg'] .swatch-pick").forEach(s => s.classList.toggle("active", s.dataset.c === state.color));
+  }
+
+  // ─── export
+  function serializeSVG() {
+    // capture current frame as plain SVG (animations baked into transforms)
+    const innerHTML = root.innerHTML;
+    return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${VW} ${VH}"><rect width="${VW}" height="${VH}" fill="${state.view.invert ? state.color : state.bg}"/><g>${innerHTML}</g></svg>`;
+  }
+  $("copySVG").addEventListener("click", async () => {
+    try { await navigator.clipboard.writeText(serializeSVG()); toast("SVG COPIED"); }
+    catch (e) { toast("COPY FAILED"); }
+  });
+  $("downloadSVG").addEventListener("click", () => {
+    const blob = new Blob([serializeSVG()], { type: "image/svg+xml" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `arena-engine-${state.N}r-${Date.now()}.svg`;
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(url), 500);
+    toast("DOWNLOADED");
+  });
+
+  // ─── URL state
+  let urlTimer;
+  function syncURL() {
+    clearTimeout(urlTimer);
+    urlTimer = setTimeout(() => {
+      const compact = {
+        fW: state.fW, fH: state.fH,
+        N: state.N, px: state.px, py: state.py, rot: state.rot, scale: state.scale, curve: state.curve,
+        bW: state.bW, bH: state.bH, bR: state.bR, bx: state.bx, by: state.by, gx: state.gx, gy: state.gy,
+        bp: state.bandProfile, bv: state.bandVar,
+        bg: state.bg, fg: state.color,
+        m: Object.fromEntries(Object.entries(state.motion).map(([k, v]) => [k, [v.on?1:0, v.speed, v.amount]]))
+      };
+      const enc = btoa(unescape(encodeURIComponent(JSON.stringify(compact))));
+      history.replaceState(null, "", "#e=" + enc);
+    }, 350);
+  }
+  function loadHash() {
+    const m = location.hash.match(/e=([A-Za-z0-9+/=_-]+)/);
+    if (!m) return;
+    try {
+      const obj = JSON.parse(decodeURIComponent(escape(atob(m[1]))));
+      ["fW","fH","N","px","py","rot","scale","curve","bW","bH","bR","bx","by","gx","gy"].forEach(k => { if (k in obj) state[k] = obj[k]; });
+      if (obj.bp) state.bandProfile = obj.bp;
+      if (typeof obj.bv === "number") state.bandVar = obj.bv;
+      if (obj.bg) state.bg = obj.bg;
+      if (obj.fg) state.color = obj.fg;
+      if (obj.m) {
+        for (const k in obj.m) {
+          if (state.motion[k]) {
+            state.motion[k].on = !!obj.m[k][0];
+            state.motion[k].speed = obj.m[k][1];
+            state.motion[k].amount = obj.m[k][2];
+          }
+        }
+      }
+    } catch (e) {}
+  }
+
+  $("copyURL").addEventListener("click", async () => {
+    syncURL();
+    setTimeout(async () => {
+      try { await navigator.clipboard.writeText(location.href); toast("URL COPIED"); }
+      catch (e) { toast("COPY FAILED"); }
+    }, 400);
+  });
+  $("reseed").addEventListener("click", () => {
+    if (state.playing) togglePlay();
+    state = DEFAULT_STATE();
+    applyFormat();
+    syncBandProfileUI();
+    syncAllSliders();
+    buildMotionRows();
+    syncSSStateUI();
+    location.hash = "";
+    render();
+    toast("RESET");
+  });
+  $("resetBtn").addEventListener("click", () => $("reseed").click());
+
+  // ─── toast
+  let toastTimer;
+  function toast(msg) {
+    const t = $("toast");
+    t.textContent = msg;
+    t.classList.add("show");
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => t.classList.remove("show"), 1500);
+  }
+
+  // ─── collapsible fieldsets — click legend (but not its buttons) to toggle
+  document.querySelectorAll("fieldset.collapsible > legend").forEach(legend => {
+    legend.addEventListener("click", e => {
+      if (e.target.closest("button")) return;
+      legend.parentElement.classList.toggle("collapsed");
+    });
+  });
+
+  // ─── remix handlers (randomize a section's variables within tasteful ranges)
+  function rand(min, max) { return min + Math.random() * (max - min); }
+  function randInt(min, max) { return Math.floor(rand(min, max + 1)); }
+
+  $("remixStack").addEventListener("click", () => {
+    state.N = randInt(8, 38);
+    state.px = rand(0.25, 0.75);
+    state.py = rand(0.25, 0.75);
+    state.rot = rand(-45, 45);
+    state.scale = rand(0.6, 1.5);
+    state.curve = rand(0.88, 1.18);
+    syncAllSliders();
+    render();
+    toast("STACK REMIXED");
+  });
+
+  $("remixAnchor").addEventListener("click", () => {
+    state.bW = randInt(80, 280);
+    state.bH = randInt(50, 180);
+    state.bR = randInt(0, Math.floor(Math.min(state.bW, state.bH) / 2));
+    state.bx = rand(2, 14);
+    state.by = rand(5, 28);
+    state.gx = rand(12, 60);
+    state.gy = rand(6, 32);
+    syncAllSliders();
+    render();
+    toast("ANCHOR REMIXED");
+  });
+
+  $("remixProfile").addEventListener("click", () => {
+    const profiles = ["UNIFORM", "TAPER_OUT", "TAPER_IN", "ALTERNATE", "TIERED", "HOURGLASS"];
+    let p;
+    do { p = profiles[Math.floor(Math.random() * profiles.length)]; } while (p === state.bandProfile && profiles.length > 1);
+    state.bandProfile = p;
+    state.bandVar = rand(0.25, 0.85);
+    syncBandProfileUI();
+    render();
+    toast("PROFILE: " + p);
+  });
+
+  // ─── init
+  const fromURL = location.hash && location.hash.includes("e=");
+  loadHash();
+  applyFormat();
+  injectProfileIcons();
+  syncBandProfileUI();
+  buildMotionRows();
+  buildSSStateGrid();
+  syncAllSliders();
+  // Auto-play with a random preset on fresh loads (skip if user opened a shared URL)
+  if (!fromURL) {
+    const randIdx = Math.floor(Math.random() * SS_STATES.length);
+    applySSStateInstant(randIdx);
+    state.playing = true;
+    $("playPause").textContent = "❚❚ Pause";
+  }
+  syncSSStateUI();
+  render();
+  requestAnimationFrame(now => { lastFrame = now; rafId = requestAnimationFrame(frame); });
+})();
+</script>
+</body>
+</html>

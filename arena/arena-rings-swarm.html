@@ -1,0 +1,334 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>ARENA / Swarm Field</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body {
+    height: 100%;
+    background: #000;
+    color: #fff;
+    overflow: hidden;
+    font: 11px/1.4 ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    -webkit-font-smoothing: antialiased;
+    cursor: none;
+  }
+  body.show-cursor { cursor: default; }
+  #stage { position: fixed; inset: 0; background: #000; }
+  svg { width: 100%; height: 100%; display: block; }
+  .hud {
+    position: fixed;
+    pointer-events: none;
+    color: rgba(255,255,255,0.55);
+    text-transform: uppercase;
+    letter-spacing: 0.22em;
+    font-size: 10px;
+    opacity: 0;
+    transition: opacity 320ms;
+    mix-blend-mode: difference;
+    z-index: 10;
+  }
+  body.hud-on .hud { opacity: 1; }
+  .hud.tl { top: 22px; left: 24px; }
+  .hud.tr { top: 22px; right: 24px; text-align: right; }
+  .hud.bl { bottom: 22px; left: 24px; }
+  .hud.br { bottom: 22px; right: 24px; text-align: right; }
+  .hud b { color: #fff; font-weight: 600; }
+  .hint {
+    position: fixed;
+    bottom: 22px;
+    left: 50%;
+    transform: translateX(-50%);
+    color: rgba(255,255,255,0.4);
+    font-size: 10px;
+    letter-spacing: 0.3em;
+    text-transform: uppercase;
+    mix-blend-mode: difference;
+    transition: opacity 600ms;
+    z-index: 10;
+  }
+  body.hide-hint .hint { opacity: 0; }
+  .dot {
+    position: fixed;
+    width: 6px; height: 6px;
+    background: #fff;
+    margin: -3px 0 0 -3px;
+    border-radius: 50%;
+    pointer-events: none;
+    mix-blend-mode: difference;
+    z-index: 20;
+  }
+</style>
+</head>
+<body>
+<div id="stage">
+  <svg id="canvas" viewBox="0 0 1920 1080" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+      <path id="arenaMark" fill-rule="evenodd"/>
+    </defs>
+    <g id="field"></g>
+  </svg>
+</div>
+
+<div class="dot" id="dot"></div>
+<div class="hud tl">ARENA<br><b>SWARM FIELD</b></div>
+<div class="hud tr"><span id="layoutName">SCATTER</span><br><b id="layoutIdx">01 / 05</b></div>
+<div class="hud bl">MARKS <b id="markCount">24</b><br>FLOCKING <b id="flockState">OFF</b></div>
+<div class="hud br"><b id="state">FLOW</b><br><b id="lockStatus">DISPERSED</b></div>
+<div class="hint">M · LAYOUT &nbsp;&nbsp; HOLD · FLOCK &nbsp;&nbsp; +/− · COUNT &nbsp;&nbsp; H · HUD &nbsp;&nbsp; F · FULL</div>
+
+<script>
+(() => {
+  const $ = id => document.getElementById(id);
+  const field = $("field");
+  const markDef = $("arenaMark");
+
+  const VW = 1920, VH = 1080;
+  const CX = VW / 2, CY = VH / 2;
+
+  // ─── canonical mark path (precomputed once)
+  const RECIPE = { W: 736, H: 415, R: 72, bandX: 8.6, bandY: 24.5, gapX: 77, gapY: 22, dRb: 10.7, dRg: 3.8 };
+  function roundedRect(w, h, r, cx=0, cy=0) {
+    if (w <= 0 || h <= 0) return "";
+    r = Math.max(0, Math.min(r, w/2, h/2));
+    const x = cx - w/2, y = cy - h/2;
+    if (r < 0.5) return `M${x},${y}H${x+w}V${y+h}H${x}Z`;
+    return `M${x+r},${y}H${x+w-r}A${r},${r} 0 0 1 ${x+w},${y+r}V${y+h-r}A${r},${r} 0 0 1 ${x+w-r},${y+h}H${x+r}A${r},${r} 0 0 1 ${x},${y+h-r}V${y+r}A${r},${r} 0 0 1 ${x+r},${y}Z`;
+  }
+  function buildMarkPath() {
+    let w = RECIPE.W, h = RECIPE.H, r = RECIPE.R;
+    const subPaths = [];
+    for (let i = 0; i < 4; i++) {
+      if (w <= 0 || h <= 0) break;
+      subPaths.push(roundedRect(w, h, r));
+      const innerW = w - 2 * RECIPE.bandX;
+      const innerH = h - 2 * RECIPE.bandY;
+      const innerR = Math.max(0, r - RECIPE.dRb);
+      if (innerW > 0 && innerH > 0) subPaths.push(roundedRect(innerW, innerH, innerR));
+      w = innerW - 2 * RECIPE.gapX;
+      h = innerH - 2 * RECIPE.gapY;
+      r = Math.max(0, innerR - RECIPE.dRg);
+    }
+    return subPaths.join(" ");
+  }
+  markDef.setAttribute("d", buildMarkPath());
+  markDef.setAttribute("fill", "#fff");
+
+  // ─── marks
+  let N = 24;
+  let marks = [];
+
+  // small deterministic PRNG for stable scatter
+  function seeded(seed) {
+    let s = seed | 0;
+    return () => {
+      s = (s * 1664525 + 1013904223) | 0;
+      return ((s >>> 0) / 0xffffffff);
+    };
+  }
+
+  function makeMarks(n) {
+    marks = [];
+    const rnd = seeded(42);
+    for (let i = 0; i < n; i++) {
+      marks.push({
+        x: CX + (rnd() - 0.5) * 1600,
+        y: CY + (rnd() - 0.5) * 800,
+        homeX: 0, homeY: 0,
+        rot: 0, homeRot: 0,
+        scale: 0.3, homeScale: 0.3,
+        // per-mark micro motion seeds
+        phase: rnd() * Math.PI * 2,
+        rotSpeed: (rnd() - 0.5) * 0.18,
+        breath: rnd() * Math.PI * 2,
+        breathSpeed: 0.4 + rnd() * 0.5
+      });
+    }
+  }
+  makeMarks(N);
+
+  // ─── layouts (deterministic homeX/homeY/homeScale per mark)
+  const LAYOUTS = ["SCATTER", "GRID", "CONCENTRIC", "ORBIT", "STREAM"];
+  let layoutIdx = 0;
+
+  function applyLayout(name) {
+    if (name === "SCATTER") {
+      const rnd = seeded(7);
+      for (let i = 0; i < marks.length; i++) {
+        marks[i].homeX = 200 + rnd() * (VW - 400);
+        marks[i].homeY = 150 + rnd() * (VH - 300);
+        marks[i].homeScale = 0.22 + rnd() * 0.5;
+        marks[i].homeRot = (rnd() - 0.5) * 24;
+      }
+    } else if (name === "GRID") {
+      const cols = Math.ceil(Math.sqrt(marks.length * VW / VH));
+      const rows = Math.ceil(marks.length / cols);
+      const cw = VW / (cols + 1);
+      const rh = VH / (rows + 1);
+      for (let i = 0; i < marks.length; i++) {
+        const col = i % cols;
+        const row = Math.floor(i / cols);
+        marks[i].homeX = (col + 1) * cw;
+        marks[i].homeY = (row + 1) * rh;
+        marks[i].homeScale = Math.min(0.32, Math.min(cw, rh) / 900);
+        marks[i].homeRot = 0;
+      }
+    } else if (name === "CONCENTRIC") {
+      // 4 nested rings of marks (echoing the 4-ring brand)
+      const tiers = [
+        { count: 1, r: 0,   scale: 1.4 },
+        { count: 6, rx: 380, ry: 280, scale: 0.55 },
+        { count: 12, rx: 760, ry: 460, scale: 0.32 },
+        { count: 24, rx: 1080, ry: 580, scale: 0.18 }
+      ];
+      let idx = 0;
+      for (const tier of tiers) {
+        for (let k = 0; k < tier.count && idx < marks.length; k++) {
+          const a = tier.count === 1 ? 0 : (k / tier.count) * Math.PI * 2;
+          marks[idx].homeX = CX + Math.cos(a) * (tier.rx ?? 0);
+          marks[idx].homeY = CY + Math.sin(a) * (tier.ry ?? 0);
+          marks[idx].homeScale = tier.scale;
+          marks[idx].homeRot = 0;
+          idx++;
+        }
+      }
+      // any extra marks: nudge off-canvas to hide
+      for (; idx < marks.length; idx++) {
+        marks[idx].homeX = CX;
+        marks[idx].homeY = CY;
+        marks[idx].homeScale = 0;
+        marks[idx].homeRot = 0;
+      }
+    } else if (name === "ORBIT") {
+      // single large orbital ring of marks
+      for (let i = 0; i < marks.length; i++) {
+        const a = (i / marks.length) * Math.PI * 2;
+        marks[i].homeX = CX + Math.cos(a) * 720;
+        marks[i].homeY = CY + Math.sin(a) * 420;
+        marks[i].homeScale = 0.32;
+        marks[i].homeRot = a * 180 / Math.PI + 90;
+      }
+    } else if (name === "STREAM") {
+      // horizontal sinusoidal flow across the canvas
+      for (let i = 0; i < marks.length; i++) {
+        const t = i / Math.max(1, marks.length - 1);
+        marks[i].homeX = 120 + t * (VW - 240);
+        marks[i].homeY = CY + Math.sin(t * Math.PI * 2.4) * 280;
+        marks[i].homeScale = 0.34;
+        marks[i].homeRot = Math.cos(t * Math.PI * 2.4) * 12;
+      }
+    }
+  }
+  applyLayout(LAYOUTS[layoutIdx]);
+
+  // ─── input
+  let mouseX = CX, mouseY = CY;
+  let flocking = false;
+  const dot = $("dot");
+
+  window.addEventListener("mousemove", e => {
+    const rect = document.getElementById("canvas").getBoundingClientRect();
+    mouseX = ((e.clientX - rect.left) / rect.width)  * VW;
+    mouseY = ((e.clientY - rect.top)  / rect.height) * VH;
+    dot.style.left = e.clientX + "px";
+    dot.style.top = e.clientY + "px";
+    showUI();
+  });
+  window.addEventListener("mousedown", e => { if (e.button === 0) flocking = true; });
+  window.addEventListener("mouseup",   e => { if (e.button === 0) flocking = false; });
+
+  window.addEventListener("keydown", e => {
+    if (e.key === "m" || e.key === "M") {
+      layoutIdx = (layoutIdx + 1) % LAYOUTS.length;
+      applyLayout(LAYOUTS[layoutIdx]);
+    } else if (e.key === "+" || e.key === "=") {
+      N = Math.min(80, N + 4);
+      makeMarks(N); applyLayout(LAYOUTS[layoutIdx]);
+    } else if (e.key === "-" || e.key === "_") {
+      N = Math.max(4, N - 4);
+      makeMarks(N); applyLayout(LAYOUTS[layoutIdx]);
+    } else if (e.key === "h" || e.key === "H") {
+      document.body.classList.toggle("hud-on");
+    } else if (e.key === "f" || e.key === "F") {
+      if (document.fullscreenElement) document.exitFullscreen();
+      else document.documentElement.requestFullscreen();
+    }
+  });
+
+  // ─── render loop
+  let last = performance.now();
+  function tick(now) {
+    const dt = Math.min(64, now - last);
+    last = now;
+    const dt60 = dt / 16.6667;
+    const t = now;
+
+    let svg = "";
+    for (let i = 0; i < marks.length; i++) {
+      const m = marks[i];
+      // determine target: layout home, or flock toward mouse
+      let tx = m.homeX, ty = m.homeY;
+      let tscale = m.homeScale, trot = m.homeRot;
+      if (flocking) {
+        // mark drifts toward mouse, but each at its own offset so they form a cluster, not a stack
+        const offA = (i / marks.length) * Math.PI * 2;
+        const offR = 60 + (i % 4) * 50;
+        tx = mouseX + Math.cos(offA) * offR;
+        ty = mouseY + Math.sin(offA) * offR;
+        tscale = 0.28;
+        trot = Math.atan2(mouseY - VH/2, mouseX - VW/2) * 180 / Math.PI;
+      }
+      // micro motion on top of target
+      m.phase += m.rotSpeed * 0.001 * dt60;
+      const microX = Math.sin(t * 0.00018 + m.phase) * 14;
+      const microY = Math.cos(t * 0.00022 + m.phase) * 10;
+      const breath = 1 + Math.sin(t * 0.0008 * m.breathSpeed + m.breath) * 0.04;
+
+      // ease toward target (per-mark variable rate for organic feel)
+      const k = 0.05 + (i % 5) * 0.005;
+      m.x += (tx - m.x) * k * dt60;
+      m.y += (ty - m.y) * k * dt60;
+      m.scale += (tscale - m.scale) * k * dt60;
+      m.rot += (trot - m.rot) * k * dt60;
+
+      const finalX = m.x + microX;
+      const finalY = m.y + microY;
+      const finalRot = m.rot + Math.sin(t * 0.0005 + m.phase) * 1.5;
+      const finalScale = m.scale * breath;
+
+      svg += `<use href="#arenaMark" transform="translate(${finalX.toFixed(2)} ${finalY.toFixed(2)}) rotate(${finalRot.toFixed(2)}) scale(${finalScale.toFixed(4)})"/>`;
+    }
+    field.innerHTML = svg;
+
+    // hud
+    $("layoutName").textContent = LAYOUTS[layoutIdx];
+    $("layoutIdx").textContent = String(layoutIdx + 1).padStart(2,"0") + " / " + String(LAYOUTS.length).padStart(2,"0");
+    $("markCount").textContent = N;
+    $("flockState").textContent = flocking ? "ON" : "OFF";
+    $("state").textContent = "FLOW";
+    $("lockStatus").textContent = flocking ? "FLOCKED" : "DISPERSED";
+
+    requestAnimationFrame(tick);
+  }
+
+  let idleTimer;
+  function showUI() {
+    document.body.classList.add("show-cursor");
+    document.body.classList.remove("hide-hint");
+    clearTimeout(idleTimer);
+    idleTimer = setTimeout(() => {
+      document.body.classList.remove("show-cursor");
+      document.body.classList.add("hide-hint");
+    }, 2400);
+  }
+  showUI();
+  document.body.classList.add("hud-on");
+  setTimeout(() => document.body.classList.remove("hud-on"), 3500);
+
+  requestAnimationFrame(now => { last = now; tick(now); });
+})();
+</script>
+</body>
+</html>

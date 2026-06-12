@@ -1,0 +1,411 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>ARENA / Independent Motion</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body {
+    height: 100%;
+    background: #000;
+    color: #fff;
+    overflow: hidden;
+    font: 11px/1.4 ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    -webkit-font-smoothing: antialiased;
+    cursor: none;
+  }
+  body.show-cursor { cursor: default; }
+  #stage {
+    position: fixed;
+    inset: 0;
+    background: #000;
+    transition: background 1400ms cubic-bezier(.55,.1,.45,.9);
+  }
+  svg { width: 100%; height: 100%; display: block; }
+  .hud {
+    position: fixed;
+    pointer-events: none;
+    color: rgba(255,255,255,0.55);
+    text-transform: uppercase;
+    letter-spacing: 0.22em;
+    font-size: 10px;
+    opacity: 0;
+    transition: opacity 320ms;
+    mix-blend-mode: difference;
+    z-index: 10;
+  }
+  body.hud-on .hud { opacity: 1; }
+  .hud.tl { top: 22px; left: 24px; }
+  .hud.tr { top: 22px; right: 24px; text-align: right; }
+  .hud.bl { bottom: 22px; left: 24px; }
+  .hud.br { bottom: 22px; right: 24px; text-align: right; }
+  .hud b { color: #fff; font-weight: 600; }
+  .hint {
+    position: fixed;
+    bottom: 22px;
+    left: 50%;
+    transform: translateX(-50%);
+    color: rgba(255,255,255,0.4);
+    font-size: 10px;
+    letter-spacing: 0.3em;
+    text-transform: uppercase;
+    mix-blend-mode: difference;
+    transition: opacity 600ms;
+    z-index: 10;
+  }
+  body.hide-hint .hint { opacity: 0; }
+  .ringlabel {
+    fill: rgba(255,255,255,0.35);
+    font: 600 11px/1 ui-monospace, monospace;
+    letter-spacing: 0.2em;
+    opacity: 0;
+    transition: opacity 240ms;
+  }
+  body.hud-on .ringlabel { opacity: 1; }
+</style>
+</head>
+<body>
+<div id="stage">
+  <svg id="canvas" viewBox="0 0 1920 1080" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg">
+    <g id="root"></g>
+  </svg>
+</div>
+
+<div class="hud tl">ARENA<br><b>RING SYSTEM</b></div>
+<div class="hud tr"><span id="compName">CANONICAL</span><br><b id="compIdx">01 / 14</b></div>
+<div class="hud bl"><span id="ringCount">4</span> INDEPENDENT RINGS<br><b id="lockStatus">ALIGNED</b></div>
+<div class="hud br"><span id="state">FLOW</span><br><b id="phase">—</b></div>
+<div class="hint">F · FULLSCREEN &nbsp;&nbsp; SPACE · PAUSE &nbsp;&nbsp; N · NEXT &nbsp;&nbsp; C · LOCK &nbsp;&nbsp; H · HUD</div>
+
+<script>
+(() => {
+  const $ = id => document.getElementById(id);
+  const root = $("root");
+  const stage = $("stage");
+
+  // ─── canonical ring sizes derived from RINGS.svg
+  // Each ring keeps its canonical W/H/R/band — the independence is in cx/cy/rotation/scale.
+  const RECIPE = { W: 736, H: 415, R: 72, bandX: 8.6, bandY: 24.5, gapX: 77, gapY: 22, dRb: 10.7, dRg: 3.8 };
+  const CANON_RINGS = (() => {
+    const out = [];
+    let w = RECIPE.W, h = RECIPE.H, r = RECIPE.R;
+    for (let i = 0; i < 4; i++) {
+      out.push({ W: w, H: h, R: r, bandX: RECIPE.bandX, bandY: RECIPE.bandY, dRb: RECIPE.dRb });
+      const innerW = w - 2 * RECIPE.bandX;
+      const innerH = h - 2 * RECIPE.bandY;
+      const innerR = Math.max(0, r - RECIPE.dRb);
+      w = innerW - 2 * RECIPE.gapX;
+      h = innerH - 2 * RECIPE.gapY;
+      r = Math.max(0, innerR - RECIPE.dRg);
+    }
+    return out;
+  })();
+
+  function roundedRect(cx, cy, w, h, r) {
+    if (w <= 0 || h <= 0) return "";
+    r = Math.max(0, Math.min(r, w / 2, h / 2));
+    const x = cx - w / 2, y = cy - h / 2;
+    if (r < 0.5) return `M${x},${y}H${x+w}V${y+h}H${x}Z`;
+    return `M${x+r},${y}H${x+w-r}A${r},${r} 0 0 1 ${x+w},${y+r}V${y+h-r}A${r},${r} 0 0 1 ${x+w-r},${y+h}H${x+r}A${r},${r} 0 0 1 ${x},${y+h-r}V${y+r}A${r},${r} 0 0 1 ${x+r},${y}Z`;
+  }
+
+  // ─── compositions: per-ring transform deltas relative to canonical
+  // Each composition is an array of 4 ring transforms { dx, dy, rot, scale, scaleY? }
+  const W = 1920, H = 1080;
+  const COMPS = [
+    { name: "CANONICAL", lock: true, rings: [
+      { dx:0, dy:0, rot:0, scale:1 },
+      { dx:0, dy:0, rot:0, scale:1 },
+      { dx:0, dy:0, rot:0, scale:1 },
+      { dx:0, dy:0, rot:0, scale:1 }
+    ]},
+    { name: "LATERAL DRIFT", rings: [
+      { dx:-440, dy:0, rot:0, scale:1 },
+      { dx:-140, dy:0, rot:0, scale:1 },
+      { dx: 140, dy:0, rot:0, scale:1 },
+      { dx: 440, dy:0, rot:0, scale:1 }
+    ]},
+    { name: "VERTICAL STACK", rings: [
+      { dx:0, dy:-340, rot:0, scale:1.0 },
+      { dx:0, dy:-110, rot:0, scale:1.0 },
+      { dx:0, dy: 110, rot:0, scale:1.0 },
+      { dx:0, dy: 340, rot:0, scale:1.0 }
+    ]},
+    { name: "DIAGONAL CASCADE", rings: [
+      { dx:-360, dy:-200, rot:-8, scale:1 },
+      { dx:-130, dy:-70,  rot:-3, scale:1 },
+      { dx: 130, dy: 70,  rot: 3, scale:1 },
+      { dx: 360, dy: 200, rot: 8, scale:1 }
+    ]},
+    { name: "FOUR CORNERS", rings: [
+      { dx:-620, dy:-330, rot:0, scale:0.85 },
+      { dx: 620, dy:-330, rot:0, scale:0.85 },
+      { dx:-620, dy: 330, rot:0, scale:0.85 },
+      { dx: 620, dy: 330, rot:0, scale:0.85 }
+    ]},
+    { name: "COUNTER ROTATION", rings: [
+      { dx:0, dy:0, rot:-12, scale:1 },
+      { dx:0, dy:0, rot: 18, scale:1 },
+      { dx:0, dy:0, rot:-28, scale:1 },
+      { dx:0, dy:0, rot: 42, scale:1 }
+    ]},
+    { name: "EXPLODE", rings: [
+      { dx:0, dy:0, rot:0, scale:1 },
+      { dx:0, dy:0, rot:0, scale:1.6 },
+      { dx:0, dy:0, rot:0, scale:2.4 },
+      { dx:0, dy:0, rot:0, scale:3.6 }
+    ]},
+    { name: "IMPLODE", rings: [
+      { dx:0, dy:0, rot:0, scale:0.18 },
+      { dx:0, dy:0, rot:0, scale:0.35 },
+      { dx:0, dy:0, rot:0, scale:0.65 },
+      { dx:0, dy:0, rot:0, scale:1.0 }
+    ]},
+    { name: "PARALLAX", rings: [
+      { dx:-180, dy: 80, rot:0, scale:0.7 },
+      { dx: -60, dy: 30, rot:0, scale:0.9 },
+      { dx:  60, dy:-30, rot:0, scale:1.1 },
+      { dx: 180, dy:-80, rot:0, scale:1.4 }
+    ]},
+    { name: "OPPOSING PAIRS", rings: [
+      { dx:-380, dy:0, rot:0, scale:1 },
+      { dx: 380, dy:0, rot:0, scale:1 },
+      { dx:0, dy:-260, rot:90, scale:1 },
+      { dx:0, dy: 260, rot:90, scale:1 }
+    ]},
+    { name: "ORBIT", rings: [
+      { dx: 0,   dy:-300, rot: 0,   scale:1 },
+      { dx: 300, dy: 0,   rot: 90,  scale:1 },
+      { dx: 0,   dy: 300, rot: 180, scale:1 },
+      { dx:-300, dy: 0,   rot:-90,  scale:1 }
+    ]},
+    { name: "STACK", rings: [
+      { dx:0, dy:0, rot:0, scale:1.8 },
+      { dx:0, dy:0, rot:0, scale:1.4 },
+      { dx:0, dy:0, rot:0, scale:1.0 },
+      { dx:0, dy:0, rot:0, scale:0.6 }
+    ]},
+    { name: "TWIST", rings: [
+      { dx:0, dy:0, rot:0,  scale:1.4 },
+      { dx:0, dy:0, rot:22, scale:1.2 },
+      { dx:0, dy:0, rot:44, scale:1.0 },
+      { dx:0, dy:0, rot:66, scale:0.8 }
+    ]},
+    { name: "ASYMMETRIC", rings: [
+      { dx:-220, dy:-120, rot:-14, scale:1.1 },
+      { dx: 320, dy: -40, rot:  6, scale:0.85 },
+      { dx:-140, dy: 280, rot: 12, scale:1.25 },
+      { dx: 260, dy: 220, rot:-26, scale:0.7 }
+    ]}
+  ];
+
+  // accent color schemes (occasionally swap in red/inverse)
+  const PALETTES = [
+    { bg:"#000", fg:"#fff", weight: 70 },
+    { bg:"#fff", fg:"#000", weight: 10 },
+    { bg:"#ff3a1f", bgFor:"ALERT", fg:"#000", weight: 8 },
+    { bg:"#0a0a0a", fg:"#ff3a1f", weight: 6 },
+    { bg:"#ffe600", fg:"#000", weight: 3 },
+    { bg:"#000", fg:"#0a3cff", weight: 3 }
+  ];
+
+  function pickPalette() {
+    const total = PALETTES.reduce((a,p)=>a+p.weight,0);
+    let r = Math.random() * total;
+    for (const p of PALETTES) { r -= p.weight; if (r <= 0) return p; }
+    return PALETTES[0];
+  }
+
+  // ─── state
+  let currentIdx = 0;
+  let nextIdx = 0;
+  let currentComp = JSON.parse(JSON.stringify(COMPS[0]));
+  let targetComp  = JSON.parse(JSON.stringify(COMPS[0]));
+  let currentPalette = PALETTES[0];
+  let targetPalette  = PALETTES[0];
+  let phase = "DWELL";
+  let phaseStart = performance.now();
+  let pausedAt = null;
+  let pauseOffset = 0;
+  let returnTokenAt = performance.now() + 14000; // every ~14s we attempt return to canonical
+  const TRANSITION_MS = 3400;
+  const DWELL_MS = 1600;
+  const CANONICAL_DWELL_MS = 2600;
+
+  function pickNext() {
+    // every few moves, return to canonical (the brand "lock" moment)
+    if (performance.now() > returnTokenAt && currentIdx !== 0) {
+      returnTokenAt = performance.now() + 14000 + Math.random() * 8000;
+      return 0; // canonical idx
+    }
+    let i;
+    do { i = Math.floor(Math.random() * COMPS.length); }
+    while (i === currentIdx || i === 0); // skip canonical from random pool
+    return i;
+  }
+
+  // ─── interpolation
+  const ease = t => t < 0.5 ? 4*t*t*t : 1 - Math.pow(-2*t + 2, 3) / 2;
+  function lerp(a,b,t) { return a + (b-a)*t; }
+  function lerpRing(a, b, t) {
+    return {
+      dx: lerp(a.dx, b.dx, t),
+      dy: lerp(a.dy, b.dy, t),
+      rot: lerp(a.rot, b.rot, t),
+      scale: lerp(a.scale, b.scale, t),
+      scaleY: lerp(a.scaleY ?? a.scale, b.scaleY ?? b.scale, t)
+    };
+  }
+
+  // ─── micro motion: independent per-ring noise on top of the composed transform
+  const microPhases = [
+    { x: 0.00018, y: 0.00024, r: 0.00013, ampX: 14, ampY: 10, ampR: 1.6, off: 0.0 },
+    { x: 0.00021, y: 0.00017, r: 0.00016, ampX: 12, ampY: 14, ampR: 1.8, off: 1.7 },
+    { x: 0.00015, y: 0.00027, r: 0.00018, ampX: 16, ampY: 8,  ampR: 1.4, off: 3.1 },
+    { x: 0.00023, y: 0.00019, r: 0.00012, ampX: 10, ampY: 16, ampR: 2.2, off: 4.6 }
+  ];
+  function microOffset(i, t) {
+    const m = microPhases[i % microPhases.length];
+    return {
+      dx: Math.sin(t * m.x + m.off) * m.ampX,
+      dy: Math.cos(t * m.y + m.off * 0.7) * m.ampY,
+      rot: Math.sin(t * m.r + m.off * 1.4) * m.ampR
+    };
+  }
+
+  function nowMs() {
+    if (pausedAt !== null) return pausedAt - pauseOffset;
+    return performance.now() - pauseOffset;
+  }
+
+  function tick() {
+    const now = nowMs();
+    const elapsed = now - phaseStart;
+    let t;
+    if (phase === "TRANSITION") {
+      t = Math.min(1, elapsed / TRANSITION_MS);
+      if (t >= 1) {
+        phase = "DWELL";
+        phaseStart = now;
+        currentComp = JSON.parse(JSON.stringify(targetComp));
+        currentPalette = targetPalette;
+        currentIdx = nextIdx;
+      }
+    } else {
+      const dwellLen = currentComp.lock ? CANONICAL_DWELL_MS : DWELL_MS;
+      if (elapsed >= dwellLen) {
+        nextIdx = pickNext();
+        targetComp = JSON.parse(JSON.stringify(COMPS[nextIdx]));
+        // occasional palette change (more likely when moving away from canonical)
+        if (Math.random() < 0.35) targetPalette = pickPalette();
+        phase = "TRANSITION";
+        phaseStart = now;
+        t = 0;
+      } else t = 1;
+    }
+
+    const e = ease(t);
+
+    // colors
+    const bg = lerpColor(currentPalette.bg, targetPalette.bg, e);
+    const fg = lerpColor(currentPalette.fg, targetPalette.fg, e);
+    stage.style.background = bg;
+
+    // build rings: each gets its own <g> with transform around the page center
+    let svg = "";
+    for (let i = 0; i < 4; i++) {
+      const r = CANON_RINGS[i];
+      const a = currentComp.rings[i];
+      const b = targetComp.rings[i];
+      const blended = lerpRing(a, b, e);
+      const m = microOffset(i, now);
+      const cx = W/2 + blended.dx + m.dx;
+      const cy = H/2 + blended.dy + m.dy;
+      const rot = blended.rot + m.rot;
+      const scale = blended.scale;
+
+      // build the ring band as a compound path (outer + inner) centered at origin
+      const outer = roundedRect(0, 0, r.W, r.H, r.R);
+      const innerW = r.W - 2 * r.bandX;
+      const innerH = r.H - 2 * r.bandY;
+      const innerR = Math.max(0, r.R - r.dRb);
+      const inner = (innerW > 0 && innerH > 0) ? roundedRect(0, 0, innerW, innerH, innerR) : "";
+
+      svg += `<g transform="translate(${cx} ${cy}) rotate(${rot}) scale(${scale * 1.6})"><path d="${outer} ${inner}" fill="${fg}" fill-rule="evenodd"/><text class="ringlabel" text-anchor="middle" dy="4" transform="scale(${1/(scale*1.6)})" y="0">R${i+1}</text></g>`;
+    }
+    root.innerHTML = svg;
+
+    // hud
+    $("compName").textContent = currentComp.name;
+    $("compIdx").textContent = String(currentIdx + 1).padStart(2,"0") + " / " + String(COMPS.length).padStart(2,"0");
+    $("ringCount").textContent = 4;
+    $("lockStatus").textContent = currentIdx === 0 ? "ALIGNED" : "DISPERSED";
+    $("state").textContent = pausedAt !== null ? "HOLD" : "FLOW";
+    $("phase").textContent = phase === "TRANSITION" ? "MORPH " + Math.round(t * 100) + "%" : (currentComp.lock ? "LOCKED" : "DWELL");
+
+    requestAnimationFrame(tick);
+  }
+
+  function lerpColor(a, b, t) {
+    const pa = parseHex(a), pb = parseHex(b);
+    const r = Math.round(lerp(pa[0], pb[0], t));
+    const g = Math.round(lerp(pa[1], pb[1], t));
+    const bl = Math.round(lerp(pa[2], pb[2], t));
+    return `rgb(${r},${g},${bl})`;
+  }
+  function parseHex(h) {
+    if (h.startsWith("rgb")) {
+      const m = h.match(/\d+/g);
+      return [+m[0], +m[1], +m[2]];
+    }
+    h = h.replace("#","");
+    if (h.length === 3) h = h.split("").map(c=>c+c).join("");
+    return [parseInt(h.slice(0,2),16), parseInt(h.slice(2,4),16), parseInt(h.slice(4,6),16)];
+  }
+
+  // ─── input
+  window.addEventListener("keydown", e => {
+    if (e.key === " ") {
+      e.preventDefault();
+      if (pausedAt !== null) { pauseOffset += performance.now() - pausedAt; pausedAt = null; }
+      else pausedAt = performance.now();
+    } else if (e.key === "n" || e.key === "N") {
+      nextIdx = pickNext();
+      targetComp = JSON.parse(JSON.stringify(COMPS[nextIdx]));
+      phase = "TRANSITION";
+      phaseStart = nowMs();
+    } else if (e.key === "c" || e.key === "C") {
+      nextIdx = 0;
+      targetComp = JSON.parse(JSON.stringify(COMPS[0]));
+      phase = "TRANSITION";
+      phaseStart = nowMs();
+    } else if (e.key === "h" || e.key === "H") {
+      document.body.classList.toggle("hud-on");
+    } else if (e.key === "f" || e.key === "F") {
+      if (document.fullscreenElement) document.exitFullscreen();
+      else document.documentElement.requestFullscreen();
+    }
+  });
+
+  let idleTimer;
+  function showUI() {
+    document.body.classList.add("show-cursor");
+    document.body.classList.remove("hide-hint");
+    clearTimeout(idleTimer);
+    idleTimer = setTimeout(() => {
+      document.body.classList.remove("show-cursor");
+      document.body.classList.add("hide-hint");
+    }, 2400);
+  }
+  document.addEventListener("mousemove", showUI);
+  showUI();
+
+  document.body.classList.add("hud-on");
+  setTimeout(() => document.body.classList.remove("hud-on"), 3500);
+
+  requestAnimationFrame(tick);
+})();
+</script>
+</body>
+</html>

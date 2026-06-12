@@ -1,0 +1,3781 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>ARENA / Ring Engine</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
+<meta name="build-version" content="v1.0"><!-- band profile drives band+gap+radius; pure-motion presets; accRot decays -->
+<meta name="build-date" content="2026-05-15">
+<style>
+  :root {
+    --bg: #000;
+    --fg: #fafafa;
+    --muted: #8a8a8a;
+    --line: #2a2a2a;
+    --accent: #fbff54;
+    --accent-text: #000;
+    --panel: #0c0c0c;
+    /* Grey hierarchy — three clear steps for the open-card stack:
+         --bg            #000     pure black (canvas + app behind drawer)
+         --card-body     #141414  deep grey (open section body)
+         --card-header   #2e2e2e  noticeably lighter grey (header / 'lid') */
+    --card-body: #141414;
+    --card-header: #2e2e2e;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body {
+    height: 100%;
+    background: var(--bg);
+    color: var(--fg);
+    font: 13px/1.4 "Helvetica Neue", Helvetica, Arial, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    overflow: hidden;
+  }
+  main {
+    display: grid;
+    grid-template-columns: 340px 1fr;
+    height: 100vh;
+    transition: grid-template-columns 380ms cubic-bezier(.4,.0,.2,1);
+  }
+  body.drawer-collapsed main {
+    grid-template-columns: 0 1fr;
+  }
+  body.drawer-collapsed aside {
+    transform: translateX(-100%);
+  }
+  aside {
+    border-right: 1px solid var(--line);
+    overflow-y: auto;
+    padding: 16px 18px;
+    background: var(--panel);
+    position: relative;
+    transition: transform 380ms cubic-bezier(.4,.0,.2,1);
+  }
+  /* drawer toggle: sits flush against the right edge of the drawer.
+     Large, high-contrast, with a clear chevron. */
+  .drawer-toggle {
+    position: fixed;
+    top: 50%;
+    left: 340px;
+    transform: translate(-50%, -50%);
+    width: 38px;
+    height: 60px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 0 8px 8px 0;
+    color: var(--fg);
+    cursor: pointer;
+    font: 700 22px/1 "Helvetica Neue", Helvetica, Arial, sans-serif;
+    z-index: 50;
+    transition: left 380ms cubic-bezier(.4,.0,.2,1), background 120ms, color 120ms, box-shadow 120ms;
+    -webkit-tap-highlight-color: transparent;
+    box-shadow: 2px 0 6px rgba(0,0,0,0.4);
+  }
+  .drawer-toggle:hover { background: var(--accent); color: var(--bg); border-color: var(--accent); }
+  body.drawer-collapsed .drawer-toggle {
+    left: 0;
+    transform: translate(0, -50%);
+  }
+  /* Mobile: drawer becomes a slide-in overlay, touch targets get bigger */
+  @media (max-width: 760px) {
+    main {
+      grid-template-columns: 1fr;
+    }
+    aside {
+      position: fixed;
+      top: 0; left: 0; bottom: 0;
+      width: min(86vw, 360px);
+      z-index: 40;
+      box-shadow: 4px 0 24px rgba(0,0,0,0.6);
+    }
+    body.drawer-collapsed main {
+      grid-template-columns: 1fr;
+    }
+    .drawer-toggle {
+      width: 44px;
+      height: 60px;
+      font-size: 22px;
+      top: 28%;
+      left: min(86vw, 360px);
+      transform: translate(-50%, -50%);
+    }
+    body.drawer-collapsed .drawer-toggle { left: 0; transform: translate(0, -50%); }
+    /* dim background when drawer is open on mobile */
+    body:not(.drawer-collapsed) #stage::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background: rgba(0,0,0,0.55);
+      z-index: 30;
+      pointer-events: auto;
+    }
+    /* Bigger touch targets */
+    .header-btn { padding: 14px 6px; font-size: 11px; min-height: 44px; }
+    button.btn { padding: 11px 8px; font-size: 11px; min-height: 38px; }
+    .pos-btn, .anchor-btn { min-height: 38px; }
+    input[type=range] { height: 28px; }
+    input[type=range]::-webkit-slider-thumb { width: 18px; height: 18px; margin-top: -9px; }
+    .stage-meta { font-size: 8px; }
+    /* The stage action bar was overflowing the viewport on phones (375px wide).
+       Let it wrap, shrink padding, hide the dividers, and constrain max-width
+       so every button stays inside the screen. */
+    .stage-controls {
+      bottom: 10px;
+      left: 50%;
+      transform: translateX(-50%);
+      max-width: calc(100vw - 16px);
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 4px;
+      padding: 6px;
+      box-sizing: border-box;
+    }
+    .stage-controls .btn { padding: 8px 9px; font-size: 10px; min-height: 36px; }
+    .stage-controls .divider { display: none; }
+  }
+  .brand {
+    font: 600 11px/1 "Helvetica Neue", Helvetica, Arial, sans-serif;
+    letter-spacing: 0;
+
+    margin-bottom: 4px;
+  }
+  .brand-logo {
+    display: block;
+    width: 60%;
+    height: auto;
+    max-height: 34px;
+    object-fit: contain;
+    padding: 6px 0;
+    margin: 18px auto 20px;
+    cursor: pointer;
+    transition: opacity 120ms;
+  }
+  .brand-logo:hover { opacity: 0.7; }
+  .brand-link { display: block; }
+  .sub {
+    color: var(--muted);
+    font-size: 11px;
+    letter-spacing: 0;
+    text-align: center;
+    margin-bottom: 22px;
+  }
+  .sub a { color: var(--muted); text-decoration: none; }
+  .sub a:hover { color: var(--fg); }
+  fieldset {
+    border: 0;
+    padding: 0;
+    margin: 0;
+  }
+  /* Non-collapsible fieldsets still need their content padded */
+  fieldset:not(.collapsible) {
+    padding-bottom: 12px;
+  }
+  /* Card-based collapsible sections — each fieldset is its own elevated card
+     with a card-header (the legend) and a card-body (everything else).
+     Grey-shade hierarchy:
+       App bg          black (#000)
+       Card body       slightly above black (#141414)
+       Card header     lighter grey (#232323)
+     The header reads as the "lid" and the body sits a notch darker beneath. */
+  fieldset.collapsible {
+    background: #141414;
+    border: 1px solid #2a2a2a;
+    border-radius: 14px;
+    overflow: hidden;
+    margin-bottom: 12px;
+  }
+  /* legend wraps the whole header row. `.legend-label` is the visible text
+     element; chevron is rendered via ::before on .legend-label so it sits
+     hard left next to the title (legend's own pseudo-elements have weird
+     layout because legend is not a normal block element). */
+  fieldset.collapsible > .legend {
+    font-weight: 600;
+    color: var(--fg);
+    font-size: 14px;
+    letter-spacing: 0;
+    padding: 10px 18px;
+    cursor: pointer;
+    user-select: none;
+    /* Header bg is the lighter grey — sits visually above the body bg */
+    background: var(--card-header);
+    transition: background 100ms;
+    width: 100%;
+    box-sizing: border-box;
+    display: flex;
+    align-items: center;
+    text-align: left;
+    /* Min-height reserves the same vertical space as when action pills
+       (Remix / Reset / Surprise) are visible. Keeps the title baseline
+       fixed whether the section is collapsed (pills hidden) or open. */
+    min-height: 44px;
+  }
+  fieldset.collapsible > .legend:hover {
+    background: #363636;
+  }
+  /* Hairline between header and body when section is open — sharpens the
+     distinction between the two tones. No line when collapsed (header is
+     the only thing visible). */
+  fieldset.collapsible:not(.collapsed) > .legend {
+    border-bottom: 1px solid rgba(0,0,0,0.35);
+  }
+  .legend-label {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    text-align: left;
+  }
+  .legend-label::before {
+    content: "▸";
+    display: inline-block;
+    width: 12px;
+    margin-right: 6px;
+    font-size: 11px;
+    color: var(--accent);
+    transition: transform 200ms cubic-bezier(.4,.0,.2,1);
+    flex-shrink: 0;
+    transform-origin: center;
+    /* Single character; rotated 90° when section is open. Same glyph means
+       same metrics — no baseline jiggle when toggling. */
+  }
+  fieldset.collapsible:not(.collapsed) .legend-label::before {
+    transform: rotate(90deg);
+  }
+  /* Actions group (Remix / Reset / Surprise) — only visible when section is open. */
+  fieldset.collapsible > .legend .actions {
+    margin-left: auto;
+    display: flex;
+    gap: 6px;
+  }
+  fieldset.collapsible.collapsed > .legend .actions {
+    display: none;
+  }
+  /* Section body — generous padding for breathing room. */
+  fieldset.collapsible > *:not(.legend) {
+    padding: 4px 20px 20px;
+  }
+  fieldset.collapsible.collapsed > *:not(.legend) {
+    display: none;
+  }
+  .row {
+    display: grid;
+    grid-template-columns: 1fr 64px;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 10px;
+  }
+  .row label {
+    color: var(--muted);
+    font-size: 13px;
+    letter-spacing: 0;
+  }
+  .row .val {
+    text-align: right;
+    color: var(--fg);
+    font-variant-numeric: tabular-nums;
+    font-size: 13px;
+    font-weight: 500;
+  }
+  input[type=range] {
+    grid-column: 1 / -1;
+    width: 100%;
+    appearance: none;
+    background: transparent;
+    height: 26px;
+    margin: 4px 0;
+  }
+  input[type=range]::-webkit-slider-runnable-track { height: 3px; background: #2a2a2a; border-radius: 2px; }
+  input[type=range]::-webkit-slider-thumb {
+    appearance: none;
+    width: 18px; height: 18px;
+    background: var(--fg);
+    border-radius: 50%;
+    margin-top: -8px;
+    cursor: ew-resize;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.4);
+  }
+  input[type=range]:focus { outline: none; }
+  input[type=range]:focus::-webkit-slider-thumb { background: var(--accent); }
+  /* Switch component — pill-style toggle for binary state (Wordmark, Grid, Invert, etc.) */
+  .switch {
+    position: relative;
+    width: 48px;
+    height: 26px;
+    background: #2a2a2a;
+    border-radius: 14px;
+    cursor: pointer;
+    transition: background 160ms;
+    flex-shrink: 0;
+    display: inline-block;
+    vertical-align: middle;
+  }
+  .switch::after {
+    content: "";
+    position: absolute;
+    top: 3px; left: 3px;
+    width: 20px; height: 20px;
+    background: #888;
+    border-radius: 50%;
+    transition: transform 200ms cubic-bezier(.3,.7,.4,1), background 160ms;
+  }
+  .switch.on { background: var(--accent); }
+  .switch.on::after { transform: translateX(22px); background: var(--fg); }
+  .switch-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 0;
+    font: 500 13px/1 "Helvetica Neue", Helvetica, Arial, sans-serif;
+    color: var(--fg);
+    cursor: pointer;
+    user-select: none;
+  }
+  .switch-row:hover { color: var(--accent); }
+  button.btn {
+    appearance: none;
+    background: #232323;
+    color: var(--fg);
+    border: 1px solid var(--line);
+    padding: 10px 10px;
+    font: 500 12px/1.1 "Helvetica Neue", Helvetica, Arial, sans-serif;
+    letter-spacing: 0;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: background 100ms, color 100ms, border-color 100ms;
+  }
+  button.btn:hover { border-color: var(--fg); background: #2a2a2a; }
+  button.btn.primary { background: var(--fg); color: var(--bg); border-color: var(--fg); }
+  button.btn.primary:hover { background: var(--accent); border-color: var(--accent); color: var(--accent-text); }
+  button.btn.tiny { padding: 4px 10px; font-size: 11px; border-radius: 6px; }
+  button.btn.on { background: var(--accent); color: var(--accent-text); border-color: var(--accent); }
+  .btnrow { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; }
+  .btnrow-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+  .swatches { display: grid; grid-template-columns: repeat(6, 1fr); gap: 4px; }
+  .swatches.palette-3 { grid-template-columns: repeat(3, 1fr); gap: 8px; }
+  .swatches.palette-3 .swatch-pick { height: 32px; border-radius: 8px; }
+  .swatch-pick {
+    height: 22px;
+    border: 1px solid var(--line);
+    cursor: pointer;
+  }
+  .swatch-pick.active {
+    border-color: var(--fg);
+    box-shadow: inset 0 0 0 2px rgba(0,0,0,0.4);
+  }
+  /* Image upload dropzone — click or drag-drop. Shows a thumbnail once loaded. */
+  .image-dropzone {
+    position: relative;
+    border: 1px dashed #444;
+    background: #161616;
+    min-height: 90px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: border-color 100ms, background 100ms;
+    overflow: hidden;
+  }
+  .image-dropzone:hover { border-color: var(--accent); background: #1c1c1c; }
+  .image-dropzone.dragover { border-color: var(--accent); background: rgba(255,58,31,0.08); }
+  .image-dropzone.has-image { border-style: solid; border-color: #2a2a2a; min-height: 110px; }
+  .image-dropzone-prompt {
+    text-align: center;
+    color: var(--muted);
+    font: 600 10px/1.4 "Helvetica Neue", Helvetica, Arial, sans-serif;
+    letter-spacing: 0;
+
+    pointer-events: none;
+  }
+  .image-dropzone-prompt small {
+    display: block;
+    margin-top: 4px;
+    font-size: 8px;
+    opacity: 0.6;
+    letter-spacing: 0;
+  }
+  .image-dropzone-thumb {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    background: #000;
+  }
+  .image-dropzone.has-image .image-dropzone-prompt { display: none; }
+  .image-mode-grid { grid-template-columns: repeat(2, 1fr); }
+  /* Corner picker (V.2 iter 25) — 3-column grid (TL, ·, TR / BL, ·, BR) */
+  .corner-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 6px;
+  }
+  .corner-btn {
+    background: #232323;
+    border: 1px solid var(--line);
+    color: var(--muted);
+    padding: 14px 0;
+    font-size: 18px;
+    line-height: 1;
+    cursor: pointer;
+    border-radius: 8px;
+    transition: background 100ms, color 100ms, border-color 100ms;
+  }
+  .corner-btn:hover { border-color: var(--fg); color: var(--fg); background: #2a2a2a; }
+  .corner-btn.on { background: var(--accent); color: var(--accent-text); border-color: var(--accent); }
+  /* collapsible motion row: header + body (sliders hidden when collapsed) */
+  .motion-row2 {
+    display: flex;
+    flex-direction: column;
+    border: 1px solid var(--line);
+    margin-bottom: 4px;
+    background: rgba(255,255,255,0.012);
+  }
+  .motion-row2.on { border-color: rgba(255,58,31,0.5); }
+  .motion-head {
+    display: grid;
+    grid-template-columns: 1fr 34px;
+    align-items: stretch;
+  }
+  .motion-expand {
+    appearance: none;
+    background: transparent;
+    color: var(--muted);
+    border: 0;
+    padding: 9px 10px;
+    font: 600 9px/1 "Helvetica Neue", Helvetica, Arial, sans-serif;
+    letter-spacing: 0;
+
+    text-align: left;
+    cursor: pointer;
+  }
+  .motion-row2:not(.collapsed) .motion-expand { background: rgba(255,255,255,0.04); color: var(--fg); }
+  .motion-row2.on .motion-expand { color: var(--fg); }
+  .motion-on {
+    appearance: none;
+    background: transparent;
+    color: var(--muted);
+    border: 0;
+    border-left: 1px solid var(--line);
+    cursor: pointer;
+    font-size: 13px;
+    line-height: 1;
+  }
+  .motion-row2.on .motion-on { color: var(--accent); }
+  .motion-body { padding: 6px 10px 9px; border-top: 1px solid var(--line); }
+  .motion-row2.collapsed .motion-body { display: none; }
+  .motion-slider-row { display: flex; flex-direction: column; gap: 3px; margin-bottom: 4px; }
+  .motion-slider-row label {
+    color: var(--muted);
+    font-size: 9px;
+    letter-spacing: 0;
+
+  }
+  .motion-subhead {
+    color: var(--muted);
+    font: 600 9px/1 "Helvetica Neue", Helvetica, Arial, sans-serif;
+    letter-spacing: 0;
+
+    padding: 4px 0 8px;
+    border-top: 1px solid transparent;
+  }
+  /* legacy (no longer used but kept in case of refactor) */
+  .motion-row {
+    display: grid;
+    grid-template-columns: 76px 1fr 1fr;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 6px;
+  }
+  .motion-row .toggle {
+    padding: 6px 0;
+    font-size: 9px;
+    letter-spacing: 0;
+  }
+  .motion-row .mslider {
+    appearance: none; background: transparent; height: 14px; margin: 0;
+  }
+  .motion-row .mslider::-webkit-slider-runnable-track { height: 1px; background: var(--line); }
+  .motion-row .mslider::-webkit-slider-thumb {
+    appearance: none; width: 8px; height: 8px; background: var(--muted); margin-top: -4px; cursor: ew-resize;
+  }
+  .motion-row.on .mslider::-webkit-slider-thumb { background: var(--fg); }
+  .preset-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 6px; }
+  /* Lowercase preset names in Motion + Compositions per V.2 iter 25 ask —
+     softens the visual against the otherwise title-case UI. */
+  #ssStateGrid .btn,
+  #moodGrid .btn {
+    text-transform: lowercase;
+    letter-spacing: 0.01em;
+  }
+
+  section#stage {
+    position: relative;
+    display: grid;
+    place-items: center;
+    background: #181818;
+    overflow: hidden;
+    padding: 24px;
+  }
+  /* subtle frame around the canvas so the format is unmistakable on any bg */
+  svg#canvas {
+    box-shadow: 0 0 0 1px rgba(255,255,255,0.05);
+  }
+  /* two header buttons: canonical (revert to brand baseline) + randomize (re-roll everything) */
+  .header-actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 6px;
+    margin: 0 0 6px;
+  }
+  .header-actions:last-of-type {
+    margin-bottom: 22px;
+  }
+  /* Flip canonical row — subtle pill that appears below the mode grid when
+     canonical lock is on. Visually subordinate to the main mode buttons. */
+  .canonical-flip-row {
+    margin: 0 0 12px;
+    display: flex;
+    justify-content: center;
+  }
+  .canonical-flip-row .flip-btn {
+    background: rgba(251, 255, 84, 0.10);
+    border: 1px solid rgba(251, 255, 84, 0.35);
+    border-radius: 999px;
+    color: var(--accent);
+    padding: 7px 14px;
+    font: 500 11px/1 "Helvetica Neue", Helvetica, Arial, sans-serif;
+    cursor: pointer;
+    transition: background 120ms, border-color 120ms;
+  }
+  .canonical-flip-row .flip-btn:hover {
+    background: rgba(251, 255, 84, 0.18);
+    border-color: var(--accent);
+    color: var(--fg);
+  }
+  /* Standalone Wordmark card — pure switch in an elevated card. Lives at the
+     top level of the drawer above the section list, since it's a primary toggle
+     not a configuration section. */
+  .wordmark-card {
+    background: var(--card-header);
+    border: 1px solid #2a2a2a;
+    border-radius: 14px;
+    margin: 0 0 18px;
+    transition: border-color 120ms;
+  }
+  .wordmark-card:hover { border-color: #3a3a3a; }
+  .wordmark-card .switch-row {
+    padding: 8px 18px;
+    font: 600 14px/1 "Helvetica Neue", Helvetica, Arial, sans-serif;
+    color: var(--fg);
+    min-height: 44px;
+  }
+  .wordmark-card .switch-row:hover { color: var(--fg); }
+  .header-btn {
+    display: block;
+    width: 100%;
+    padding: 14px 8px;
+    font: 600 13px/1 "Helvetica Neue", Helvetica, Arial, sans-serif;
+    letter-spacing: 0;
+    color: var(--fg);
+    background: var(--card-header);
+    border: 1px solid #2a2a2a;
+    border-radius: 12px;
+    cursor: pointer;
+    transition: background 120ms, color 120ms, border-color 120ms;
+  }
+  .header-btn:hover { border-color: var(--fg); background: #242424; }
+  .header-btn:active { background: var(--fg); color: var(--bg); }
+  .header-btn.primary { background: var(--fg); color: var(--bg); border-color: var(--fg); }
+  .header-btn.primary:hover { background: var(--accent); border-color: var(--accent); color: var(--accent-text); }
+  /* mode-active: the button corresponding to the currently-applied preset.
+     Accent fill, clear active state. */
+  .header-btn.mode-active {
+    background: var(--accent);
+    color: var(--accent-text);
+    border-color: var(--accent);
+    position: relative;
+  }
+  .header-btn.mode-active::after {
+    content: "";
+    display: none;
+    /* removed the "● ACTIVE" pip — yellow fill is unmistakable */
+    position: absolute;
+    top: 4px;
+    right: 6px;
+    font-size: 7px;
+    letter-spacing: 0;
+    opacity: 0.85;
+  }
+  .header-btn.primary.mode-active { background: var(--accent); color: var(--accent-text); }
+  /* 3x3 position grid: quick anchor placement on canvas */
+  .pos-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 4px;
+    margin-bottom: 10px;
+  }
+  .pos-btn {
+    appearance: none;
+    background: transparent;
+    color: var(--muted);
+    border: 1px solid var(--line);
+    padding: 8px 0;
+    font: 14px/1 "Helvetica Neue", Helvetica, Arial, sans-serif;
+    cursor: pointer;
+    transition: border-color 80ms, color 80ms, background 80ms;
+  }
+  .pos-btn:hover { border-color: var(--muted); color: var(--fg); }
+  .pos-btn.active { background: var(--fg); color: var(--bg); border-color: var(--fg); }
+  /* Anchor (echo-from) buttons share the .pos-btn style */
+  .anchor-btn {
+    appearance: none;
+    background: transparent;
+    color: var(--muted);
+    border: 1px solid var(--line);
+    padding: 8px 0;
+    font: 14px/1 "Helvetica Neue", Helvetica, Arial, sans-serif;
+    cursor: pointer;
+    transition: border-color 80ms, color 80ms, background 80ms;
+  }
+  .anchor-btn:hover { border-color: var(--muted); color: var(--fg); }
+  .anchor-btn.active { background: var(--accent); color: var(--bg); border-color: var(--accent); }
+  /* Echo From — prominent section with 2D anchor pad */
+  .echo-section {
+    border: 1px solid var(--accent);
+    background: rgba(255,58,31,0.04);
+    padding: 12px 10px;
+    margin: 0 0 14px;
+  }
+  .echo-title {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    font: 700 11px/1 "Helvetica Neue", Helvetica, Arial, sans-serif;
+    letter-spacing: 0;
+
+    color: var(--fg);
+    margin-bottom: 10px;
+  }
+  .echo-sub {
+    color: var(--muted);
+    font-weight: 400;
+    font-size: 9px;
+    letter-spacing: 0;
+    text-transform: none;
+  }
+  .echo-title .val { color: var(--accent); margin-left: auto; font-weight: 700; }
+  .anchor-pad {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 16 / 9;
+    background: rgba(255,255,255,0.05);
+    border: 1px solid var(--line);
+    cursor: crosshair;
+    margin-bottom: 8px;
+  }
+  .anchor-pad::before,
+  .anchor-pad::after {
+    content: "";
+    position: absolute;
+    background: rgba(255,255,255,0.12);
+    pointer-events: none;
+  }
+  .anchor-pad::before { top: 50%; left: 0; right: 0; height: 1px; margin-top: -0.5px; }
+  .anchor-pad::after  { left: 50%; top: 0; bottom: 0; width: 1px; margin-left: -0.5px; }
+  .anchor-pad-dot {
+    position: absolute;
+    left: 50%; top: 50%;
+    width: 12px; height: 12px;
+    background: var(--accent);
+    border: 2px solid var(--fg);
+    margin: -7px 0 0 -7px;
+    pointer-events: none;
+    box-sizing: border-box;
+  }
+  /* fit-mode trio: TIGHT / AUTO / LOOSE */
+  .fit-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 4px;
+    margin-bottom: 10px;
+  }
+  .fit-btn {
+    appearance: none;
+    background: transparent;
+    color: var(--muted);
+    border: 1px solid var(--line);
+    padding: 8px 0;
+    font: 600 9px/1 "Helvetica Neue", Helvetica, Arial, sans-serif;
+    letter-spacing: 0;
+
+    cursor: pointer;
+    transition: border-color 80ms, color 80ms, background 80ms;
+  }
+  .fit-btn:hover { border-color: var(--muted); color: var(--fg); }
+  .fit-btn.active { background: var(--fg); color: var(--bg); border-color: var(--fg); }
+  #stage::before {
+    content: "";
+    position: absolute; inset: 0;
+    background-image:
+      linear-gradient(to right, rgba(255,255,255,0.025) 1px, transparent 1px),
+      linear-gradient(to bottom, rgba(255,255,255,0.025) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+    opacity: var(--grid-opacity, 0);
+    transition: opacity 120ms;
+  }
+  svg#canvas {
+    display: block;
+    z-index: 1;
+    /* width / height set explicitly by fitCanvas() in JS so the canvas always
+       grows to fill the available stage area regardless of chosen format */
+  }
+  .format-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 6px;
+    margin-bottom: 8px;
+  }
+  .format-btn {
+    appearance: none;
+    background: transparent;
+    color: var(--muted);
+    border: 1px solid var(--line);
+    padding: 8px 0;
+    font: 600 9px/1 "Helvetica Neue", Helvetica, Arial, sans-serif;
+    letter-spacing: 0;
+
+    cursor: pointer;
+    transition: border-color 80ms, background 80ms, color 80ms;
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    align-items: center;
+  }
+  .format-btn .sub {
+    color: var(--muted);
+    font-size: 8px;
+    letter-spacing: 0;
+    font-weight: 400;
+  }
+  .format-btn:hover { border-color: var(--muted); color: var(--fg); }
+  .format-btn.active { background: var(--fg); color: var(--bg); border-color: var(--fg); }
+  .format-btn.active .sub { color: var(--bg); opacity: 0.7; }
+  /* mini ring-stack preview shown inside Band Profile buttons */
+  .prof-icon {
+    width: 88%;
+    height: 48px;
+    display: block;
+    margin: 2px auto 6px;
+    color: var(--fg);
+  }
+  .format-btn.active .prof-icon { color: var(--bg); }
+  .prof-icon path { fill: currentColor; }
+  /* HUD card: discreet by default (just shows the mood pill). Click the
+     chevron to expand and reveal the full state breakdown. */
+  .stage-meta {
+    position: absolute;
+    top: 14px;
+    right: 16px;
+    z-index: 3;
+    background: rgba(0,0,0,0.45);
+    border: 1px solid var(--line);
+    color: var(--muted);
+    font-size: 10px;
+    letter-spacing: 0;
+
+    line-height: 1.55;
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+    overflow: hidden;
+    transition: opacity 180ms;
+    opacity: 0.7;
+  }
+  .stage-meta:hover { opacity: 1; }
+  .stage-meta b { color: var(--fg); font-weight: 600; }
+  .hud-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 7px 12px;
+    cursor: pointer;
+    user-select: none;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .hud-header:hover { background: rgba(255,255,255,0.04); }
+  .hud-title {
+    color: var(--accent);
+    font-weight: 700;
+    font-size: 11px;
+    letter-spacing: 0;
+  }
+  .hud-chevron {
+    color: var(--muted);
+    font: 600 11px/1 "Helvetica Neue", Helvetica, Arial, sans-serif;
+    transition: transform 200ms;
+  }
+  .stage-meta.expanded .hud-chevron { transform: rotate(180deg); }
+  .hud-body {
+    display: none;
+    padding: 4px 12px 10px;
+    font-size: 10px;
+    border-top: 1px solid var(--line);
+    min-width: 170px;
+  }
+  .stage-meta.expanded { opacity: 1; }
+  .stage-meta.expanded .hud-body { display: block; }
+  .hud-row { display: flex; justify-content: space-between; gap: 10px; }
+  .hud-key { color: var(--muted); }
+  .hud-val { color: var(--fg); font-weight: 600; }
+  .stage-controls {
+    position: absolute;
+    bottom: 18px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    gap: 6px;
+    z-index: 2;
+    background: rgba(0,0,0,0.55);
+    border: 1px solid var(--line);
+    padding: 8px;
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+  }
+  .stage-controls .btn { padding: 9px 14px; font-size: 10px; }
+  .stage-controls .btn.primary { background: var(--accent); color: var(--bg); border-color: var(--accent); }
+  /* Stage Wordmark button picks up the accent fill when active so it's
+     visible at a glance alongside the other primary stage actions. */
+  .stage-controls .btn.active-stage {
+    background: var(--accent);
+    color: var(--bg);
+    border-color: var(--accent);
+  }
+  .stage-controls .btn.thumb-up:hover { background: #2bb158; color: #fff; border-color: #2bb158; }
+  .stage-controls .btn.thumb-down:hover { background: var(--accent); color: var(--bg); border-color: var(--accent); }
+  .stage-controls .divider {
+    width: 1px;
+    background: var(--line);
+    margin: 0 2px;
+  }
+  /* feedback modal: overlays the canvas, lets the user attach a note + the
+     current state JSON, then copy the whole thing to clipboard */
+  .feedback-modal {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.72);
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+    z-index: 200;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+  }
+  .feedback-modal.open { display: flex; }
+  .feedback-card {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    width: min(520px, 100%);
+    max-height: 90vh;
+    display: flex;
+    flex-direction: column;
+    padding: 20px;
+    gap: 14px;
+  }
+  .feedback-card h2 {
+    margin: 0;
+    font: 700 14px/1.2 "Helvetica Neue", Helvetica, Arial, sans-serif;
+    letter-spacing: 0;
+
+    color: var(--fg);
+  }
+  .feedback-card h2 .face { font-size: 18px; margin-right: 8px; }
+  .feedback-card h2.up .face   { color: #2bb158; }
+  .feedback-card h2.down .face { color: var(--accent); }
+  .feedback-card p {
+    margin: 0;
+    color: var(--muted);
+    font-size: 11px;
+    line-height: 1.5;
+  }
+  .feedback-card textarea {
+    background: var(--bg);
+    border: 1px solid var(--line);
+    color: var(--fg);
+    padding: 10px 12px;
+    font: 12px/1.5 "Helvetica Neue", Helvetica, Arial, sans-serif;
+    min-height: 90px;
+    resize: vertical;
+    width: 100%;
+    box-sizing: border-box;
+  }
+  .feedback-card textarea:focus { outline: none; border-color: var(--accent); }
+  .feedback-card .config-preview {
+    background: var(--bg);
+    border: 1px solid var(--line);
+    padding: 8px 10px;
+    font: 10px/1.5 "Helvetica Neue", Helvetica, Arial, sans-serif;
+    color: var(--muted);
+    max-height: 160px;
+    overflow-y: auto;
+    white-space: pre-wrap;
+  }
+  .feedback-card .actions { display: flex; justify-content: flex-end; gap: 8px; }
+  .feedback-card .actions .btn { min-width: 80px; }
+  /* Toast hidden — the HUD card in the top-right already communicates
+     the active mood / mode. The toast was redundant + flicker-prone.
+     Keeping the element so existing toast() calls don't error; just
+     not rendering anything. */
+  .toast { display: none; }
+  .screensaver-banner {
+    position: absolute;
+    top: 18px;
+    left: 22px;
+    color: var(--accent);
+    font: 600 10px/1.4 "Helvetica Neue", Helvetica, Arial, sans-serif;
+    letter-spacing: 0;
+
+    z-index: 2;
+    pointer-events: none;
+    display: none;
+  }
+  .screensaver-banner.on { display: block; }
+</style>
+<!-- gif.js for GIF export (V.2 iter 25). Pinned version; small, loads async, no impact when unused. -->
+<script src="https://cdn.jsdelivr.net/npm/gif.js@0.2.0/dist/gif.js"></script>
+</head>
+<body>
+<button class="drawer-toggle" id="drawerToggle" aria-label="Toggle controls drawer" title="Toggle controls">‹</button>
+<main>
+  <aside>
+    <a class="brand-link" href="javascript:location.reload()" title="Reload — reset to defaults"><img class="brand-logo" src="arena-logo.png" alt="ARENA"></a>
+    <div class="sub">Ring Engine · <span id="buildVersion">V.3</span><span id="buildIter" style="opacity:0.55"> · iter 9</span> · <span id="buildDate">31 MAY 2026</span></div>
+    <div class="header-actions">
+      <button class="header-btn" id="goCanonical" title="Lock the innermost ring to the canonical brand mark — stays through Randomize/Centered/Rotated"><span id="goCanonicalLabel">↩ Canonical</span></button>
+      <button class="header-btn primary" id="randomizeAll">↻ Randomize</button>
+    </div>
+    <div class="header-actions">
+      <button class="header-btn" id="modeCentered" title="Calm upright composition — no rotation, fits inside canvas">⊕ Centered</button>
+      <button class="header-btn" id="modeRotated" title="Tilted composition — fits inside canvas with rotation">⊗ Rotated</button>
+    </div>
+    <!-- Canonical flip — appears only when canonical lock is on. Subtle pill that sits below the mode grid. -->
+    <div class="canonical-flip-row" id="canonicalFlipRow" style="display:none">
+      <button class="flip-btn" id="flipCanonical" title="Cycle canonical orientation: Auto → Wide → Tall">↺ <span id="flipCanonicalLabel">Auto</span></button>
+    </div>
+    <!-- Wordmark standalone card with switch — primary top-level toggle. -->
+    <div class="wordmark-card">
+      <div class="switch-row" id="t-wordmark-header" title="Drop THE ARENA wordmark into the center of the composition">
+        <span>⊞ <span id="goWordmarkLabel">Wordmark</span></span>
+        <div class="switch" id="sw-wordmark-top"></div>
+      </div>
+    </div>
+
+    <fieldset class="collapsible collapsed">
+      <div class="legend"><span class="legend-label">Format</span></div>
+      <div class="format-grid" id="formatGrid">
+        <button class="format-btn active" data-width="1920" data-height="1080">16:9<span class="sub">1920×1080</span></button>
+        <button class="format-btn" data-width="1440" data-height="1440">1:1<span class="sub">1440²</span></button>
+        <button class="format-btn" data-width="1080" data-height="1920">9:16<span class="sub">1080×1920</span></button>
+        <button class="format-btn" data-width="3000" data-height="2000">3:2<span class="sub">3000×2000</span></button>
+        <button class="format-btn" data-width="2000" data-height="3000">2:3<span class="sub">2000×3000</span></button>
+        <button class="format-btn" data-width="2480" data-height="3508">A4<span class="sub">PRINT</span></button>
+      </div>
+      <div class="row"><label>Custom W</label><span class="val" id="v-fW">1920</span><input id="fW" type="range" min="540" max="6000" step="20" value="1920"></div>
+      <div class="row"><label>Custom H</label><span class="val" id="v-fH">1080</span><input id="fH" type="range" min="540" max="6000" step="20" value="1080"></div>
+    </fieldset>
+
+    <fieldset class="collapsible collapsed">
+      <div class="legend"><span class="legend-label">Stack</span>
+        <span class="actions">
+          <button class="btn tiny" id="remixStack">Remix</button>
+          <button class="btn tiny" id="resetStack">Reset</button>
+        </span>
+      </div>
+      <div class="echo-section">
+        <div class="echo-title">
+          <span>Echo From</span>
+          <span class="echo-sub">where rings emanate from</span>
+          <span class="val" id="v-anchorMode">CENTER</span>
+        </div>
+        <div class="anchor-pad" id="anchorPad" title="Click or drag anywhere to position the anchor on the ring">
+          <div class="anchor-pad-dot" id="anchorDot"></div>
+        </div>
+        <div class="pos-grid" id="anchorGrid">
+          <button class="anchor-btn" data-ahx="0.35" data-ahy="0.35" title="Anchor toward top-left of ring">↖</button>
+          <button class="anchor-btn" data-ahx="0" data-ahy="0.35" title="Anchor toward top edge">↑</button>
+          <button class="anchor-btn" data-ahx="-0.35" data-ahy="0.35" title="Anchor toward top-right">↗</button>
+          <button class="anchor-btn" data-ahx="0.35" data-ahy="0" title="Anchor toward left edge">←</button>
+          <button class="anchor-btn active" data-ahx="0" data-ahy="0" title="Anchor at center (concentric)">●</button>
+          <button class="anchor-btn" data-ahx="-0.35" data-ahy="0" title="Anchor toward right edge">→</button>
+          <button class="anchor-btn" data-ahx="0.35" data-ahy="-0.35" title="Anchor toward bottom-left">↙</button>
+          <button class="anchor-btn" data-ahx="0" data-ahy="-0.35" title="Anchor toward bottom edge">↓</button>
+          <button class="anchor-btn" data-ahx="-0.35" data-ahy="-0.35" title="Anchor toward bottom-right">↘</button>
+        </div>
+      </div>
+      <div class="row"><label>Ring Count</label><span class="val" id="v-N">22</span><input id="N" type="range" min="1" max="60" step="1" value="22"></div>
+      <div class="row"><label>Position</label><span class="val">XY</span></div>
+      <div class="pos-grid">
+        <button class="pos-btn" data-px="0.2" data-py="0.2" title="Top-Left">↖</button>
+        <button class="pos-btn" data-px="0.5" data-py="0.2" title="Top">↑</button>
+        <button class="pos-btn" data-px="0.8" data-py="0.2" title="Top-Right">↗</button>
+        <button class="pos-btn" data-px="0.2" data-py="0.5" title="Left">←</button>
+        <button class="pos-btn active" data-px="0.5" data-py="0.5" title="Center">●</button>
+        <button class="pos-btn" data-px="0.8" data-py="0.5" title="Right">→</button>
+        <button class="pos-btn" data-px="0.2" data-py="0.8" title="Bottom-Left">↙</button>
+        <button class="pos-btn" data-px="0.5" data-py="0.8" title="Bottom">↓</button>
+        <button class="pos-btn" data-px="0.8" data-py="0.8" title="Bottom-Right">↘</button>
+      </div>
+      <div class="row"><label>Fit</label><span class="val" id="v-fitMode">AUTO</span></div>
+      <div class="fit-grid" id="fitGrid">
+        <button class="fit-btn" data-fit="TIGHT" title="Every ring stays inside the canvas">Tight</button>
+        <button class="fit-btn active" data-fit="AUTO" title="Shrink only if too big; off-center can overflow">Auto</button>
+        <button class="fit-btn" data-fit="LOOSE" title="No clamping — rings fly beyond the canvas">Loose</button>
+      </div>
+      <div class="row"><label>Lock Rotation</label><span class="val" id="v-lockRot">OFF</span></div>
+      <div class="fit-grid" style="grid-template-columns:1fr">
+        <button class="fit-btn" id="lockRotBtn" title="Pins rotation at 0 and disables tilt / counter / cascade motions">↻ Lock Rotation</button>
+      </div>
+      <div class="row"><label>Position X</label><span class="val" id="v-px">0.50</span><input id="px" type="range" min="-0.5" max="1.5" step="0.005" value="0.5"></div>
+      <div class="row"><label>Position Y</label><span class="val" id="v-py">0.50</span><input id="py" type="range" min="-0.5" max="1.5" step="0.005" value="0.5"></div>
+      <div class="row"><label>Rotation</label><span class="val" id="v-rot">0</span><input id="rot" type="range" min="-180" max="180" step="1" value="0"></div>
+      <div class="row"><label>Scale</label><span class="val" id="v-scale">1.00</span><input id="scale" type="range" min="0.1" max="15" step="0.01" value="1"></div>
+      <div class="row"><label>Spacing Curve</label><span class="val" id="v-curve">1.00</span><input id="curve" type="range" min="0.6" max="1.6" step="0.01" value="1.00"></div>
+    </fieldset>
+
+    <fieldset class="collapsible collapsed">
+      <div class="legend"><span class="legend-label">Anchor Ring</span>
+        <span class="actions">
+          <button class="btn tiny" id="remixAnchor">Remix</button>
+          <button class="btn tiny" id="resetAnchor">Reset</button>
+        </span>
+      </div>
+      <div class="row"><label>Width</label><span class="val" id="v-bW">160</span><input id="bW" type="range" min="20" max="800" step="2" value="160"></div>
+      <div class="row"><label>Height</label><span class="val" id="v-bH">90</span><input id="bH" type="range" min="20" max="500" step="2" value="90"></div>
+      <div class="row"><label>Corner R</label><span class="val" id="v-bR">18</span><input id="bR" type="range" min="0" max="240" step="1" value="18"></div>
+      <div class="row"><label>Band V</label><span class="val" id="v-by">14</span><input id="by" type="range" min="1" max="60" step="0.5" value="14"></div>
+      <div class="row"><label>Band H</label><span class="val" id="v-bx">5</span><input id="bx" type="range" min="1" max="60" step="0.5" value="5"></div>
+      <div class="row"><label>Gap V</label><span class="val" id="v-gy">14</span><input id="gy" type="range" min="0" max="80" step="0.5" value="14"></div>
+      <div class="row"><label>Gap H</label><span class="val" id="v-gx">28</span><input id="gx" type="range" min="0" max="160" step="0.5" value="28"></div>
+    </fieldset>
+
+    <fieldset class="collapsible collapsed">
+      <div class="legend"><span class="legend-label">Band Profile</span>
+        <span class="actions">
+          <button class="btn tiny" id="remixProfile">Remix</button>
+          <button class="btn tiny" id="resetProfile">Reset</button>
+        </span>
+      </div>
+      <div class="format-grid" id="bandProfileGrid" style="grid-template-columns:repeat(2,1fr)">
+        <button class="format-btn active" data-profile="UNIFORM">Uniform<span class="sub">all equal</span></button>
+        <button class="format-btn" data-profile="TAPER_OUT">Taper Out<span class="sub">thick →</span></button>
+        <button class="format-btn" data-profile="TAPER_IN">Taper In<span class="sub">← thick</span></button>
+        <button class="format-btn" data-profile="ALTERNATE">Alternate<span class="sub">thk / thn</span></button>
+        <button class="format-btn" data-profile="TIERED">Tiered<span class="sub">every 4th</span></button>
+        <button class="format-btn" data-profile="HOURGLASS">Hourglass<span class="sub">edges thick</span></button>
+      </div>
+      <div class="row" style="margin-top:10px"><label>Variation</label><span class="val" id="v-bandVar">0.50</span><input id="bandVar" type="range" min="0" max="1" step="0.01" value="0.5"></div>
+    </fieldset>
+
+    <fieldset class="collapsible collapsed">
+      <div class="legend"><span class="legend-label">Motion</span>
+        <span class="actions">
+          <button class="btn tiny" id="ssRandom">Surprise</button>
+        </span>
+      </div>
+      <div class="motion-subhead">Quick Combos</div>
+      <div class="preset-grid" id="ssStateGrid"></div>
+      <div class="btnrow" style="margin-top:6px">
+        <button class="btn" id="ssToggle">Auto Cycle</button>
+        <button class="btn" id="motionsOff">Stop All</button>
+      </div>
+      <div class="motion-subhead" style="margin-top:14px">Individual Controls
+        <span class="actions" style="float:right">
+          <button class="btn tiny" id="allOn">All</button>
+          <button class="btn tiny" id="allOff">None</button>
+        </span>
+      </div>
+      <div id="motionRows"></div>
+    </fieldset>
+
+    <fieldset class="collapsible collapsed">
+      <div class="legend"><span class="legend-label">Compositions</span>
+        <span class="actions"><button class="btn tiny" id="randomMood">Surprise</button></span>
+      </div>
+      <div class="preset-grid" id="moodGrid"></div>
+    </fieldset>
+
+    <fieldset class="collapsible collapsed">
+      <div class="legend"><span class="legend-label">Color</span></div>
+      <div class="row"><label>Stage</label><span class="val">BG</span></div>
+      <div class="swatches palette-3" data-target="bg">
+        <div class="swatch-pick active" data-c="#000" style="background:#000"></div>
+        <div class="swatch-pick" data-c="#fff" style="background:#fff"></div>
+        <div class="swatch-pick" data-c="#fbff54" style="background:#fbff54"></div>
+      </div>
+      <div class="row" style="margin-top:10px"><label>Mark</label><span class="val">FG</span></div>
+      <div class="swatches palette-3" data-target="fg">
+        <div class="swatch-pick active" data-c="#fff" style="background:#fff"></div>
+        <div class="swatch-pick" data-c="#000" style="background:#000"></div>
+        <div class="swatch-pick" data-c="#fbff54" style="background:#fbff54"></div>
+      </div>
+      <div class="switch-row" id="sw-grid-row" data-sw="grid">
+        <span>Grid</span>
+        <div class="switch" id="sw-grid"></div>
+      </div>
+      <div class="switch-row" id="sw-invert-row" data-sw="invert">
+        <span>Invert</span>
+        <div class="switch" id="sw-invert"></div>
+      </div>
+      <div class="switch-row" id="sw-wordmark-row" data-sw="wordmark" title="Drop THE ARENA wordmark into the center">
+        <span>⊞ Wordmark</span>
+        <div class="switch" id="sw-wordmark"></div>
+      </div>
+      <div class="row" style="margin-top:10px"><label>Wordmark Size</label><span class="val" id="v-wordmarkScale">0.62</span><input id="wordmarkScale" type="range" min="0.25" max="1.4" step="0.02" value="0.62"></div>
+      <!-- Background mode (V.2 iter 25) — Bloom + Dither was here in iter 6-8;
+           sunset in iter 9 (SVG feTurbulence filter approach proved too flaky
+           across browser states. May revisit with canvas/pre-baked PNG noise). -->
+      <div class="row" style="margin-top:14px"><label>Background</label><span class="val" id="v-bgMode">SOLID</span></div>
+      <div class="btnrow">
+        <button class="btn on" data-bgmode="solid">Solid</button>
+        <button class="btn" data-bgmode="mesh">Mesh ✦</button>
+      </div>
+      <!-- Mesh parameters (V.3) — visible only when mesh is active -->
+      <div id="meshControls" style="display:none">
+        <div class="row" style="margin-top:10px"><label>Mood</label><span class="val" id="v-meshMood">SOLAR</span></div>
+        <div class="btnrow-3" style="grid-template-columns:repeat(5,1fr); gap:6px">
+          <button class="btn on" data-mood="solar" title="Bright yellow + black depth">Solar</button>
+          <button class="btn" data-mood="gold" title="Amber + warm shadows">Gold</button>
+          <button class="btn" data-mood="eclipse" title="Yellow rim + deep red/black">Eclipse</button>
+          <button class="btn" data-mood="dusk" title="Yellow + pinks + indigo">Dusk</button>
+          <button class="btn" data-mood="mist" title="Pale yellow + greys">Mist</button>
+        </div>
+        <div class="row" style="margin-top:14px"><label>Yellow X</label><span class="val" id="v-meshX">0.30</span><input id="meshX" type="range" min="0" max="1" step="0.01" value="0.30"></div>
+        <div class="row"><label>Yellow Y</label><span class="val" id="v-meshY">0.40</span><input id="meshY" type="range" min="0" max="1" step="0.01" value="0.40"></div>
+        <div class="row"><label>Glow Size</label><span class="val" id="v-meshSize">0.45</span><input id="meshSize" type="range" min="0.2" max="1.2" step="0.01" value="0.45"></div>
+        <div class="row"><label>Intensity</label><span class="val" id="v-meshInt">1.00</span><input id="meshInt" type="range" min="0" max="1.6" step="0.02" value="1.0"></div>
+        <div class="btnrow" style="margin-top:6px">
+          <button class="btn primary" id="meshShuffle" title="Re-roll the secondary blobs">✦ Shuffle</button>
+          <button class="btn" id="meshReset" title="Restore defaults">Reset</button>
+        </div>
+      </div>
+      <!-- Logo corner overlay (V.2 iter 25) -->
+      <div class="row" style="margin-top:14px"><label>Logo Overlay</label><span class="val" id="v-cornerMode">OFF</span></div>
+      <div class="corner-grid" id="cornerGrid">
+        <button class="corner-btn" data-corner="tl" title="Top-Left">◤</button>
+        <button class="corner-btn" data-corner="off" title="No overlay">·</button>
+        <button class="corner-btn" data-corner="tr" title="Top-Right">◥</button>
+        <button class="corner-btn" data-corner="bl" title="Bottom-Left">◣</button>
+        <button class="corner-btn" data-corner="off" title="No overlay">·</button>
+        <button class="corner-btn" data-corner="br" title="Bottom-Right">◢</button>
+      </div>
+      <div class="row" style="margin-top:8px"><label>Overlay Size</label><span class="val" id="v-cornerSize">0.16</span><input id="cornerSize" type="range" min="0.06" max="0.4" step="0.005" value="0.16"></div>
+    </fieldset>
+
+    <fieldset class="collapsible collapsed">
+      <div class="legend"><span class="legend-label">Image</span>
+        <span class="actions">
+          <button class="btn tiny" id="imageClear" title="Remove uploaded image">Clear</button>
+        </span>
+      </div>
+      <div class="image-dropzone" id="imageDropzone" title="Click or drop an image to upload">
+        <input type="file" accept="image/*" id="imageFileInput" hidden>
+        <div class="image-dropzone-prompt" id="imageDropzonePrompt">
+          <span>Click or drop image</span>
+          <small>PNG · JPG · WebP</small>
+        </div>
+        <img class="image-dropzone-thumb" id="imageDropzoneThumb" alt="" hidden>
+      </div>
+      <div class="row" style="margin-top:10px"><label>Mode</label><span class="val" id="v-imgMode">OFF</span></div>
+      <div class="format-grid image-mode-grid" id="imageModeGrid">
+        <button class="format-btn active" data-imode="off">Off<span class="sub">no image</span></button>
+        <button class="format-btn" data-imode="band">Band Fill<span class="sub">in the rings</span></button>
+        <button class="format-btn" data-imode="stage">Stage<span class="sub">image behind</span></button>
+        <button class="format-btn" data-imode="cutout">Cutout<span class="sub">rings carve out</span></button>
+        <button class="format-btn" data-imode="frame">Frame<span class="sub">image in negative</span></button>
+      </div>
+      <div class="row" style="margin-top:10px"><label>Fit</label><span class="val" id="v-imgFit">COVER</span></div>
+      <div class="btnrow">
+        <button class="btn active" data-ifit="cover">Cover</button>
+        <button class="btn" data-ifit="contain">Contain</button>
+      </div>
+      <div class="row"><label>Zoom</label><span class="val" id="v-imgScale">1.00</span><input id="imgScale" type="range" min="0.4" max="3" step="0.02" value="1"></div>
+      <div class="row"><label>Offset X</label><span class="val" id="v-imgX">0.00</span><input id="imgX" type="range" min="-1" max="1" step="0.01" value="0"></div>
+      <div class="row"><label>Offset Y</label><span class="val" id="v-imgY">0.00</span><input id="imgY" type="range" min="-1" max="1" step="0.01" value="0"></div>
+    </fieldset>
+
+    <fieldset class="collapsible collapsed">
+      <div class="legend"><span class="legend-label">Export</span></div>
+      <div class="btnrow">
+        <button class="btn primary" id="downloadPNG">Download PNG</button>
+        <button class="btn" id="downloadSVG">Download SVG</button>
+      </div>
+      <div class="btnrow" style="margin-top:10px">
+        <button class="btn primary" id="downloadGIF" title="Record ~4s of motion and save as animated GIF">Download GIF</button>
+        <button class="btn" id="copySVG">Copy SVG</button>
+      </div>
+      <div class="btnrow" style="margin-top:10px">
+        <button class="btn" id="copyURL">Copy URL</button>
+        <button class="btn" id="copyConfig" title="Copy the full state as JSON — paste in chat to share what's working or not">Copy Config</button>
+      </div>
+      <div class="btnrow" style="margin-top:10px">
+        <button class="btn" id="resetBtn">Reset</button>
+      </div>
+    </fieldset>
+  </aside>
+
+  <section id="stage">
+    <svg id="canvas" viewBox="0 0 1920 1080" preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg">
+      <rect id="bg" width="1920" height="1080" fill="#000"/>
+      <g id="root"></g>
+    </svg>
+    <div class="screensaver-banner" id="ssBanner">Screensaver · <span id="ssBannerName">—</span></div>
+    <div class="stage-meta" id="stageMeta">
+      <div class="hud-header" id="hudToggle" title="Show / hide details">
+        <span class="hud-title" id="meta-mood">CANONICAL</span>
+        <span class="hud-chevron">▾</span>
+      </div>
+      <div class="hud-body">
+        <div class="hud-row"><span class="hud-key">Rings</span><span class="hud-val" id="meta-N">4</span></div>
+        <div class="hud-row"><span class="hud-key">Echo</span><span class="hud-val" id="meta-echo">CENTER</span></div>
+        <div class="hud-row"><span class="hud-key">Scale</span><span class="hud-val" id="meta-scale">2.0</span></div>
+        <div class="hud-row"><span class="hud-key">Rotation</span><span class="hud-val" id="meta-rot">0°</span></div>
+        <div class="hud-row"><span class="hud-key">Profile</span><span class="hud-val" id="meta-profile">UNIFORM</span></div>
+        <div class="hud-row"><span class="hud-key">Motion</span><span class="hud-val" id="meta-motion">STATIC</span></div>
+        <div class="hud-row"><span class="hud-key">State</span><span class="hud-val" id="meta-state">STATIC</span></div>
+        <div class="hud-row"><span class="hud-key">Time</span><span class="hud-val" id="meta-time">0.0s</span></div>
+        <!-- Build version: populated from the header's #buildVersion + #buildIter
+             on init so the two displays can never drift apart again. -->
+        <div class="hud-row" style="margin-top:6px;opacity:0.45"><span class="hud-key">Build</span><span class="hud-val" id="meta-build">V.3 · iter 3</span></div>
+      </div>
+    </div>
+    <div class="stage-controls">
+      <button class="btn primary" id="stageRandomize" title="Re-roll (respects active mode)">↻ Randomize</button>
+      <div class="divider"></div>
+      <button class="btn" id="t-wordmark-stage" title="Toggle THE ARENA wordmark at the center of the rings">⊞ Wordmark</button>
+      <div class="divider"></div>
+      <button class="btn" id="playPause">▶ Play</button>
+      <button class="btn" id="snap">Freeze</button>
+      <div class="divider"></div>
+      <button class="btn" id="stageDownloadPNG" title="Download current frame as PNG">↓ PNG</button>
+      <button class="btn" id="stageDownloadGIF" title="Record ~4s of motion as animated GIF">↓ GIF</button>
+      <div class="divider"></div>
+      <button class="btn thumb-up" id="thumbUp" title="This one works — open feedback form">👍</button>
+      <button class="btn thumb-down" id="thumbDown" title="This one doesn't — open feedback form">👎</button>
+    </div>
+  </section>
+</main>
+<div class="feedback-modal" id="feedbackModal" role="dialog" aria-modal="true">
+  <div class="feedback-card">
+    <h2 id="feedbackTitle"><span class="face">👍</span><span id="feedbackHeading">What's working?</span></h2>
+    <p>Add a quick note about what feels right or wrong about this composition. The current state will be attached automatically.</p>
+    <textarea id="feedbackNotes" placeholder="e.g. love this rhythm but motion feels too fast / rotation too aggressive at this density"></textarea>
+    <div class="config-preview" id="feedbackPreview"></div>
+    <div class="actions">
+      <button class="btn" id="feedbackCancel">Cancel</button>
+      <button class="btn primary" id="feedbackCopy">Copy to clipboard</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast">READY</div>
+
+<script>
+(() => {
+  const $ = id => document.getElementById(id);
+  let VW = 1920, VH = 1080;
+
+  // ─── ARENA wordmark (V.2 iter 25)
+  // Extracted from arena-wordmark.svg — "THE [ring icon] ARENA" lockup.
+  // Native extent (viewBox 1920×1080): paths span x≈335..1577, y≈496..584.
+  // Center at (956, 540), size 1242×88, native aspect ≈ 14.1:1.
+  // We render inside a <g> with currentColor fill, so the wordmark inherits
+  // whatever color the parent group sets (we pass fg).
+  const WORDMARK_VBX = 335;
+  const WORDMARK_VBY = 496;
+  const WORDMARK_VBW = 1242;
+  const WORDMARK_VBH = 88;
+  const WORDMARK_PATHS = `<path d="M335.01,496.41v11.43h33.67c3.3,0,6,2.7,6,6v70.42h42.88v-70.42c0-3.3,2.7-6,6-6h33.21v-11.43h-121.75Z"/><path d="M598.44,496.41h-41.91v32.43c0,3.3-2.7,6-6,6h-33.79c-3.3,0-6-2.7-6-6v-32.43h-41.91v87.85h41.91v-32.06c0-3.3,2.7-6,6-6h33.79c3.3,0,6,2.7,6,6v32.06h41.91v-87.85Z"/><path d="M655.23,566.94v-15.03c0-3.3,2.7-6,6-6h54.19v-11.36h-54.19c-3.3,0-6-2.7-6-6v-14.87c0-3.3,2.7-6,6-6h61.36v-11.36l-109.27-.04v88l109.27.02v-11.36h-61.36c-3.3,0-6-2.7-6-6Z"/><path d="M1232.64,566.94v-15.03c0-3.3,2.7-6,6-6h54.19v-11.36h-54.19c-3.3,0-6-2.7-6-6v-14.87c0-3.3,2.7-6,6-6h61.36v-11.36l-109.27-.04v88l109.27.02v-11.36h-61.36c-3.3,0-6-2.7-6-6Z"/><path d="M953.34,496.22l-50.81,88.04h48.45l9.06-15.78c1.65-2.86,5.7-5.2,9-5.2h18.93c3.3,0,6,2.7,6,6v14.97h41.91v-88.04h-82.55ZM987.98,551.93h-12.37c-3.3,0-4.65-2.34-3-5.2l18.37-31.82c1.65-2.86,3-2.5,3,.8v30.21c0,3.3-2.7,6-6,6Z"/><path d="M1502.49,496.22l-50.81,88.04h48.45l9.06-15.78c1.65-2.86,5.7-5.2,9-5.2h18.93c3.3,0,6,2.7,6,6v14.97h41.91v-88.04h-82.55ZM1537.13,551.93h-12.37c-3.3,0-4.65-2.34-3-5.2l18.37-31.82c1.65-2.86,3-2.5,3,.8v30.21c0,3.3-2.7,6-6,6Z"/><path d="M1156.88,540.63l12.69-17.45c1.94-2.67,1.94-7.04,0-9.71l-8.85-12.17c-1.94-2.67-6.23-4.86-9.53-4.86l-99.75-.13v87.94h41.91v-70.5c0-3.3,2.7-6,6-6h23.64c3.3,0,4.41,2.18,2.47,4.85l-20.63,28.37c-1.94,2.67-1.91,7.01.06,9.66l25.16,33.63h52.32l-25.42-33.97c-1.98-2.64-2-6.99-.06-9.66Z"/><path d="M1402.44,564.23c0,3.3-1.35,3.66-3,.8l-36.69-63.55c-1.65-2.86-5.7-5.2-9-5.21l-42.89-.03v87.96h41.91v-68.57c0-3.3,1.35-3.66,3-.8l37.05,64.18c1.65,2.86,5.7,5.2,9,5.2h42.52v-88h-41.91v68.02Z"/><g><path d="M878.17,496.23h-125.7c-8.44,0-15.31,6.87-15.31,15.31v57.51c0,8.44,6.87,15.31,15.31,15.31h125.7c8.44,0,15.31-6.87,15.31-15.31v-57.51c0-8.44-6.87-15.31-15.31-15.31ZM891.66,514.48v51.63c0,7.19-5.85,13.04-13.04,13.04h-126.58c-7.19,0-13.04-5.85-13.04-13.04v-51.63c0-7.19,5.85-13.04,13.04-13.04h126.58c7.19,0,13.04,5.85,13.04,13.04Z"/><path d="M862.92,506.17h-95.18c-6.75,0-12.24,5.49-12.24,12.24v43.77c0,6.75,5.49,12.24,12.24,12.24h95.18c6.75,0,12.24-5.49,12.24-12.24v-43.77c0-6.75-5.49-12.24-12.24-12.24ZM873.33,521.35v37.9c0,5.5-4.47,9.97-9.97,9.97h-96.07c-5.5,0-9.97-4.47-9.97-9.97v-37.9c0-5.5,4.47-9.97,9.97-9.97h96.07c5.5,0,9.97,4.47,9.97,9.97Z"/><path d="M848.7,516.11h-66.74c-5.05,0-9.17,4.11-9.17,9.17v30.04c0,5.05,4.11,9.17,9.17,9.17h66.74c5.05,0,9.17-4.11,9.17-9.17v-30.04c0-5.05-4.11-9.17-9.17-9.17ZM856.04,528.21v24.16c0,3.8-3.09,6.9-6.9,6.9h-67.63c-3.8,0-6.9-3.09-6.9-6.9v-24.16c0-3.8,3.09-6.9,6.9-6.9h67.63c3.8,0,6.9,3.09,6.9,6.9Z"/><path d="M833.44,526.96h-36.23c-3.36,0-6.1,2.73-6.1,6.1v14.49c0,3.36,2.73,6.1,6.1,6.1h36.23c3.36,0,6.1-2.73,6.1-6.1v-14.49c0-3.36-2.73-6.1-6.1-6.1ZM833.88,548.42h-37.11c-2.11,0-3.83-1.72-3.83-3.83v-8.61c0-2.11,1.72-3.83,3.83-3.83h37.11c2.11,0,3.83,1.72,3.83,3.83v8.61c0,2.11-1.72,3.83-3.83,3.83Z"/></g>`;
+
+  // ─── state
+  // CANONICAL_BRAND = the original 4-ring mark from RINGS.svg. This is the
+  // brand baseline; the Canonical Mark button restores it. Per-section
+  // Reset buttons restore only that section's variables to these values.
+  const CANONICAL_BRAND = {
+    N: 4,
+    px: 0.5, py: 0.5,
+    rot: 0,
+    scale: 2.0,
+    curve: 1.0,
+    bW: 228, bH: 126, bR: 29,
+    bx: 8.6, by: 24.5, dRb: 10.7,
+    gx: 76, gy: 22, dRg: 3.8,
+    bandProfile: "UNIFORM", bandVar: 0,
+    ahx: 0, ahy: 0,
+    fitMode: "AUTO",
+    lockRotation: false
+  };
+
+  const DEFAULT_STATE = () => ({
+    fW: 1920, fH: 1080,
+    N: 22,
+    px: 0.5, py: 0.5,
+    rot: 0,
+    scale: 1.0,
+    curve: 1.0,
+    bW: 160, bH: 90, bR: 18,
+    bx: 5, by: 14,
+    gx: 28, gy: 14, dRb: 6, dRg: 3,
+    bandProfile: "UNIFORM",
+    bandVar: 0.5,
+    // Continuous anchor offset: which point of each ring sits at (px,py).
+    // ahx in [-0.5, 0.5]: 0=ring center, 0.5=ring's left edge at anchor (rings
+    // extend right), -0.5=right edge anchor (extend left). Same for ahy.
+    ahx: 0,
+    ahy: 0,
+    fitMode: "AUTO",
+    // When true: rotation locked at 0, slider disabled, and rotational motion
+    // behaviors (TILT / COUNTER / CASCADE) auto-off. For "calm, anchored" looks
+    // where the rings stay upright.
+    lockRotation: false,
+    motion: {
+      // accRot fields accumulate rotation only while weight > 0; phases free-run.
+      // This decouples each motion's internal time from the global timeAccum,
+      // so changing speed mid-flight just changes the future rate (no phase jump)
+      // and toggling off freezes the visible state (no unwind).
+      tilt:    { on: false, speed: 0.6, amount: 1.0,  weight: 0, accRot: 0 },
+      // Amplitudes bumped per user feedback: breath was barely visible, drift was lame.
+      // Grow / morph were already lively — kept those proportionally adjusted too.
+      breathe: { on: false, speed: 0.55, amount: 0.42, weight: 0, phase: 0 },
+      cascade: { on: false, speed: 0.55, amount: 36,   weight: 0, phase: 0 },
+      counter: { on: false, speed: 0.40, amount: 22,   weight: 0, accRot: 0 },
+      drift:   { on: false, speed: 0.5,  amount: 0.55, weight: 0, phase: 0 },
+      shift:   { on: false, speed: 0.55, amount: 56,   weight: 0, phase: 0 },
+      grow:    { on: false, speed: 0.55, amount: 1.0,  weight: 0, phase: 0 },
+      morph:   { on: false, speed: 0.45, amount: 0.45, weight: 0, phase: 0 },
+      // V.2 iter 25: pulse rides through the stack from the anchor outward;
+      // reverse alternates odd / even rings expanding ↔ contracting (peristaltic wave).
+      pulse:   { on: false, speed: 0.65, amount: 0.40, weight: 0, phase: 0 },
+      reverse: { on: false, speed: 0.55, amount: 0.30, weight: 0, phase: 0 }
+    },
+    screensaver: false,
+    ssStateIdx: 0,
+    ssElapsed: 0,
+    bg: "#000",
+    color: "#fff",
+    view: { grid: false, invert: false },
+    playing: false,
+    timeAccum: 0,
+    // canonicalLock: when true, the innermost ring is forced to the brand's
+    // 228:126 canonical aspect on every randomize. Outer cascade still varies.
+    canonicalLock: false,
+    // canonicalOrient: "auto" (match canvas), "wide" (logo 228:126), "tall" (rotated 90°)
+    canonicalOrient: "auto",
+    // Image fill (V.2 iter 25). src is a data URL once an image is uploaded.
+    //   mode: off    – no image (default, rings filled with fg color)
+    //         band   – image revealed only inside the ring bands (via pattern fill)
+    //         stage  – image behind the rings (whole canvas), rings on top
+    //         cutout – image fills the stage; rings carve through to bg color
+    image: { src: null, mode: "off", fit: "cover", scale: 1.0, x: 0, y: 0 },
+    // Wordmark (V.2 iter 25). When true, the THE-ARENA wordmark sits at the
+    // composition center, rotates / moves with the ring stack. Size is a
+    // fraction of the innermost ring's width so it stays "inside" the mark.
+    wordmark: false,
+    wordmarkScale: 0.62,
+    // Logo overlay (V.2 iter 25) — places the wordmark as a 'wallpaper signature'
+    // in any corner, on top of the rings. Independent of the wordmark-in-center toggle.
+    //   wordmarkCorner: "off" | "tl" | "tr" | "bl" | "br"
+    wordmarkCorner: "off",
+    wordmarkCornerSize: 0.16,   // fraction of canvas width
+    // Background mode (V.3) — solid color OR painterly mesh gradient.
+    backgroundMode: "solid",
+    // Mesh gradient params (V.3). Yellow anchor user-controlled; mood
+    // picks the secondary palette; seed drives the supporting blobs.
+    mesh: {
+      yellowX: 0.30,
+      yellowY: 0.40,
+      yellowSize: 0.45,
+      intensity: 1.0,
+      seed: 0.42,
+      mood: "solar"   // solar | gold | eclipse | dusk | mist
+    }
+    // Bloom + Dither was iter 2-8 (SVG feGaussianBlur + feTurbulence + threshold
+    // mask). Sunset in iter 9 — feTurbulence's unit semantics + cross-browser
+    // filter performance proved too unreliable in real use. May revisit with
+    // a canvas-rendered approach (pre-baked noise PNG + simple CSS blur) if
+    // the brand wants the halftone-poster look back.
+  });
+  let state = DEFAULT_STATE();
+
+  // ─── geometry
+  function roundedRect(cx, cy, w, h, r) {
+    if (w <= 0 || h <= 0) return "";
+    r = Math.max(0, Math.min(r, w/2, h/2));
+    const x = cx - w/2, y = cy - h/2;
+    if (r < 0.5) return `M${x},${y}H${x+w}V${y+h}H${x}Z`;
+    return `M${x+r},${y}H${x+w-r}A${r},${r} 0 0 1 ${x+w},${y+r}V${y+h-r}A${r},${r} 0 0 1 ${x+w-r},${y+h}H${x+r}A${r},${r} 0 0 1 ${x},${y+h-r}V${y+r}A${r},${r} 0 0 1 ${x+r},${y}Z`;
+  }
+
+  // ─── Band Profile (zero-sum)
+  // Each profile defines a per-ring DELTA (positive = thicker, negative = thinner).
+  // We normalize so the deltas SUM TO ZERO across the stack — meaning the profile
+  // redistributes thickness rather than adding to it. Outer envelope stays roughly
+  // the same regardless of which profile you pick, so the mark stays in viewport.
+  function computeProfileDeltas(N, profile) {
+    const deltas = new Array(N);
+    for (let i = 0; i < N; i++) {
+      const t = N > 1 ? i / (N - 1) : 0;  // 0 = innermost, 1 = outermost
+      let d = 0;
+      switch (profile) {
+        case "TAPER_OUT": d = (t * 2 - 1); break;                    // thin → thick outward
+        case "TAPER_IN":  d = (1 - t * 2); break;                    // thick → thin outward
+        case "ALTERNATE": d = (i % 2 === 0 ? -1 : 1); break;         // thk / thn / thk / thn
+        case "TIERED":    d = (i % 4 === 3 ? 1.5 : -0.5); break;     // every 4th hero
+        case "HOURGLASS": d = (Math.abs(t - 0.5) * 4 - 1); break;    // peak at edges, valley middle
+      }
+      deltas[i] = d;
+    }
+    // Zero-mean normalize so cumulative stack growth ≈ Uniform case.
+    let mean = 0;
+    for (let i = 0; i < N; i++) mean += deltas[i];
+    mean /= N;
+    for (let i = 0; i < N; i++) deltas[i] -= mean;
+    return deltas;
+  }
+
+  // Turn a normalized delta into a band-thickness multiplier. Profile now ONLY
+  // affects the visible band weight per ring — not the gap, not the corner
+  // radius, not the ring's outer perimeter position. This is why clicking
+  // between profiles no longer makes the composition shift: every ring keeps
+  // its position; only the bands get thicker/thinner.
+  function profileFromDelta(delta, amount) {
+    const k = delta * amount;
+    return { band: Math.max(0.2, 1 + k * 0.75) };
+  }
+
+  // Compute ring outer-edge sizes from anchor (innermost), growing outward.
+  // Cumulative growth is profile-INDEPENDENT — rings stay at the same positions
+  // regardless of which Band Profile is active. The profile is stored on each
+  // ring (ring.ps.band) and applied only when rendering the band thickness.
+  function computeRings(s) {
+    const deltas = computeProfileDeltas(s.N, s.bandProfile);
+    const out = [];
+    let w = s.bW, h = s.bH, r = s.bR;
+    out.push({ W: w, H: h, R: r, ps: profileFromDelta(deltas[0], s.bandVar) });
+    for (let i = 1; i < s.N; i++) {
+      const cf = Math.pow(s.curve, i - 1);
+      w = w + 2 * (s.bx + s.gx * cf);
+      h = h + 2 * (s.by + s.gy * cf);
+      r = r + s.dRb + s.dRg * cf;
+      out.push({ W: w, H: h, R: r, ps: profileFromDelta(deltas[i], s.bandVar) });
+    }
+    return out;
+  }
+
+  function ringPath(ring, bx, by, dRb) {
+    const outer = roundedRect(0, 0, ring.W, ring.H, ring.R);
+    const iw = ring.W - 2 * bx;
+    const ih = ring.H - 2 * by;
+    const ir = Math.max(0, ring.R - dRb);
+    const inner = (iw > 0 && ih > 0) ? roundedRect(0, 0, iw, ih, ir) : "";
+    return outer + " " + inner;
+  }
+
+  // ─── motion definitions
+  const MOTIONS = [
+    { key: "tilt",    label: "Tilt",    hasAmount: false },
+    { key: "breathe", label: "Breathe", hasAmount: true, amountLabel: "Depth",  amountRange: [0, 0.5, 0.005] },
+    { key: "cascade", label: "Cascade", hasAmount: true, amountLabel: "Amt",    amountRange: [0, 60, 1] },
+    { key: "counter", label: "Counter", hasAmount: true, amountLabel: "Spd",    amountRange: [0, 40, 0.5] },
+    { key: "drift",   label: "Drift",   hasAmount: true, amountLabel: "Radius", amountRange: [0, 0.5, 0.01] },
+    { key: "shift",   label: "Shift",   hasAmount: true, amountLabel: "Amt",    amountRange: [0, 80, 1] },
+    { key: "grow",    label: "Grow",    hasAmount: false },
+    { key: "morph",   label: "Morph",   hasAmount: true, amountLabel: "Depth",  amountRange: [0, 0.4, 0.005] },
+    // V.2 iter 25 additions
+    { key: "pulse",   label: "Pulse From Echo", hasAmount: true, amountLabel: "Depth", amountRange: [0, 0.6, 0.005] },
+    { key: "reverse", label: "Reverse Breath",  hasAmount: true, amountLabel: "Depth", amountRange: [0, 0.5, 0.005] }
+  ];
+
+  function buildMotionRows() {
+    const container = $("motionRows");
+    container.innerHTML = "";
+    for (const m of MOTIONS) {
+      const motionState = state.motion[m.key];
+      const row = document.createElement("div");
+      row.className = "motion-row2 collapsed" + (motionState.on ? " on" : "");
+      row.dataset.key = m.key;
+      const amountHTML = m.hasAmount
+        ? `<div class="motion-slider-row">
+            <label>${m.amountLabel}</label>
+            <input class="mslider" type="range" min="${m.amountRange[0]}" max="${m.amountRange[1]}" step="${m.amountRange[2]}" value="${motionState.amount}" data-param="amount">
+          </div>`
+        : '';
+      row.innerHTML = `
+        <div class="motion-head">
+          <button class="motion-expand" data-param="expand">▸ ${m.label}</button>
+          <button class="motion-on" data-param="toggle" title="${m.label} on/off">${motionState.on ? '●' : '○'}</button>
+        </div>
+        <div class="motion-body">
+          <div class="motion-slider-row">
+            <label>Speed</label>
+            <input class="mslider" type="range" min="0" max="2" step="0.01" value="${motionState.speed}" data-param="speed">
+          </div>
+          ${amountHTML}
+        </div>
+      `;
+      row.querySelector('[data-param="expand"]').addEventListener("click", () => {
+        row.classList.toggle("collapsed");
+        const exp = row.querySelector('[data-param="expand"]');
+        exp.textContent = (row.classList.contains("collapsed") ? "▸ " : "▾ ") + m.label;
+      });
+      row.querySelector('[data-param="toggle"]').addEventListener("click", e => {
+        e.stopPropagation();
+        motionState.on = !motionState.on;
+        row.classList.toggle("on", motionState.on);
+        row.querySelector('[data-param="toggle"]').textContent = motionState.on ? '●' : '○';
+        if (motionState.on && !state.playing) togglePlay();
+      });
+      const speed = row.querySelector('[data-param="speed"]');
+      if (speed) speed.addEventListener("input", () => motionState.speed = parseFloat(speed.value));
+      const amt = row.querySelector('[data-param="amount"]');
+      if (amt) amt.addEventListener("input", () => motionState.amount = parseFloat(amt.value));
+      container.appendChild(row);
+    }
+  }
+
+  function syncMotionRowsUI() {
+    document.querySelectorAll(".motion-row").forEach(row => {
+      const key = row.dataset.key;
+      const m = state.motion[key];
+      row.classList.toggle("on", m.on);
+      const speed = row.querySelector('[data-param="speed"]');
+      if (speed) speed.value = m.speed;
+      const amount = row.querySelector('[data-param="amount"]');
+      if (amount) amount.value = m.amount;
+    });
+  }
+
+  // ─── screensaver state library
+  // Each preset isolates one motion (high contrast) or layers two for variety.
+  // Pure presets first so users immediately see what each behavior does.
+  const SS_STATES = [
+    { name: "TILT",          tilt: 0.65, breathe: 0,    cascade: 0,    counter: 0,    drift: 0,    shift: 0,    grow: 0,    morph: 0 },
+    { name: "BREATH",        tilt: 0,    breathe: 0.80, cascade: 0,    counter: 0,    drift: 0,    shift: 0,    grow: 0,    morph: 0 },
+    { name: "CASCADE",       tilt: 0,    breathe: 0,    cascade: 0.85, counter: 0,    drift: 0,    shift: 0,    grow: 0,    morph: 0 },
+    { name: "COUNTER",       tilt: 0,    breathe: 0,    cascade: 0,    counter: 0.75, drift: 0,    shift: 0,    grow: 0,    morph: 0 },
+    { name: "DRIFT",         tilt: 0,    breathe: 0,    cascade: 0,    counter: 0,    drift: 0.65, shift: 0,    grow: 0,    morph: 0 },
+    { name: "SHIFT WEAVE",   tilt: 0,    breathe: 0,    cascade: 0,    counter: 0,    drift: 0,    shift: 0.80, grow: 0,    morph: 0 },
+    { name: "GROW",          tilt: 0,    breathe: 0,    cascade: 0,    counter: 0,    drift: 0,    shift: 0,    grow: 0.60, morph: 0 },
+    { name: "MORPH PULSE",   tilt: 0,    breathe: 0,    cascade: 0,    counter: 0,    drift: 0,    shift: 0,    grow: 0,    morph: 0.75 },
+    { name: "TILT + BREATH", tilt: 0.40, breathe: 0.55, cascade: 0,    counter: 0,    drift: 0,    shift: 0,    grow: 0,    morph: 0 },
+    { name: "FULL ENGINE",   tilt: 0.25, breathe: 0.35, cascade: 0.45, counter: 0,    drift: 0.30, shift: 0.30, grow: 0,    morph: 0.30 },
+    // V.2 iter 25 motion presets
+    { name: "PULSE",         tilt: 0,    breathe: 0,    cascade: 0,    counter: 0,    drift: 0,    shift: 0,    grow: 0,    morph: 0,    pulse: 0.70, reverse: 0 },
+    { name: "REVERSE BREATH",tilt: 0,    breathe: 0,    cascade: 0,    counter: 0,    drift: 0,    shift: 0,    grow: 0,    morph: 0,    pulse: 0,    reverse: 0.65 },
+    { name: "PULSE + TILT",  tilt: 0.35, breathe: 0,    cascade: 0,    counter: 0,    drift: 0,    shift: 0,    grow: 0,    morph: 0,    pulse: 0.55, reverse: 0 }
+  ];
+  const SS_STATE_DURATION_MS = 9000;
+  const SS_FADE_MS = 2200;
+
+  function applySSState(idx, blend) {
+    const s = SS_STATES[idx];
+    for (const m of MOTIONS) {
+      const key = m.key;
+      const target = s[key] || 0;
+      const m_state = state.motion[key];
+      m_state.speed += (target - m_state.speed) * blend;
+      m_state.on = target > 0.04;  // gate by target, not current speed (smoother)
+    }
+  }
+
+  // Apply a screensaver state directly (no blending) — used for button clicks
+  // and auto-play on load. Weight blending in the animation loop ensures smooth
+  // visual fade between motions, even though speed is set instantly.
+  function applySSStateInstant(idx) {
+    const s = SS_STATES[idx];
+    for (const m of MOTIONS) {
+      const target = s[m.key] || 0;
+      state.motion[m.key].speed = target;
+      state.motion[m.key].on = target > 0.04;
+    }
+    state.ssStateIdx = idx;
+    state.ssElapsed = 0;
+    syncMotionRowsUI();
+    syncSSStateUI();
+  }
+
+  function syncSSStateUI() {
+    document.querySelectorAll("#ssStateGrid [data-ss-idx]").forEach(b => {
+      b.classList.toggle("on", +b.dataset.ssIdx === state.ssStateIdx);
+    });
+  }
+
+  function buildSSStateGrid() {
+    const grid = $("ssStateGrid");
+    grid.innerHTML = "";
+    SS_STATES.forEach((s, i) => {
+      const b = document.createElement("button");
+      b.className = "btn";
+      b.dataset.ssIdx = i;
+      b.textContent = s.name;
+      b.addEventListener("click", () => {
+        applySSStateInstant(i);
+        if (!state.playing) togglePlay();
+      });
+      grid.appendChild(b);
+    });
+  }
+
+  // ─── render
+  const root = $("root");
+  function render() {
+    const rings = computeRings(state);
+    // Continuous anchor offset: state.ahx / state.ahy in [-0.5, 0.5]
+    //   ahx=0, ahy=0  → ring center at anchor (concentric)
+    //   ahx=0.5       → ring's left edge at anchor, rings extend right
+    //   ahx=-0.5      → ring's right edge at anchor, rings extend left
+    //   ahy=0.5 / -0.5 → top / bottom edge at anchor, same idea
+    // Any value in between gives a continuous anchor position.
+    const ahx = state.ahx ?? 0;
+    const ahy = state.ahy ?? 0;
+    // motion weights (smooth fade in/out of each behavior)
+    const wTilt    = state.motion.tilt.weight;
+    const wBreathe = state.motion.breathe.weight;
+    const wCascade = state.motion.cascade.weight;
+    const wCounter = state.motion.counter.weight;
+    const wDrift   = state.motion.drift.weight;
+    const wShift   = state.motion.shift.weight;
+    const wGrow    = state.motion.grow.weight;
+    const wMorph   = state.motion.morph.weight;
+    const wPulse   = state.motion.pulse.weight;
+    const wReverse = state.motion.reverse.weight;
+
+    // Drift uses a free-running phase: position is sin(phase) * amount * weight.
+    // When weight drops, the mark glides smoothly back to its base position.
+    let cx = state.px * VW;
+    let cy = state.py * VH;
+    const driftPhase = state.motion.drift.phase;
+    cx += Math.sin(driftPhase) * 240 * state.motion.drift.amount * wDrift;
+    cy += Math.cos(driftPhase * 0.83) * 180 * state.motion.drift.amount * wDrift;
+
+    // Tilt uses accumulated rotation, not "time × speed × weight". This means
+    // disabling tilt freezes the current rotation (no unwind back to 0).
+    const markRot = state.rot + state.motion.tilt.accRot;
+
+    // Breathe uses free-running phase too — speed changes don't cause phase jumps.
+    let markScale = state.scale * (1 + Math.sin(state.motion.breathe.phase) * state.motion.breathe.amount * wBreathe);
+
+    // Fit mode: how the composition relates to the canvas.
+    //   TIGHT — Every ring's bounding box must fit inside the canvas. Accounts
+    //           for anchor offset AND canvas position so off-center anchors
+    //           still stay fully contained.
+    //   AUTO  — Shrink only if the outermost ring's SIZE exceeds canvas (ignores
+    //           position-induced overflow). Default.
+    //   LOOSE — No shrinking. Rings extend off canvas freely.
+    const mode = state.fitMode || "AUTO";
+    if (mode === "TIGHT") {
+      const last = rings[rings.length - 1];
+      const rotRad = (markRot * Math.PI) / 180;
+      const c = Math.abs(Math.cos(rotRad));
+      const sn = Math.abs(Math.sin(rotRad));
+      const rotW = last.W * c + last.H * sn;
+      const rotH = last.H * c + last.W * sn;
+      // For each canvas edge, compute the largest markScale that keeps the
+      // ring on the correct side of that edge given the anchor offset + position.
+      // Edge coefficients = anchor offset ± 0.5 (the ring's half-extent).
+      const px = state.px, py = state.py;
+      const cxNow = px * VW;
+      const cyNow = py * VH;
+      const leftCoef   = ahx - 0.5;  // <0 → ring extends left of (cx); constraint
+      const rightCoef  = ahx + 0.5;  // >0 → ring extends right of (cx); constraint
+      const topCoef    = ahy - 0.5;
+      const bottomCoef = ahy + 0.5;
+      let maxScale = Infinity;
+      if (leftCoef   < 0) maxScale = Math.min(maxScale, cxNow / (-leftCoef * rotW));
+      if (rightCoef  > 0) maxScale = Math.min(maxScale, (VW - cxNow) / (rightCoef * rotW));
+      if (topCoef    < 0) maxScale = Math.min(maxScale, cyNow / (-topCoef * rotH));
+      if (bottomCoef > 0) maxScale = Math.min(maxScale, (VH - cyNow) / (bottomCoef * rotH));
+      if (markScale > maxScale * 0.98) markScale = maxScale * 0.98;
+    } else if (mode === "AUTO") {
+      const last = rings[rings.length - 1];
+      const rotRad = (markRot * Math.PI) / 180;
+      const c = Math.abs(Math.cos(rotRad));
+      const sn = Math.abs(Math.sin(rotRad));
+      const rotW = last.W * c + last.H * sn;
+      const rotH = last.H * c + last.W * sn;
+      const reqW = rotW * markScale;
+      const reqH = rotH * markScale;
+      const fit = Math.min(1, (VW * 0.94) / reqW, (VH * 0.94) / reqH);
+      markScale *= fit;
+    }
+    // mode === "LOOSE" → no shrinking, rings can fly off the canvas
+
+    const morphPhase = state.motion.morph.phase;
+    const morphRadius = 1 + Math.sin(morphPhase) * state.motion.morph.amount * wMorph;
+    const morphAspect = 1 + Math.cos(morphPhase * 0.7) * state.motion.morph.amount * 0.5 * wMorph;
+
+    // grow offset weighted so disabling lets rings settle to their canonical positions
+    const growOffset = (state.motion.grow.phase % 1) * wGrow;
+
+    const fg = state.view.invert ? state.bg : state.color;
+    const bg = state.view.invert ? state.color : state.bg;
+    // Background: solid colour OR yellow-focused mesh gradient. The mesh
+    // uses the accent yellow (#fbff54) as the dominant glow + secondary
+    // white + black bleeds for depth. Rendered via overlapping radial
+    // gradients in the SVG <defs>, applied to the existing #bg rect.
+    if (state.backgroundMode === "mesh") {
+      $("bg").setAttribute("fill", "url(#arena-mesh-bg)");
+    } else {
+      $("bg").setAttribute("fill", bg);
+    }
+    document.documentElement.style.setProperty("--grid-opacity", state.view.grid ? "1" : "0");
+
+    // Image fill: build the SVG-side pieces. The `image` block is shared by
+    // stage/cutout/band/frame modes; each mode renders the rings differently.
+    const img = state.image;
+    const imageActive = img.src && img.mode !== "off";
+    let svg = "";
+    let ringFill = fg;
+    // Frame mode needs to know the outermost ring's path + transform so the
+    // image can be clipped to it. We capture both inside the loop below.
+    let frameClipPath = null;
+    let frameClipTransform = null;
+    // Innermost ring's per-ring motion values, captured during the loop's
+    // i=0 iteration. The wordmark uses these so it moves with the ring stack
+    // (shift / cascade / counter / pulse / reverse / morph), not just with
+    // the composition-level transforms (drift / breath / tilt).
+    let innerDx = 0, innerDy = 0, innerDrot = 0;
+    let innerMorphW = 1, innerMorphH = 1, innerPulseScale = 1;
+    if (imageActive) {
+      const preserve = img.fit === "contain" ? "xMidYMid meet" : "xMidYMid slice";
+      const offX = img.x * VW;
+      const offY = img.y * VH;
+      const scale = img.scale;
+      const imgEl = `<g transform="translate(${(VW/2 + offX).toFixed(2)} ${(VH/2 + offY).toFixed(2)}) scale(${scale.toFixed(3)}) translate(${(-VW/2).toFixed(2)} ${(-VH/2).toFixed(2)})"><image href="${img.src}" x="0" y="0" width="${VW}" height="${VH}" preserveAspectRatio="${preserve}"/></g>`;
+      if (img.mode === "band") {
+        svg += `<defs><pattern id="arena-img-pat" patternUnits="userSpaceOnUse" x="0" y="0" width="${VW}" height="${VH}" patternTransform="translate(${(VW/2 + offX).toFixed(2)} ${(VH/2 + offY).toFixed(2)}) scale(${scale.toFixed(3)}) translate(${(-VW/2).toFixed(2)} ${(-VH/2).toFixed(2)})"><image href="${img.src}" x="0" y="0" width="${VW}" height="${VH}" preserveAspectRatio="${preserve}"/></pattern></defs>`;
+        ringFill = "url(#arena-img-pat)";
+      } else if (img.mode === "stage") {
+        svg += imgEl;
+      } else if (img.mode === "cutout") {
+        svg += imgEl;
+        ringFill = bg;
+      }
+      // FRAME mode is finalized AFTER the ring loop, since it needs the
+      // outermost ring's transform. Ring fill is bg so bands carve through.
+      if (img.mode === "frame") {
+        ringFill = bg;
+      }
+    }
+
+    for (let i = 0; i < rings.length; i++) {
+      let ring = rings[i];
+      let opacity = 1;
+      if (wGrow > 0.001) {
+        const effI = i + growOffset;
+        ring = ringAtFloat(state, effI, rings);
+        if (effI > rings.length - 1) opacity = Math.max(0, rings.length - effI);
+        else if (effI < 1)           opacity = Math.max(0, effI);
+        // fade between non-grown and grown rendering by weight
+        if (wGrow < 1) {
+          const r0 = rings[i];
+          ring = {
+            W: r0.W + (ring.W - r0.W) * wGrow,
+            H: r0.H + (ring.H - r0.H) * wGrow,
+            R: r0.R + (ring.R - r0.R) * wGrow,
+            ps: r0.ps
+          };
+          opacity = 1 - (1 - opacity) * wGrow;
+        }
+      }
+      // Per-ring scale modifiers from new motions:
+      //   pulse   — wave traveling from anchor outward (ring index i delays the phase)
+      //   reverse — odd / even rings inhale ↔ exhale in opposite phase (peristaltic)
+      const pulseLag = i * 0.45;   // tighter spacing = visible wave
+      const pulseFactor = 1 + Math.sin(state.motion.pulse.phase - pulseLag) * state.motion.pulse.amount * wPulse;
+      const reverseSign = (i % 2 === 0) ? 1 : -1;
+      const reverseFactor = 1 + reverseSign * Math.sin(state.motion.reverse.phase) * state.motion.reverse.amount * wReverse;
+      const pulseScale = pulseFactor * reverseFactor;
+      const W = ring.W * (1 + (morphAspect - 1) * 0.5) * pulseScale;
+      const H = ring.H * (1 - (morphAspect - 1) * 0.5) * pulseScale;
+      const R = ring.R * morphRadius;
+      const morphedRing = { W, H, R };
+
+      // Per-ring phase offsets read from each motion's free-running phase.
+      const shiftPhase = state.motion.shift.phase + i * 0.45;
+      const dx = Math.sin(shiftPhase) * state.motion.shift.amount * wShift;
+      const dy = Math.cos(shiftPhase + 0.6) * state.motion.shift.amount * 0.55 * wShift;
+
+      const cascadePhase = state.motion.cascade.phase + i * 0.55;
+      const cascadeRot = Math.sin(cascadePhase) * state.motion.cascade.amount * wCascade;
+      // Counter uses accumulated rotation, signed per ring index — freezes on toggle off.
+      const counterSign = (i % 2 === 0) ? 1 : -1;
+      const counterRot  = counterSign * state.motion.counter.accRot;
+      const drot = cascadeRot + counterRot;
+
+      const totalRot = markRot + drot;
+      const ps = ring.ps ?? { band: 1 };
+      // Ring outer size (W,H,R) is profile-independent. Profile only changes
+      // band thickness via ps.band when we draw the path below.
+      const morphedRingWithRadius = { W, H, R };
+      const path = ringPath(morphedRingWithRadius, state.bx * ps.band, state.by * ps.band, state.dRb * ps.band);
+      // Anchor mode offset: shifts each ring so a specific corner/edge stays at (cx,cy)
+      // instead of every ring being centered there. Uses the natural ring size
+      // (no profile influence), so anchored compositions stay stable across profiles.
+      const anchorOffX = ahx * morphedRingWithRadius.W * markScale;
+      const anchorOffY = ahy * morphedRingWithRadius.H * markScale;
+      const op = opacity < 0.999 ? ` opacity="${opacity.toFixed(3)}"` : "";
+      const groupTransform = `translate(${(cx + dx + anchorOffX).toFixed(2)} ${(cy + dy + anchorOffY).toFixed(2)}) rotate(${totalRot.toFixed(2)}) scale(${markScale.toFixed(4)})`;
+      svg += `<g transform="${groupTransform}"${op}><path d="${path}" fill="${ringFill}" fill-rule="evenodd"/></g>`;
+      // Snapshot innermost ring's motion delta for the wordmark to inherit.
+      if (i === 0) {
+        innerDx = dx; innerDy = dy; innerDrot = drot;
+        innerMorphW = 1 + (morphAspect - 1) * 0.5;
+        innerMorphH = 1 - (morphAspect - 1) * 0.5;
+        innerPulseScale = pulseScale;
+      }
+      // Capture the OUTERMOST ring's outer outline for FRAME mode (clip the
+      // image to this shape so the image only fills the negative space inside
+      // the composition — gaps between bands + the innermost hole).
+      if (imageActive && img.mode === "frame" && i === rings.length - 1) {
+        frameClipPath = roundedRect(0, 0, W, H, R);
+        frameClipTransform = groupTransform;
+      }
+    }
+    // Wordmark overlay (V.2 iter 25, buffer-aware in iter 25). Drops the
+    // THE-ARENA wordmark at the composition center, rotated + scaled with the
+    // mark. Sized to fit inside the innermost ring's *inner hole* (not its
+    // outer width) with breathing room — so it doesn't crowd the band.
+    // wordmarkScale acts as a fill fraction of that inner hole: 0.75 = 25%
+    // padding all around; 1.0 = nearly touches the band; >1 lets it overflow
+    // beyond the inner ring (intentional override for bolder lockups).
+    if (state.wordmark && rings.length > 0) {
+      const innermost = rings[0];
+      // The wordmark inherits the innermost ring's motion-deformed size so
+      // it pulses / morphs in sync with the ring (not the static base size).
+      const innerBand = innermost.ps?.band ?? 1;
+      const ringW = innermost.W * innerMorphW * innerPulseScale;
+      const ringH = innermost.H * innerMorphH * innerPulseScale;
+      const holeW = Math.max(20, ringW - 2 * state.bx * innerBand);
+      const holeH = Math.max(20, ringH - 2 * state.by * innerBand);
+      // Default size leaves a comfortable margin so the lockup never
+      // crowds the band visually. wordmarkScale clamps the fraction of
+      // the inner hole the wordmark occupies in BOTH dimensions.
+      const holeRenderW = holeW * markScale;
+      const holeRenderH = holeH * markScale;
+      const fitW = (holeRenderW / WORDMARK_VBW) * state.wordmarkScale;
+      const fitH = (holeRenderH / WORDMARK_VBH) * state.wordmarkScale;
+      const wmScale = Math.min(fitW, fitH);
+      const wmCx = WORDMARK_VBX + WORDMARK_VBW / 2;  // 956
+      const wmCy = WORDMARK_VBY + WORDMARK_VBH / 2;  // 540
+      // Anchor offset uses the rendered (motion-deformed) innermost size.
+      const innerAnchorOffX = ahx * ringW * markScale;
+      const innerAnchorOffY = ahy * ringH * markScale;
+      // Position + rotation inherit the innermost ring's per-ring motion
+      // (shift dx/dy, cascade + counter rotation). Composition-level drift,
+      // tilt, breath are already in cx/cy/markRot/markScale.
+      const wmX = cx + innerDx + innerAnchorOffX;
+      const wmY = cy + innerDy + innerAnchorOffY;
+      const wmRot = markRot + innerDrot;
+      svg += `<g transform="translate(${wmX.toFixed(2)} ${wmY.toFixed(2)}) rotate(${wmRot.toFixed(2)}) scale(${wmScale.toFixed(5)}) translate(${(-wmCx).toFixed(2)} ${(-wmCy).toFixed(2)})" fill="${fg}">${WORDMARK_PATHS}</g>`;
+    }
+
+    // Frame mode: now that we have the outermost ring's path + transform,
+    // prepend a clipPath def + the clipped image. Rings (already drawn into
+    // svg) sit on top, carving the bands out of the image in bg color.
+    if (imageActive && img.mode === "frame" && frameClipPath) {
+      const preserve = img.fit === "contain" ? "xMidYMid meet" : "xMidYMid slice";
+      const offX = img.x * VW;
+      const offY = img.y * VH;
+      const scale = img.scale;
+      const frameDef = `<defs><clipPath id="arena-frame-clip" clipPathUnits="userSpaceOnUse"><path d="${frameClipPath}" transform="${frameClipTransform}"/></clipPath></defs>`;
+      const clippedImg = `<g clip-path="url(#arena-frame-clip)"><g transform="translate(${(VW/2 + offX).toFixed(2)} ${(VH/2 + offY).toFixed(2)}) scale(${scale.toFixed(3)}) translate(${(-VW/2).toFixed(2)} ${(-VH/2).toFixed(2)})"><image href="${img.src}" x="0" y="0" width="${VW}" height="${VH}" preserveAspectRatio="${preserve}"/></g></g>`;
+      svg = frameDef + clippedImg + svg;
+    }
+
+    // Mesh gradient (V.3): painterly blur-mesh. Many seeded colored circles
+    // run through a heavy gaussian filter to produce smooth, complex blends.
+    // Mood selector picks the secondary palette so user can swing the mood
+    // (Solar / Gold / Eclipse / Dusk / Mist) while keeping yellow as focus.
+    if (state.backgroundMode === "mesh") {
+      const m = state.mesh;
+      const rng = (i) => {
+        const x = Math.sin((m.seed + 1) * 9973 + i * 12.9898) * 43758.5453;
+        return x - Math.floor(x);
+      };
+      // Mood palettes — each ~16 entries weighted toward black for depth
+      // contrast (the references' bright peaks read because the field is dark).
+      const palettes = {
+        // Solar: bright yellow + cream + white peaks against deep black depth
+        solar:   ["#fbff54","#fbff54","#fbff54","#fff5a0","#fff5a0","#ffffff","#ffffff","#e8c200","#000000","#000000","#000000","#000000","#000000","#0a0a0a","#1c1c1c","#1c1c1c"],
+        // Gold: amber + warm yellow + cream, deeper warm shadows
+        gold:    ["#fbff54","#fbff54","#e8c200","#e8c200","#d4a017","#fff5a0","#ffd9b5","#ffd9b5","#ffffff","#000000","#000000","#000000","#0e0805","#2a1c08","#2a1c08","#3a2510"],
+        // Eclipse: yellow rim + deep red/black field for high contrast
+        eclipse: ["#fbff54","#fbff54","#ffd9b5","#ffd9b5","#ffaa3f","#7a1010","#3a0808","#000000","#000000","#000000","#000000","#000000","#0a0a0a","#0e0808","#1a0808","#1a0808"],
+        // Dusk: yellow + soft pinks + cool indigo shadows
+        dusk:    ["#fbff54","#fbff54","#fff5a0","#ffd9b5","#ff9eb4","#ff9eb4","#c479a0","#7b5fab","#3a3868","#1a1838","#000000","#000000","#000000","#000018","#0a0a14","#1c1c2a"],
+        // Mist: muted pale yellow + soft cream + light greys (cooler, softer)
+        mist:    ["#fbff54","#fff5a0","#fff5a0","#fff5d8","#fff5d8","#ffffff","#ffffff","#d8d8e0","#a8a8b0","#787888","#3a3a44","#1a1a20","#1a1a20","#000000","#000000","#0a0a0e"]
+      };
+      const palette = palettes[m.mood] || palettes.solar;
+      const maxDim = Math.max(VW, VH);
+      // Lighter blur so each color holds more shape (was 0.085 — too smeary)
+      const blurAmt = Math.round(maxDim * 0.055);
+      const inten = Math.max(0.25, Math.min(1.6, m.intensity));
+      // More blobs, smaller — each one contributes a localised color region.
+      const numBlobs = 22;
+      let blobs = "";
+      for (let i = 0; i < numBlobs; i++) {
+        const cx = (rng(i * 7 + 0) * 1.4 - 0.2) * VW;
+        const cy = (rng(i * 7 + 1) * 1.4 - 0.2) * VH;
+        // Smaller radius so circles don't all merge into one tone.
+        const r  = (0.08 + rng(i * 7 + 2) * 0.24) * maxDim;
+        const col = palette[Math.floor(rng(i * 7 + 3) * palette.length)];
+        const op  = (0.50 + rng(i * 7 + 4) * 0.40) * inten;
+        blobs += `<circle cx="${cx.toFixed(0)}" cy="${cy.toFixed(0)}" r="${r.toFixed(0)}" fill="${col}" opacity="${op.toFixed(2)}"/>`;
+      }
+      // User-anchored yellow glow — present but no longer dominant
+      // (intensity reduced so it reads as a focus, not a wash).
+      const anchorCx = m.yellowX * VW;
+      const anchorCy = m.yellowY * VH;
+      const anchorR  = m.yellowSize * maxDim * 0.7;
+      const anchorOp = inten * 0.7;
+      blobs += `<circle cx="${anchorCx.toFixed(0)}" cy="${anchorCy.toFixed(0)}" r="${anchorR.toFixed(0)}" fill="#fbff54" opacity="${anchorOp.toFixed(2)}"/>`;
+      const meshDef = `<defs>
+        <radialGradient id="arena-mesh-bg" cx="50%" cy="50%" r="80%"><stop offset="0%" stop-color="#0a0a0a"/><stop offset="100%" stop-color="#000000"/></radialGradient>
+        <filter id="arena-mesh-blur" x="-20%" y="-20%" width="140%" height="140%" color-interpolation-filters="sRGB">
+          <feGaussianBlur in="SourceGraphic" stdDeviation="${blurAmt}"/>
+        </filter>
+      </defs>
+      <g filter="url(#arena-mesh-blur)">${blobs}</g>`;
+      svg = meshDef + svg;
+    }
+
+    // Logo corner overlay (V.2 iter 25): wallpaper signature in any corner,
+    // rendered last so it sits on top of everything. Always white fill so it
+    // stays legible over the mesh gradient or busy compositions.
+    if (state.wordmarkCorner && state.wordmarkCorner !== "off") {
+      const cw = VW * state.wordmarkCornerSize;
+      const ch = cw * (WORDMARK_VBH / WORDMARK_VBW);
+      const margin = Math.max(VW, VH) * 0.04;
+      let cx_, cy_;
+      switch (state.wordmarkCorner) {
+        case "tl": cx_ = margin;            cy_ = margin;            break;
+        case "tr": cx_ = VW - margin - cw;  cy_ = margin;            break;
+        case "bl": cx_ = margin;            cy_ = VH - margin - ch;  break;
+        case "br": cx_ = VW - margin - cw;  cy_ = VH - margin - ch;  break;
+      }
+      const cornerScale = cw / WORDMARK_VBW;
+      svg += `<g transform="translate(${cx_.toFixed(2)} ${cy_.toFixed(2)}) scale(${cornerScale.toFixed(5)}) translate(${(-WORDMARK_VBX).toFixed(2)} ${(-WORDMARK_VBY).toFixed(2)})" fill="${fg}">${WORDMARK_PATHS}</g>`;
+    }
+
+    root.innerHTML = svg;
+
+    // hud
+    $("meta-N").textContent = state.N;
+    $("meta-time").textContent = state.timeAccum.toFixed(1) + "s";
+    $("meta-state").textContent = state.playing ? (state.screensaver ? "AUTO" : "MOTION") : "STATIC";
+    if ($("meta-echo")) $("meta-echo").textContent = describeAnchor(state.ahx, state.ahy);
+    if ($("meta-mood")) $("meta-mood").textContent = state.currentMode || state.lastMood || "CANONICAL";
+    if ($("meta-scale")) $("meta-scale").textContent = state.scale.toFixed(2);
+    if ($("meta-rot")) $("meta-rot").textContent = Math.round(state.rot) + "°";
+    if ($("meta-profile")) $("meta-profile").textContent = state.bandProfile || "UNIFORM";
+    if ($("meta-motion")) {
+      const active = Object.entries(state.motion).filter(([_, m]) => m.on).map(([k]) => k.toUpperCase());
+      $("meta-motion").textContent = active.length === 0 ? "OFF" : (active.length <= 2 ? active.join("+") : active.length + " ACTIVE");
+    }
+    $("ssBanner").classList.toggle("on", state.screensaver);
+    $("ssBannerName").textContent = SS_STATES[state.ssStateIdx].name;
+
+    syncURL();
+  }
+
+  // interpolate ring sizes between integer indices for smooth grow effect
+  function ringAtFloat(s, idx, ringsCache) {
+    const i0 = Math.floor(idx);
+    const t = idx - i0;
+    const a = (i0 >= 0 && i0 < ringsCache.length) ? ringsCache[i0] : null;
+    const b = (i0 + 1 >= 0 && i0 + 1 < ringsCache.length) ? ringsCache[i0 + 1] : null;
+    // if extrapolating past the last ring, project the step pattern
+    if (a && !b) {
+      // beyond outermost: project one more step
+      const cf = Math.pow(s.curve, ringsCache.length - 1);
+      return {
+        W: a.W + 2 * (s.bx + s.gx * cf) * t,
+        H: a.H + 2 * (s.by + s.gy * cf) * t,
+        R: a.R + (s.dRb + s.dRg * cf) * t
+      };
+    }
+    if (!a && b) {
+      // before innermost: shrink toward zero (used when idx is fractional below 0)
+      return { W: b.W * t, H: b.H * t, R: b.R * t };
+    }
+    if (!a && !b) return { W: 0, H: 0, R: 0 };
+    return {
+      W: a.W + (b.W - a.W) * t,
+      H: a.H + (b.H - a.H) * t,
+      R: a.R + (b.R - a.R) * t
+    };
+  }
+
+  // ─── animation loop
+  let rafId = null;
+  let lastFrame = performance.now();
+  // Per-motion phase frequency factors (used to be inline as t * speed * X).
+  // Free-running phases (advance regardless of weight) so the wave's underlying
+  // rhythm stays coherent. Speed-rate accumulators (tilt, counter) only advance
+  // when weight > 0 so disabling freezes the visible rotation rather than unwinding it.
+  const PHASE_RATE = { breathe: 1.4, cascade: 2.1, drift: 0.5, shift: 1.6, grow: 0.4, morph: 1.0, pulse: 1.7, reverse: 1.5 };
+
+  function frame(now) {
+    const dt = Math.min(0.1, (now - lastFrame) / 1000);
+    lastFrame = now;
+    // Weight blending: gentler (10% per frame at 60fps) — fluid handoff, not snappy.
+    const k = 1 - Math.pow(0.90, dt * 60);
+    for (const key in state.motion) {
+      const m = state.motion[key];
+      const target = m.on ? 1 : 0;
+      m.weight += (target - m.weight) * k;
+    }
+    // Band profile snaps on click (no lerp) — eliminates the mid-transition
+    // ring shifting that read as "haywire" when combined with anchor-mode.
+    if (state.playing) {
+      state.timeAccum += dt;
+      // Advance each oscillator's phase at its own rate.
+      // These are free-running so amplitude (driven by weight) is the only thing that
+      // changes when toggling — no phase discontinuity, no rate jumps from preset changes.
+      for (const key in PHASE_RATE) {
+        state.motion[key].phase += dt * state.motion[key].speed * PHASE_RATE[key];
+      }
+      // Tilt + counter accumulate while their weight is high, and decay back to 0
+      // when weight is low. Decay is proportional to (1 - weight) so an active
+      // motion doesn't decay; a disabled one winds down gently. This avoids both
+      // the sharp unwind from before AND the residual-rotation-across-presets
+      // problem of pure freeze.
+      const decayBase = Math.pow(0.96, dt * 60);
+      state.motion.tilt.accRot    *= 1 - (1 - decayBase) * (1 - state.motion.tilt.weight);
+      state.motion.counter.accRot *= 1 - (1 - decayBase) * (1 - state.motion.counter.weight);
+      state.motion.tilt.accRot    += dt * state.motion.tilt.speed * 18 * state.motion.tilt.weight;
+      state.motion.counter.accRot += dt * state.motion.counter.speed * state.motion.counter.amount * 1.4 * state.motion.counter.weight;
+
+      if (state.screensaver) {
+        state.ssElapsed += dt * 1000;
+        applySSState(state.ssStateIdx, k * 0.5);
+        syncMotionRowsUI();
+        if (state.ssElapsed > SS_STATE_DURATION_MS) {
+          state.ssStateIdx = (state.ssStateIdx + 1) % SS_STATES.length;
+          state.ssElapsed = 0;
+          syncSSStateUI();
+        }
+      }
+    }
+    render();
+    rafId = requestAnimationFrame(frame);
+  }
+  function togglePlay() {
+    state.playing = !state.playing;
+    $("playPause").textContent = state.playing ? "❚❚ Pause" : "▶ Play Motion";
+    lastFrame = performance.now();
+    if (!state.playing) {
+      state.screensaver = false;
+      $("ssToggle").classList.remove("on");
+    }
+    render();
+  }
+
+  function toggleScreensaver() {
+    state.screensaver = !state.screensaver;
+    $("ssToggle").classList.toggle("on", state.screensaver);
+    $("ssToggle").textContent = state.screensaver ? "■ Stop Auto" : "Auto Cycle";
+    if (state.screensaver) {
+      if (!state.playing) togglePlay();
+      state.ssElapsed = 0;
+    }
+  }
+
+
+  // ─── format
+  function fitCanvas() {
+    const stage = $("stage");
+    const canvas = $("canvas");
+    const rect = stage.getBoundingClientRect();
+    if (rect.width === 0 || rect.height === 0) return;
+    const pad = 24; // breathing room matching CSS stage padding
+    const availW = Math.max(40, rect.width - pad * 2);
+    const availH = Math.max(40, rect.height - pad * 2);
+    const aspect = state.fW / state.fH;
+    let w, h;
+    if (availW / availH > aspect) {
+      // height-limited
+      h = availH;
+      w = h * aspect;
+    } else {
+      // width-limited
+      w = availW;
+      h = w / aspect;
+    }
+    canvas.style.width = w + "px";
+    canvas.style.height = h + "px";
+  }
+
+  function applyFormat() {
+    VW = state.fW;
+    VH = state.fH;
+    const canvas = $("canvas");
+    canvas.setAttribute("viewBox", `0 0 ${VW} ${VH}`);
+    $("bg").setAttribute("width", VW);
+    $("bg").setAttribute("height", VH);
+    document.documentElement.style.setProperty("--aspect", (VW / VH).toFixed(4));
+    // update format buttons — scoped to #formatGrid so we don't also flip
+    // every Band Profile button's active state (they share the .format-btn class)
+    document.querySelectorAll("#formatGrid .format-btn").forEach(b => {
+      b.classList.toggle("active", +b.dataset.width === VW && +b.dataset.height === VH);
+    });
+    // sync custom sliders
+    $("fW").value = VW; $("v-fW").textContent = VW;
+    $("fH").value = VH; $("v-fH").textContent = VH;
+    fitCanvas();
+  }
+
+  window.addEventListener("resize", fitCanvas);
+
+  // ─── Drawer toggle (desktop = slide off, mobile = overlay)
+  function setDrawerCollapsed(collapsed) {
+    document.body.classList.toggle("drawer-collapsed", collapsed);
+    $("drawerToggle").textContent = collapsed ? "›" : "‹";
+    // Recompute canvas fit after grid transition completes.
+    setTimeout(fitCanvas, 260);
+  }
+  $("drawerToggle").addEventListener("click", () => {
+    setDrawerCollapsed(!document.body.classList.contains("drawer-collapsed"));
+  });
+  // On mobile, also close the drawer when tapping on the canvas backdrop.
+  $("stage").addEventListener("click", (e) => {
+    if (window.innerWidth > 760) return;
+    if (document.body.classList.contains("drawer-collapsed")) return;
+    // only close when the click is on the dimmed backdrop (not on a stage control)
+    if (e.target.closest(".stage-controls")) return;
+    setDrawerCollapsed(true);
+  });
+  // Auto-collapse on small viewports at first load.
+  if (window.innerWidth <= 760) setDrawerCollapsed(true);
+
+  // HUD info card: discreet by default (just the mood pill). Click the header
+  // to expand and reveal the full state breakdown. Click again to collapse.
+  $("hudToggle").addEventListener("click", () => {
+    $("stageMeta").classList.toggle("expanded");
+  });
+  // When format changes while CENTERED or ROTATED is active, re-apply the mode
+  // so the composition re-derives bH/by/gy from the new aspect ratio. Without
+  // this, a CENTERED 16:9 composition keeps its wide rings even after switching
+  // to 9:16, leaving big empty bands top + bottom.
+  function refitForFormat() {
+    applyFormat();
+    const mode = state.currentMode;
+    if (mode === "CENTERED" || mode === "ROTATED") {
+      applyMoodFully(mode);
+    } else {
+      render();
+    }
+  }
+  // Scoped to #formatGrid — otherwise this handler also fires on Band Profile
+  // buttons (same class) and sets fW/fH to NaN, which then breaks the canvas.
+  document.querySelectorAll("#formatGrid .format-btn").forEach(b => {
+    b.addEventListener("click", () => {
+      state.fW = +b.dataset.width;
+      state.fH = +b.dataset.height;
+      refitForFormat();
+    });
+  });
+  $("fW").addEventListener("input", () => {
+    state.fW = parseInt($("fW").value);
+    refitForFormat();
+  });
+  $("fH").addEventListener("input", () => {
+    state.fH = parseInt($("fH").value);
+    refitForFormat();
+  });
+
+  // ─── band profile
+  // Mini ring-stack preview for each profile button. Uses the same zero-sum
+  // profile logic as the engine, so the icon is a true miniature of what
+  // clicking the profile does to the main canvas — at a representative
+  // variation (0.85) so the character reads cleanly at icon size.
+  function buildProfilePreviewSVG(profile, amount = 0.85) {
+    const N = 7;
+    const cfg = { bW: 6, bH: 3, bR: 0.8, bx: 0.35, by: 0.85, dRb: 0.35, gx: 1.2, gy: 0.55, dRg: 0.15 };
+    const deltas = computeProfileDeltas(N, profile);
+    const rings = [];
+    let w = cfg.bW, h = cfg.bH, r = cfg.bR;
+    rings.push({ w, h, r, ps: profileFromDelta(deltas[0], amount) });
+    for (let i = 1; i < N; i++) {
+      const ps = profileFromDelta(deltas[i], amount);
+      w = w + 2 * (cfg.bx + cfg.gx);
+      h = h + 2 * (cfg.by + cfg.gy);
+      r = r + cfg.dRb + cfg.dRg;
+      rings.push({ w, h, r, ps });
+    }
+    const last = rings[N - 1];
+    const vw = last.w + 2;
+    const vh = last.h + 2;
+    let d = "";
+    for (const ring of rings) {
+      d += roundedRect(0, 0, ring.w, ring.h, ring.r);
+      const iw = ring.w - 2 * cfg.bx * ring.ps.band;
+      const ih = ring.h - 2 * cfg.by * ring.ps.band;
+      const ir = Math.max(0, ring.r - cfg.dRb * ring.ps.band);
+      if (iw > 0 && ih > 0) d += " " + roundedRect(0, 0, iw, ih, ir);
+    }
+    return `<svg class="prof-icon" viewBox="${(-vw/2).toFixed(2)} ${(-vh/2).toFixed(2)} ${vw.toFixed(2)} ${vh.toFixed(2)}" preserveAspectRatio="xMidYMid meet"><path d="${d}" fill-rule="evenodd"/></svg>`;
+  }
+
+  function injectProfileIcons() {
+    document.querySelectorAll("#bandProfileGrid .format-btn").forEach(b => {
+      const profile = b.dataset.profile;
+      // Skip if already injected
+      if (b.querySelector(".prof-icon")) return;
+      const labelHTML = b.innerHTML;
+      b.innerHTML = buildProfilePreviewSVG(profile) + labelHTML;
+    });
+  }
+
+  function syncBandProfileUI() {
+    document.querySelectorAll("#bandProfileGrid .format-btn").forEach(b => {
+      b.classList.toggle("active", b.dataset.profile === state.bandProfile);
+    });
+    $("bandVar").value = state.bandVar;
+    $("v-bandVar").textContent = state.bandVar.toFixed(2);
+  }
+  document.querySelectorAll("#bandProfileGrid .format-btn").forEach(b => {
+    b.addEventListener("click", () => {
+      const newProfile = b.dataset.profile;
+      const wasUniform = state.bandProfile === "UNIFORM";
+      state.bandProfile = newProfile;
+      // Smart auto-ramp: only nudge bandVar up when going FROM Uniform TO a
+      // profile with character AND variation is currently too low to be visible.
+      // Profile-to-profile transitions (Tiered → Hourglass etc.) respect the
+      // user's current variation, which keeps the visual subtle and stable.
+      if (newProfile !== "UNIFORM" && wasUniform && state.bandVar < 0.35) {
+        state.bandVar = 0.55;
+      }
+      syncBandProfileUI();
+      render();
+    });
+  });
+  $("bandVar").addEventListener("input", () => {
+    state.bandVar = parseFloat($("bandVar").value);
+    $("v-bandVar").textContent = state.bandVar.toFixed(2);
+    render();
+  });
+
+  // ─── input bindings
+  const STACK_KEYS = {
+    N: "N", px: "px", py: "py", rot: "rot", scale: "scale", curve: "curve",
+    bW: "bW", bH: "bH", bR: "bR", bx: "bx", by: "by", gx: "gx", gy: "gy"
+  };
+  Object.entries(STACK_KEYS).forEach(([id, key]) => {
+    $(id).addEventListener("input", () => {
+      const v = parseFloat($(id).value);
+      state[key] = key === "N" ? Math.round(v) : v;
+      const fmt = key === "N" ? v=>v.toFixed(0) :
+                  (["scale","curve","px","py"].includes(key) ? v=>v.toFixed(2) :
+                  (["bx","by","gx","gy"].includes(key) ? v=>v.toFixed(1) : v=>v.toFixed(0)));
+      $("v-" + id).textContent = fmt(state[key]);
+      render();
+    });
+  });
+
+  // swatches
+  document.querySelectorAll(".swatches").forEach(g => {
+    g.addEventListener("click", e => {
+      const sw = e.target.closest(".swatch-pick");
+      if (!sw) return;
+      const target = g.dataset.target;
+      if (target === "bg") state.bg = sw.dataset.c;
+      if (target === "fg") state.color = sw.dataset.c;
+      g.querySelectorAll(".swatch-pick").forEach(x => x.classList.toggle("active", x === sw));
+      render();
+    });
+  });
+  // Switches: pill-style toggles for Grid / Invert / Wordmark. Click anywhere
+  // on the row (label or switch) flips the state. syncSwitches() keeps the
+  // visual in sync with state.view / state.wordmark.
+  function syncSwitches() {
+    $("sw-grid").classList.toggle("on", !!state.view.grid);
+    $("sw-invert").classList.toggle("on", !!state.view.invert);
+    $("sw-wordmark").classList.toggle("on", !!state.wordmark);
+  }
+  $("sw-grid-row").addEventListener("click", () => {
+    state.view.grid = !state.view.grid;
+    syncSwitches();
+    render();
+  });
+  $("sw-invert-row").addEventListener("click", () => {
+    state.view.invert = !state.view.invert;
+    syncSwitches();
+    render();
+  });
+  $("sw-wordmark-row").addEventListener("click", () => {
+    state.wordmark = !state.wordmark;
+    syncSwitches();
+    syncWordmarkUI();
+    render();
+  });
+  // Wordmark toggle — three surfaces stay in sync via syncWordmarkUI():
+  //   sw-wordmark-row     switch row inside the Color section
+  //   sw-wordmark-top     switch row in the standalone Wordmark card (header)
+  //   t-wordmark-stage    pill on the canvas action bar
+  function syncWordmarkUI() {
+    $("t-wordmark-stage").classList.toggle("active-stage", state.wordmark);
+    if ($("sw-wordmark")) $("sw-wordmark").classList.toggle("on", state.wordmark);
+    if ($("sw-wordmark-top")) $("sw-wordmark-top").classList.toggle("on", state.wordmark);
+    // Stage button label flips for visibility on canvas.
+    $("t-wordmark-stage").textContent = state.wordmark ? "⊞ Wordmark On" : "⊞ Wordmark";
+  }
+  function toggleWordmark() {
+    state.wordmark = !state.wordmark;
+    syncWordmarkUI();
+    render();
+  }
+  $("t-wordmark-header").addEventListener("click", toggleWordmark);
+  $("t-wordmark-stage").addEventListener("click", toggleWordmark);
+  $("wordmarkScale").addEventListener("input", () => {
+    state.wordmarkScale = parseFloat($("wordmarkScale").value);
+    $("v-wordmarkScale").textContent = state.wordmarkScale.toFixed(2);
+    render();
+  });
+
+  // Background mode (V.2 iter 25)
+  function syncMeshUI() {
+    $("meshControls").style.display = state.backgroundMode === "mesh" ? "" : "none";
+  }
+  document.querySelectorAll('[data-bgmode]').forEach(b => {
+    b.addEventListener('click', () => {
+      state.backgroundMode = b.dataset.bgmode;
+      document.querySelectorAll('[data-bgmode]').forEach(x => x.classList.toggle('on', x.dataset.bgmode === state.backgroundMode));
+      $("v-bgMode").textContent = state.backgroundMode.toUpperCase();
+      syncMeshUI();
+      render();
+    });
+  });
+  // Mesh parametric controls (V.2 iter 25)
+  function bindMeshSlider(id, key, decimals) {
+    $(id).addEventListener("input", () => {
+      state.mesh[key] = parseFloat($(id).value);
+      $("v-" + id).textContent = state.mesh[key].toFixed(decimals);
+      render();
+    });
+  }
+  bindMeshSlider("meshX",    "yellowX",    2);
+  bindMeshSlider("meshY",    "yellowY",    2);
+  bindMeshSlider("meshSize", "yellowSize", 2);
+  bindMeshSlider("meshInt",  "intensity",  2);
+  // Mesh mood — picks the secondary palette.
+  document.querySelectorAll('[data-mood]').forEach(b => {
+    b.addEventListener('click', () => {
+      state.mesh.mood = b.dataset.mood;
+      document.querySelectorAll('[data-mood]').forEach(x => x.classList.toggle('on', x.dataset.mood === state.mesh.mood));
+      $("v-meshMood").textContent = state.mesh.mood.toUpperCase();
+      render();
+    });
+  });
+  $("meshShuffle").addEventListener("click", () => {
+    state.mesh.seed = Math.random();
+    render();
+  });
+  $("meshReset").addEventListener("click", () => {
+    state.mesh = { yellowX: 0.30, yellowY: 0.40, yellowSize: 0.45, intensity: 1.0, seed: 0.42, mood: "solar" };
+    $("meshX").value = state.mesh.yellowX;       $("v-meshX").textContent = "0.30";
+    $("meshY").value = state.mesh.yellowY;       $("v-meshY").textContent = "0.40";
+    $("meshSize").value = state.mesh.yellowSize; $("v-meshSize").textContent = "0.45";
+    $("meshInt").value = state.mesh.intensity;   $("v-meshInt").textContent = "1.00";
+    document.querySelectorAll('[data-mood]').forEach(x => x.classList.toggle('on', x.dataset.mood === 'solar'));
+    $("v-meshMood").textContent = "SOLAR";
+    render();
+  });
+  // Logo corner overlay (V.2 iter 25)
+  document.querySelectorAll('#cornerGrid .corner-btn').forEach(b => {
+    b.addEventListener('click', () => {
+      state.wordmarkCorner = b.dataset.corner;
+      document.querySelectorAll('#cornerGrid .corner-btn').forEach(x => x.classList.toggle('on', x.dataset.corner === state.wordmarkCorner && state.wordmarkCorner !== 'off'));
+      $("v-cornerMode").textContent = state.wordmarkCorner === 'off' ? 'OFF' : state.wordmarkCorner.toUpperCase();
+      render();
+    });
+  });
+  $("cornerSize").addEventListener("input", () => {
+    state.wordmarkCornerSize = parseFloat($("cornerSize").value);
+    $("v-cornerSize").textContent = state.wordmarkCornerSize.toFixed(2);
+    render();
+  });
+
+  // Bloom + Dither was iter 2-8; sunset in iter 9 (see DEFAULT_STATE comment).
+
+  // ─── Image Fill (V.2 iter 25)
+  // Reads any uploaded image as a data URL so the same SVG works for PNG /
+  // GIF export (data URLs survive serialization; external src URLs don't
+  // render reliably in the offscreen rasterizer).
+  function syncImageUI() {
+    const img = state.image;
+    $("imageDropzone").classList.toggle("has-image", !!img.src);
+    if (img.src) {
+      $("imageDropzoneThumb").src = img.src;
+      $("imageDropzoneThumb").hidden = false;
+    } else {
+      $("imageDropzoneThumb").hidden = true;
+      $("imageDropzoneThumb").src = "";
+    }
+    document.querySelectorAll("#imageModeGrid .format-btn").forEach(b => {
+      b.classList.toggle("active", b.dataset.imode === img.mode);
+    });
+    document.querySelectorAll(".btnrow [data-ifit]").forEach(b => {
+      b.classList.toggle("active", b.dataset.ifit === img.fit);
+    });
+    $("v-imgMode").textContent = img.mode.toUpperCase();
+    $("v-imgFit").textContent = img.fit.toUpperCase();
+    $("v-imgScale").textContent = (+img.scale).toFixed(2);
+    $("v-imgX").textContent = (+img.x).toFixed(2);
+    $("v-imgY").textContent = (+img.y).toFixed(2);
+    $("imgScale").value = img.scale;
+    $("imgX").value = img.x;
+    $("imgY").value = img.y;
+  }
+  function loadImageFile(file) {
+    if (!file || !file.type.startsWith("image/")) { toast("NOT AN IMAGE"); return; }
+    if (file.size > 12 * 1024 * 1024) { toast("IMAGE TOO LARGE (>12MB)"); return; }
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      state.image.src = e.target.result;
+      // Auto-switch to Band fill if user uploaded an image with mode still off.
+      if (state.image.mode === "off") state.image.mode = "band";
+      syncImageUI();
+      render();
+      toast("IMAGE LOADED · " + state.image.mode.toUpperCase());
+    };
+    reader.onerror = () => toast("IMAGE READ FAILED");
+    reader.readAsDataURL(file);
+  }
+  $("imageDropzone").addEventListener("click", () => $("imageFileInput").click());
+  $("imageFileInput").addEventListener("change", (e) => {
+    const file = e.target.files && e.target.files[0];
+    if (file) loadImageFile(file);
+    e.target.value = "";  // allow re-uploading the same file
+  });
+  $("imageDropzone").addEventListener("dragover", (e) => { e.preventDefault(); $("imageDropzone").classList.add("dragover"); });
+  $("imageDropzone").addEventListener("dragleave", () => $("imageDropzone").classList.remove("dragover"));
+  $("imageDropzone").addEventListener("drop", (e) => {
+    e.preventDefault();
+    $("imageDropzone").classList.remove("dragover");
+    const file = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
+    if (file) loadImageFile(file);
+  });
+  $("imageClear").addEventListener("click", (e) => {
+    e.stopPropagation();
+    state.image = { src: null, mode: "off", fit: "cover", scale: 1.0, x: 0, y: 0 };
+    syncImageUI();
+    render();
+    toast("IMAGE CLEARED");
+  });
+  document.querySelectorAll("#imageModeGrid .format-btn").forEach(b => {
+    b.addEventListener("click", () => {
+      state.image.mode = b.dataset.imode;
+      syncImageUI();
+      render();
+    });
+  });
+  document.querySelectorAll(".btnrow [data-ifit]").forEach(b => {
+    b.addEventListener("click", () => {
+      state.image.fit = b.dataset.ifit;
+      syncImageUI();
+      render();
+    });
+  });
+  ["imgScale", "imgX", "imgY"].forEach(id => {
+    $(id).addEventListener("input", () => {
+      const key = id === "imgScale" ? "scale" : id === "imgX" ? "x" : "y";
+      state.image[key] = parseFloat($(id).value);
+      $("v-" + id).textContent = state.image[key].toFixed(2);
+      render();
+    });
+  });
+
+  $("playPause").addEventListener("click", togglePlay);
+  $("snap").addEventListener("click", () => {
+    if (state.playing) togglePlay();
+    toast("FROZEN @ " + state.timeAccum.toFixed(1) + "s");
+  });
+  $("ssToggle").addEventListener("click", toggleScreensaver);
+  $("ssRandom").addEventListener("click", () => {
+    let i;
+    do { i = Math.floor(Math.random() * SS_STATES.length); } while (i === state.ssStateIdx && SS_STATES.length > 1);
+    applySSStateInstant(i);
+    if (!state.playing) togglePlay();
+    toast(SS_STATES[i].name);
+  });
+  $("motionsOff").addEventListener("click", () => {
+    for (const m of MOTIONS) state.motion[m.key].on = false;
+    syncMotionRowsUI();
+    if (state.screensaver) toggleScreensaver();
+  });
+
+  $("allOn").addEventListener("click", () => {
+    for (const m of MOTIONS) state.motion[m.key].on = true;
+    syncMotionRowsUI();
+    if (!state.playing) togglePlay();
+  });
+  $("allOff").addEventListener("click", () => {
+    for (const m of MOTIONS) state.motion[m.key].on = false;
+    syncMotionRowsUI();
+  });
+
+  // presets — recreate reference imagery starting points
+  const PRESETS = {
+    "diagonal-pyramid": {
+      N: 26, px: 0.5, py: 0.65, rot: 35, scale: 1.0, curve: 1.0,
+      bW: 200, bH: 110, bR: 24, bx: 4, by: 12, gx: 32, gy: 16
+    },
+    "off-center-stack": {
+      N: 14, px: 0.18, py: 0.22, rot: -22, scale: 1.0, curve: 1.0,
+      bW: 280, bH: 150, bR: 36, bx: 8, by: 22, gx: 70, gy: 28
+    },
+    "dense-frame": {
+      N: 4, px: 0.5, py: 0.5, rot: 0, scale: 1.5, curve: 1.0,
+      bW: 320, bH: 180, bR: 32, bx: 6, by: 18, gx: 110, gy: 36
+    },
+    "thick-frame": {
+      N: 3, px: 0.5, py: 0.5, rot: 0, scale: 1.4, curve: 1.0,
+      bW: 380, bH: 220, bR: 30, bx: 18, by: 36, gx: 80, gy: 28
+    },
+    "thin-many": {
+      N: 40, px: 0.5, py: 0.5, rot: 0, scale: 1.0, curve: 1.0,
+      bW: 120, bH: 68, bR: 14, bx: 2, by: 6, gx: 14, gy: 5
+    },
+    "portrait-tall": {
+      N: 10, px: 0.5, py: 0.5, rot: 0, scale: 1.0, curve: 1.0,
+      bW: 260, bH: 420, bR: 90, bx: 10, by: 8, gx: 24, gy: 38
+    },
+    "wide-horizon": {
+      N: 14, px: 0.5, py: 0.5, rot: 0, scale: 1.0, curve: 1.0,
+      bW: 760, bH: 90, bR: 44, bx: 4, by: 18, gx: 20, gy: 8
+    },
+    "square": {
+      N: 16, px: 0.5, py: 0.5, rot: 0, scale: 1.0, curve: 1.0,
+      bW: 90, bH: 90, bR: 18, bx: 4, by: 4, gx: 22, gy: 22
+    }
+  };
+  document.querySelectorAll("[data-preset]").forEach(b => {
+    b.addEventListener("click", () => {
+      const p = PRESETS[b.dataset.preset];
+      if (!p) return;
+      Object.assign(state, p);
+      syncAllSliders();
+      render();
+      toast(b.dataset.preset.toUpperCase());
+    });
+  });
+
+  function syncAllSliders() {
+    Object.entries(STACK_KEYS).forEach(([id, key]) => {
+      $(id).value = state[key];
+      const fmt = key === "N" ? v=>v.toFixed(0) :
+                  (["scale","curve","px","py"].includes(key) ? v=>v.toFixed(2) :
+                  (["bx","by","gx","gy"].includes(key) ? v=>v.toFixed(1) : v=>v.toFixed(0)));
+      $("v-" + id).textContent = fmt(state[key]);
+    });
+    document.querySelectorAll(".swatches[data-target='bg'] .swatch-pick").forEach(s => s.classList.toggle("active", s.dataset.c === state.bg));
+    document.querySelectorAll(".swatches[data-target='fg'] .swatch-pick").forEach(s => s.classList.toggle("active", s.dataset.c === state.color));
+    if (typeof syncPosGrid === "function") syncPosGrid();
+    if (typeof syncAnchorGrid === "function") syncAnchorGrid();
+    if (typeof syncFitGrid === "function") syncFitGrid();
+    if (typeof syncLockRot === "function") syncLockRot();
+  }
+
+  // ─── export
+  function serializeSVG() {
+    // capture current frame as plain SVG (animations baked into transforms).
+    const innerHTML = root.innerHTML;
+    return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${VW} ${VH}"><rect width="${VW}" height="${VH}" fill="${state.view.invert ? state.color : state.bg}"/><g>${innerHTML}</g></svg>`;
+  }
+  $("copySVG").addEventListener("click", async () => {
+    try { await navigator.clipboard.writeText(serializeSVG()); toast("SVG COPIED"); }
+    catch (e) { toast("COPY FAILED"); }
+  });
+  $("downloadSVG").addEventListener("click", () => {
+    const blob = new Blob([serializeSVG()], { type: "image/svg+xml" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `arena-engine-${state.N}r-${Date.now()}.svg`;
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(url), 500);
+    toast("SVG DOWNLOADED");
+  });
+
+  // PNG export: rasterize the SVG at full format resolution.
+  $("downloadPNG").addEventListener("click", () => {
+    const svgStr = serializeSVG();
+    const blob = new Blob([svgStr], { type: "image/svg+xml;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const img = new Image();
+    img.onload = () => {
+      const canvas = document.createElement("canvas");
+      canvas.width = VW;
+      canvas.height = VH;
+      const ctx = canvas.getContext("2d");
+      ctx.drawImage(img, 0, 0, VW, VH);
+      canvas.toBlob((png) => {
+        const purl = URL.createObjectURL(png);
+        const a = document.createElement("a");
+        a.href = purl;
+        a.download = `arena-engine-${state.N}r-${Date.now()}.png`;
+        a.click();
+        setTimeout(() => { URL.revokeObjectURL(purl); URL.revokeObjectURL(url); }, 500);
+        toast("PNG DOWNLOADED");
+      }, "image/png");
+    };
+    img.onerror = () => { toast("PNG EXPORT FAILED"); URL.revokeObjectURL(url); };
+    img.src = url;
+  });
+
+  // GIF export: capture ~4 seconds of the live motion loop as an animated GIF.
+  // Uses gif.js (loaded in <head>). Frames are rendered at half resolution to
+  // keep file size reasonable (~1–4MB). User sees toast progress as it records.
+  function loadSvgAsImage(svgStr) {
+    return new Promise((resolve, reject) => {
+      const blob = new Blob([svgStr], { type: "image/svg+xml;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const img = new Image();
+      img.onload = () => { URL.revokeObjectURL(url); resolve(img); };
+      img.onerror = (e) => { URL.revokeObjectURL(url); reject(e); };
+      img.src = url;
+    });
+  }
+  let gifRecording = false;
+  async function recordGIF({ duration = 4000, fps = 12, scale = 0.5 } = {}) {
+    if (gifRecording) { toast("GIF ALREADY RECORDING"); return; }
+    if (typeof GIF === "undefined") { toast("GIF LIB FAILED TO LOAD"); return; }
+    gifRecording = true;
+    // Make sure motion is actually playing during capture.
+    const wasPlaying = state.playing;
+    if (!wasPlaying) togglePlay();
+    const targetW = Math.max(120, Math.round(VW * scale));
+    const targetH = Math.max(120, Math.round(VH * scale));
+    const interval = 1000 / fps;
+    const totalFrames = Math.floor(duration / interval);
+    const gif = new GIF({
+      workers: 2,
+      quality: 12,
+      width: targetW,
+      height: targetH,
+      workerScript: "https://cdn.jsdelivr.net/npm/gif.js@0.2.0/dist/gif.worker.js"
+    });
+    toast(`GIF · 0/${totalFrames}`);
+    try {
+      for (let i = 0; i < totalFrames; i++) {
+        await new Promise(r => setTimeout(r, interval));
+        const svgStr = serializeSVG();
+        const img = await loadSvgAsImage(svgStr);
+        const cv = document.createElement("canvas");
+        cv.width = targetW; cv.height = targetH;
+        const ctx = cv.getContext("2d");
+        ctx.fillStyle = state.view.invert ? state.color : state.bg;
+        ctx.fillRect(0, 0, targetW, targetH);
+        ctx.drawImage(img, 0, 0, targetW, targetH);
+        gif.addFrame(cv, { delay: interval, copy: true });
+        if (i % 4 === 0 || i === totalFrames - 1) toast(`GIF · ${i + 1}/${totalFrames}`);
+      }
+      toast("GIF · ENCODING…");
+      gif.on("finished", (blob) => {
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `arena-engine-${state.N}r-${Date.now()}.gif`;
+        a.click();
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
+        toast("GIF DOWNLOADED");
+        gifRecording = false;
+      });
+      gif.render();
+    } catch (e) {
+      console.error(e);
+      toast("GIF EXPORT FAILED");
+      gifRecording = false;
+    }
+    if (!wasPlaying) togglePlay();
+  }
+  $("downloadGIF").addEventListener("click", () => recordGIF());
+
+  // Config capture: copy the full state as readable JSON so the user can paste
+  // it into chat with notes ("this composition feels wrong because…").
+  function buildConfigSnapshot() {
+    return {
+      version: $("buildVersion").textContent,
+      lastMood: state.lastMood || null,
+      currentMode: state.currentMode || null,
+      canonicalLock: !!state.canonicalLock,
+      format: { W: state.fW, H: state.fH },
+      stack: {
+        N: state.N, scale: +state.scale.toFixed(3), rot: +state.rot.toFixed(2),
+        curve: +state.curve.toFixed(3),
+        px: +state.px.toFixed(3), py: +state.py.toFixed(3),
+        ahx: +state.ahx.toFixed(3), ahy: +state.ahy.toFixed(3),
+      },
+      anchor: {
+        bW: state.bW, bH: state.bH, bR: state.bR,
+        bx: +state.bx.toFixed(2), by: +state.by.toFixed(2),
+        gx: +state.gx.toFixed(2), gy: +state.gy.toFixed(2),
+        dRb: +state.dRb.toFixed(2), dRg: +state.dRg.toFixed(2),
+      },
+      bandProfile: { profile: state.bandProfile, variance: +state.bandVar.toFixed(2) },
+      view: { fitMode: state.fitMode, lockRotation: !!state.lockRotation,
+              fg: state.color, bg: state.bg, invert: !!state.view.invert },
+      motion: Object.fromEntries(Object.entries(state.motion).map(([k, v]) => [
+        k, { on: !!v.on, speed: +(+v.speed).toFixed(3), amount: +(+v.amount).toFixed(3) }
+      ])),
+      shareURL: location.href,
+    };
+  }
+  $("copyConfig").addEventListener("click", async () => {
+    const json = JSON.stringify(buildConfigSnapshot(), null, 2);
+    try { await navigator.clipboard.writeText(json); toast("CONFIG COPIED"); }
+    catch (e) { toast("COPY FAILED"); console.log(json); }
+  });
+
+  // Feedback modal: 👍/👎 buttons open a small form with the current config
+  // attached. Submitting copies a structured note (verdict + notes + JSON) to
+  // the clipboard so the user can paste it directly into chat.
+  let feedbackKind = "up";
+  function openFeedback(kind) {
+    feedbackKind = kind;
+    const heading = $("feedbackTitle");
+    heading.classList.toggle("up", kind === "up");
+    heading.classList.toggle("down", kind === "down");
+    heading.querySelector(".face").textContent = kind === "up" ? "👍" : "👎";
+    $("feedbackHeading").textContent = kind === "up" ? "What's working?" : "What's not working?";
+    $("feedbackPreview").textContent = JSON.stringify(buildConfigSnapshot(), null, 2);
+    $("feedbackNotes").value = "";
+    $("feedbackModal").classList.add("open");
+    setTimeout(() => $("feedbackNotes").focus(), 60);
+  }
+  function closeFeedback() { $("feedbackModal").classList.remove("open"); }
+  $("thumbUp").addEventListener("click", () => openFeedback("up"));
+  $("thumbDown").addEventListener("click", () => openFeedback("down"));
+  $("feedbackCancel").addEventListener("click", closeFeedback);
+  $("feedbackModal").addEventListener("click", (e) => {
+    if (e.target === $("feedbackModal")) closeFeedback();
+  });
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && $("feedbackModal").classList.contains("open")) closeFeedback();
+  });
+  $("feedbackCopy").addEventListener("click", async () => {
+    const verdict = feedbackKind === "up" ? "👍 WORKING" : "👎 NOT WORKING";
+    const note = $("feedbackNotes").value.trim() || "(no note)";
+    const json = JSON.stringify(buildConfigSnapshot(), null, 2);
+    const text = `${verdict}\n\nNote:\n${note}\n\nConfig:\n${json}`;
+    try {
+      await navigator.clipboard.writeText(text);
+      toast(feedbackKind === "up" ? "👍 COPIED" : "👎 COPIED");
+      closeFeedback();
+    } catch (e) {
+      toast("COPY FAILED");
+      console.log(text);
+    }
+  });
+
+  // ─── URL state
+  let urlTimer;
+  function syncURL() {
+    clearTimeout(urlTimer);
+    urlTimer = setTimeout(() => {
+      const compact = {
+        fW: state.fW, fH: state.fH,
+        N: state.N, px: state.px, py: state.py, rot: state.rot, scale: state.scale, curve: state.curve,
+        bW: state.bW, bH: state.bH, bR: state.bR, bx: state.bx, by: state.by, gx: state.gx, gy: state.gy,
+        bp: state.bandProfile, bv: state.bandVar,
+        ax: state.ahx, ay: state.ahy,
+        fm: state.fitMode, lr: state.lockRotation ? 1 : 0,
+        bg: state.bg, fg: state.color,
+        m: Object.fromEntries(Object.entries(state.motion).map(([k, v]) => [k, [v.on?1:0, v.speed, v.amount]]))
+      };
+      const enc = btoa(unescape(encodeURIComponent(JSON.stringify(compact))));
+      history.replaceState(null, "", "#e=" + enc);
+    }, 350);
+  }
+  function loadHash() {
+    const m = location.hash.match(/e=([A-Za-z0-9+/=_-]+)/);
+    if (!m) return;
+    try {
+      const obj = JSON.parse(decodeURIComponent(escape(atob(m[1]))));
+      ["fW","fH","N","px","py","rot","scale","curve","bW","bH","bR","bx","by","gx","gy"].forEach(k => { if (k in obj) state[k] = obj[k]; });
+      if (obj.bp) state.bandProfile = obj.bp;
+      if (typeof obj.bv === "number") state.bandVar = obj.bv;
+      if (typeof obj.ax === "number") state.ahx = obj.ax;
+      if (typeof obj.ay === "number") state.ahy = obj.ay;
+      // Backward compat: old URLs encoded anchor as string "am"
+      if (obj.am && state.ahx === 0 && state.ahy === 0) {
+        const legacy = {
+          "TOP-LEFT":[0.5,0.5],"TOP-CENTER":[0,0.5],"TOP-RIGHT":[-0.5,0.5],
+          "MIDDLE-LEFT":[0.5,0],"CENTER":[0,0],"MIDDLE-RIGHT":[-0.5,0],
+          "BOTTOM-LEFT":[0.5,-0.5],"BOTTOM-CENTER":[0,-0.5],"BOTTOM-RIGHT":[-0.5,-0.5]
+        }[obj.am];
+        if (legacy) { state.ahx = legacy[0]; state.ahy = legacy[1]; }
+      }
+      if (obj.fm) state.fitMode = obj.fm;
+      if (typeof obj.lr === "number") state.lockRotation = !!obj.lr;
+      if (obj.bg) state.bg = obj.bg;
+      if (obj.fg) state.color = obj.fg;
+      if (obj.m) {
+        for (const k in obj.m) {
+          if (state.motion[k]) {
+            state.motion[k].on = !!obj.m[k][0];
+            state.motion[k].speed = obj.m[k][1];
+            state.motion[k].amount = obj.m[k][2];
+          }
+        }
+      }
+    } catch (e) {}
+  }
+
+  $("copyURL").addEventListener("click", async () => {
+    syncURL();
+    setTimeout(async () => {
+      try { await navigator.clipboard.writeText(location.href); toast("URL COPIED"); }
+      catch (e) { toast("COPY FAILED"); }
+    }, 400);
+  });
+  // The "Reset" button in Export resets the whole engine to factory state
+  // (different from the Canonical Mark button which goes to brand baseline).
+  $("resetBtn").addEventListener("click", () => {
+    if (state.playing) togglePlay();
+    state = DEFAULT_STATE();
+    applyFormat();
+    syncBandProfileUI();
+    syncAllSliders();
+    buildMotionRows();
+    syncSSStateUI();
+    location.hash = "";
+    render();
+    toast("RESET");
+  });
+
+  // ─── toast
+  let toastTimer;
+  function toast(msg) {
+    const t = $("toast");
+    t.textContent = msg;
+    t.classList.add("show");
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => t.classList.remove("show"), 1500);
+  }
+
+  // ─── collapsible fieldsets — click legend (but not its buttons) to toggle
+  document.querySelectorAll("fieldset.collapsible > .legend").forEach(legend => {
+    legend.addEventListener("click", e => {
+      if (e.target.closest("button")) return;
+      legend.parentElement.classList.toggle("collapsed");
+    });
+  });
+
+  // ─── position quick-grid: 3×3 placement
+  function syncPosGrid() {
+    document.querySelectorAll(".pos-btn").forEach(b => {
+      const tx = parseFloat(b.dataset.px), ty = parseFloat(b.dataset.py);
+      const dx = Math.abs(state.px - tx), dy = Math.abs(state.py - ty);
+      b.classList.toggle("active", dx < 0.01 && dy < 0.01);
+    });
+  }
+  document.querySelectorAll(".pos-btn").forEach(b => {
+    b.addEventListener("click", () => {
+      state.px = parseFloat(b.dataset.px);
+      state.py = parseFloat(b.dataset.py);
+      syncAllSliders();
+      syncPosGrid();
+      render();
+    });
+  });
+
+  // ─── fit-mode trio (TIGHT / AUTO / LOOSE)
+  function syncFitGrid() {
+    document.querySelectorAll("#fitGrid .fit-btn").forEach(b => {
+      b.classList.toggle("active", b.dataset.fit === (state.fitMode || "AUTO"));
+    });
+    $("v-fitMode").textContent = state.fitMode || "AUTO";
+  }
+  document.querySelectorAll("#fitGrid .fit-btn").forEach(b => {
+    b.addEventListener("click", () => {
+      state.fitMode = b.dataset.fit;
+      syncFitGrid();
+      render();
+    });
+  });
+
+  // ─── Lock Rotation toggle
+  function syncLockRot() {
+    const on = !!state.lockRotation;
+    $("lockRotBtn").classList.toggle("active", on);
+    $("v-lockRot").textContent = on ? "ON" : "OFF";
+    $("rot").disabled = on;
+    if (on) {
+      state.rot = 0;
+      $("rot").value = 0;
+      $("v-rot").textContent = "0";
+      // Disable rotational motion behaviors so the lock is real.
+      for (const k of ["tilt", "counter", "cascade"]) {
+        if (state.motion[k].on) state.motion[k].on = false;
+      }
+      syncMotionRowsUI();
+    }
+  }
+  $("lockRotBtn").addEventListener("click", () => {
+    state.lockRotation = !state.lockRotation;
+    syncLockRot();
+    render();
+  });
+
+  // ─── Echo From — continuous ahx/ahy, 2D pad, and 9 snap-presets
+  // Map (ahx, ahy) to a readable label for the readout.
+  function describeAnchor(ahx, ahy) {
+    if (Math.abs(ahx) < 0.10 && Math.abs(ahy) < 0.10) return "CENTER";
+    const hPart = ahx > 0.30 ? "LEFT" : ahx < -0.30 ? "RIGHT" : ahy === 0 ? "MIDDLE" : "CENTER";
+    const vPart = ahy > 0.30 ? "TOP"  : ahy < -0.30 ? "BOTTOM" : "MIDDLE";
+    // Snap-name when close to a preset
+    if (Math.abs(ahx) > 0.40 || Math.abs(ahy) > 0.40) {
+      const h = ahx > 0.30 ? "LEFT" : ahx < -0.30 ? "RIGHT" : "CENTER";
+      const v = ahy > 0.30 ? "TOP"  : ahy < -0.30 ? "BOTTOM" : "MIDDLE";
+      if (h === "CENTER" && v === "MIDDLE") return "CENTER";
+      if (h === "CENTER") return v + "-CENTER";
+      if (v === "MIDDLE") return "MIDDLE-" + h;
+      return v + "-" + h;
+    }
+    return "CUSTOM";
+  }
+  function syncAnchorGrid() {
+    document.querySelectorAll(".anchor-btn").forEach(b => {
+      const bx = parseFloat(b.dataset.ahx);
+      const by = parseFloat(b.dataset.ahy);
+      const isActive = Math.abs(bx - state.ahx) < 0.05 && Math.abs(by - state.ahy) < 0.05;
+      b.classList.toggle("active", isActive);
+    });
+    $("v-anchorMode").textContent = describeAnchor(state.ahx, state.ahy);
+    // Position the dot on the pad
+    const dot = $("anchorDot");
+    if (dot) {
+      // ahx = 0.5 (left edge at anchor) → dot at LEFT of pad
+      // ahx = -0.5 → dot at RIGHT of pad
+      const left = (0.5 - state.ahx) * 100;
+      const top  = (0.5 - state.ahy) * 100;
+      dot.style.left = left + "%";
+      dot.style.top  = top + "%";
+    }
+  }
+  document.querySelectorAll(".anchor-btn").forEach(b => {
+    b.addEventListener("click", () => {
+      state.ahx = parseFloat(b.dataset.ahx);
+      state.ahy = parseFloat(b.dataset.ahy);
+      syncAnchorGrid();
+      render();
+    });
+  });
+
+  // 2D pad — click or drag to set continuous anchor position
+  const pad = $("anchorPad");
+  if (pad) {
+    let dragging = false;
+    function padToOffsets(e) {
+      const rect = pad.getBoundingClientRect();
+      const x = (e.clientX - rect.left) / rect.width;
+      const y = (e.clientY - rect.top)  / rect.height;
+      state.ahx = Math.max(-0.5, Math.min(0.5, 0.5 - x));
+      state.ahy = Math.max(-0.5, Math.min(0.5, 0.5 - y));
+      syncAnchorGrid();
+      render();
+    }
+    pad.addEventListener("mousedown", e => { dragging = true; padToOffsets(e); e.preventDefault(); });
+    window.addEventListener("mousemove", e => { if (dragging) padToOffsets(e); });
+    window.addEventListener("mouseup", () => dragging = false);
+  }
+
+  // ─── remix handlers (randomize a section's variables within tasteful ranges)
+  function rand(min, max) { return min + Math.random() * (max - min); }
+  function randInt(min, max) { return Math.floor(rand(min, max + 1)); }
+
+  $("remixStack").addEventListener("click", () => {
+    state.N = randInt(8, 38);
+    state.px = rand(0.25, 0.75);
+    state.py = rand(0.25, 0.75);
+    state.rot = rand(-45, 45);
+    state.scale = rand(0.6, 1.5);
+    state.curve = rand(0.88, 1.18);
+    syncAllSliders();
+    render();
+    toast("STACK REMIXED");
+  });
+
+  $("remixAnchor").addEventListener("click", () => {
+    state.bW = randInt(80, 280);
+    state.bH = randInt(50, 180);
+    state.bR = randInt(0, Math.floor(Math.min(state.bW, state.bH) / 2));
+    state.bx = rand(2, 14);
+    state.by = rand(5, 28);
+    state.gx = rand(12, 60);
+    state.gy = rand(6, 32);
+    syncAllSliders();
+    render();
+    toast("ANCHOR REMIXED");
+  });
+
+  $("remixProfile").addEventListener("click", () => {
+    const profiles = ["UNIFORM", "TAPER_OUT", "TAPER_IN", "ALTERNATE", "TIERED", "HOURGLASS"];
+    let p;
+    do { p = profiles[Math.floor(Math.random() * profiles.length)]; } while (p === state.bandProfile && profiles.length > 1);
+    state.bandProfile = p;
+    state.bandVar = rand(0.25, 0.85);
+    syncBandProfileUI();
+    render();
+    toast("PROFILE: " + p);
+  });
+
+  // ─── per-section resets (back to canonical brand baseline)
+  function resetStack() {
+    state.N = CANONICAL_BRAND.N;
+    state.px = CANONICAL_BRAND.px;
+    state.py = CANONICAL_BRAND.py;
+    state.rot = CANONICAL_BRAND.rot;
+    state.scale = CANONICAL_BRAND.scale;
+    state.curve = CANONICAL_BRAND.curve;
+    state.ahx = CANONICAL_BRAND.ahx;
+    state.ahy = CANONICAL_BRAND.ahy;
+    state.fitMode = CANONICAL_BRAND.fitMode;
+    state.lockRotation = CANONICAL_BRAND.lockRotation;
+    syncAllSliders();
+    syncAnchorGrid();
+    syncFitGrid();
+    syncLockRot();
+    render();
+  }
+  function resetAnchor() {
+    state.bW = CANONICAL_BRAND.bW;
+    state.bH = CANONICAL_BRAND.bH;
+    state.bR = CANONICAL_BRAND.bR;
+    state.bx = CANONICAL_BRAND.bx;
+    state.by = CANONICAL_BRAND.by;
+    state.gx = CANONICAL_BRAND.gx;
+    state.gy = CANONICAL_BRAND.gy;
+    state.dRb = CANONICAL_BRAND.dRb;
+    state.dRg = CANONICAL_BRAND.dRg;
+    syncAllSliders();
+    render();
+  }
+  function resetProfile() {
+    state.bandProfile = CANONICAL_BRAND.bandProfile;
+    state.bandVar = CANONICAL_BRAND.bandVar;
+    syncBandProfileUI();
+    render();
+  }
+  $("resetStack").addEventListener("click", () => { resetStack(); toast("STACK RESET"); });
+  $("resetAnchor").addEventListener("click", () => { resetAnchor(); toast("ANCHOR RESET"); });
+  $("resetProfile").addEventListener("click", () => { resetProfile(); toast("PROFILE RESET"); });
+
+  // ─── full randomize: distinct composition "moods" so the output has real range
+  // Each mood is a coherent aesthetic territory with its own parameter bounds
+  // AND a curated motion preset list. Picking a mood, then sampling within it,
+  // produces compositions with personality instead of a beige average.
+  const COMP_MOODS = [
+    {
+      name: "MINIMAL",        // matches the reference: thin-slot inner → canvas-aspect outer
+      weight: 0.16,
+      N: [4, 5],              // sparse — reference shows exactly 5 rings
+      bx: [1, 3],             // thin band — single-line-feel outline
+      by: [1, 3],
+      // bW / bH / gx / gy / scale all overridden by slotStretchFill below
+      gx: [0, 0], gy: [0, 0],
+      scale: [1, 1],
+      anchorAspect: "canonical",
+      positions: "center-heavy",
+      lockRotation: true,
+      anchorRange: [-0.15, 0.15],
+      autoCompensatePos: true,
+      slotStretchFill: true,  // see randomizer: innermost is a wide thin slot,
+                               // outermost matches canvas, cascade stretches between
+      motions: ["BREATH", "GROW", "MORPH PULSE", "CASCADE", "DRIFT"]
+    },
+    {
+      name: "DENSE",
+      weight: 0.13,
+      N: [25, 48],
+      bx: [2, 5], by: [4, 11], gx: [8, 22], gy: [4, 14],
+      scale: [0.9, 1.5],
+      anchorAspect: "any",
+      positions: "any",
+      motions: ["CASCADE", "SHIFT WEAVE", "GROW", "MORPH PULSE"]
+    },
+    {
+      name: "SEPARATED",
+      weight: 0.11,
+      N: [4, 7],
+      bx: [3, 8], by: [10, 22], gx: [110, 200], gy: [30, 70],
+      scale: [1.0, 1.8],
+      anchorAspect: "any",
+      positions: "center-heavy",
+      motions: ["TILT", "DRIFT", "COUNTER", "BREATH"]
+    },
+    {
+      name: "CORNER ECHO",    // rings emanate FROM a corner (image 3 territory)
+      weight: 0.16,
+      N: [16, 32],
+      bx: [4, 10], by: [10, 22], gx: [32, 75], gy: [14, 32],
+      scale: [2.6, 4.5],       // bumped to fill + slightly overflow the frame
+      anchorAspect: "any",
+      layout: "corner-emergence",
+      autoFit: false,
+      motions: ["TILT", "DRIFT", "CASCADE", "BREATH"]
+    },
+    {
+      name: "EDGE ECHO",      // rings emanate FROM an edge (image 2 territory)
+      weight: 0.12,
+      N: [12, 26],
+      bx: [4, 10], by: [10, 22], gx: [30, 65], gy: [14, 30],
+      scale: [2.6, 4.2],
+      anchorAspect: "any",
+      layout: "edge-emergence",
+      autoFit: false,
+      motions: ["TILT", "BREATH", "MORPH PULSE", "CASCADE"]
+    },
+    {
+      name: "FRAME FILL",     // ★ NEW: centered, mark fills + slightly overflows
+      weight: 0.13,            //   the frame (image 2 territory, centered)
+      N: [12, 22],
+      bx: [4, 10], by: [12, 26], gx: [38, 80], gy: [16, 36],
+      scale: [2.8, 4.5],
+      anchorAspect: "any",
+      positions: "center-heavy",
+      autoFit: false,
+      motions: ["TILT", "BREATH", "MORPH PULSE", "CASCADE"]
+    },
+    {
+      name: "EDGE-ANCHORED",  // anchor at canvas corner but rings still concentric
+      weight: 0.10,
+      N: [12, 26],
+      bx: [4, 10], by: [10, 22], gx: [30, 70], gy: [14, 32],
+      scale: [1.6, 2.6],
+      anchorAspect: "any",
+      positions: "extreme-corners",
+      motions: ["TILT", "DRIFT", "CASCADE", "BREATH"]
+    },
+    {
+      name: "OFF-CENTER",
+      weight: 0.10,
+      N: [10, 22],
+      bx: [4, 10], by: [10, 22], gx: [28, 65], gy: [14, 28],
+      scale: [1.3, 2.2],
+      anchorAspect: "any",
+      positions: "corners",
+      motions: ["TILT", "DRIFT", "CASCADE", "BREATH"]
+    },
+    {
+      name: "HERO",
+      weight: 0.10,
+      N: [6, 13],
+      bx: [6, 14], by: [14, 30], gx: [40, 85], gy: [18, 40],
+      scale: [2.6, 4.2],
+      anchorAspect: "wide-or-canonical",
+      positions: "center-heavy",
+      motions: ["TILT", "BREATH", "TILT + BREATH", "MORPH PULSE"]
+    },
+    {
+      name: "MASSIVE",
+      weight: 0.07,
+      N: [6, 14],
+      bx: [8, 18], by: [20, 38], gx: [60, 130], gy: [25, 55],
+      scale: [3.0, 4.8],
+      anchorAspect: "any",
+      positions: "center-heavy",
+      motions: ["TILT", "BREATH", "MORPH PULSE", "TILT + BREATH"]
+    },
+    {
+      name: "VIEWPORT BREAK",  // rings break the frame in multiple directions
+      weight: 0.18,
+      N: [12, 28],
+      bx: [4, 12], by: [12, 28], gx: [40, 90], gy: [20, 40],
+      scale: [5.0, 12.0],       // much more dramatic overflow than before
+      anchorAspect: "any",
+      positions: "center-heavy",
+      autoFit: false,
+      motions: ["TILT", "BREATH", "DRIFT", "MORPH PULSE", "CASCADE"]
+    },
+    {
+      name: "RIPPLE",          // ★ NEW: many rings flooding outward like a stone-in-pond
+      weight: 0.10,
+      N: [28, 50],
+      bx: [3, 7], by: [6, 15], gx: [28, 60], gy: [12, 28],
+      scale: [3.0, 7.0],
+      anchorAspect: "any",
+      positions: "center-heavy",
+      autoFit: false,
+      motions: ["CASCADE", "MORPH PULSE", "GROW", "BREATH"]
+    },
+    {
+      name: "TINY",           // ★ NEW: small contained mark, lots of negative space
+      weight: 0.07,
+      N: [4, 9],
+      bx: [3, 8], by: [8, 20], gx: [25, 65], gy: [12, 28],
+      scale: [0.4, 0.8],
+      anchorAspect: "any",
+      positions: "any",
+      motions: ["TILT", "BREATH", "MORPH PULSE", "DRIFT"]
+    },
+    {
+      name: "CANONICAL+",
+      weight: 0.07,
+      N: [4, 7],
+      bx: [6, 11], by: [18, 32], gx: [55, 95], gy: [18, 32],
+      scale: [1.5, 2.4],
+      anchorAspect: "canonical",
+      positions: "center-heavy",
+      motions: ["TILT", "MORPH PULSE", "BREATH"]
+    },
+    {
+      name: "TIGHT CONTAIN",  // ★ every ring guaranteed inside the canvas
+      weight: 0.06,
+      N: [8, 24],
+      bx: [4, 10], by: [10, 24], gx: [30, 70], gy: [14, 32],
+      scale: [2.0, 4.5],
+      anchorAspect: "any",
+      positions: "center-heavy",
+      fitMode: "TIGHT",
+      motions: ["TILT", "BREATH", "MORPH PULSE", "CASCADE"]
+    },
+    {
+      name: "CENTERED",
+      weight: 0.05,
+      N: [5, 22],                         // widened lower bound: sometimes sparse (5–8 rings)
+      bx: [3, 14], by: [10, 30], gx: [22, 90], gy: [10, 36],
+      scale: [6, 10],
+      anchorAspect: "wide-or-canonical",
+      positions: "center-heavy",
+      fitMode: "TIGHT",
+      lockRotation: true,
+      anchorRange: [-0.5, 0.5],
+      autoCompensatePos: true,
+      fillViewport: true,
+      motions: ["BREATH", "MORPH PULSE", "CASCADE", "COUNTER", "DRIFT", "GROW", "SHIFT WEAVE", "TILT + BREATH", "FULL ENGINE"]
+    },
+    {
+      name: "ROTATED",
+      weight: 0.05,
+      // Scale range widened to include small-fit compositions. About half the time
+      // the rings will sit comfortably inside the viewport (scale 1.6–3.0); the
+      // other half they'll break the frame (scale 3.5–6.0). ROTATED is now
+      // primarily about angular variety, not just zoom.
+      N: [8, 26],
+      bx: [4, 12], by: [12, 28], gx: [28, 80], gy: [12, 32],
+      scale: [1.6, 6.0],
+      anchorAspect: "wide-or-canonical",
+      positions: "center-heavy",
+      fitMode: "LOOSE",
+      rotRange: [15, 55],   // also widened lower bound for milder tilts
+      anchorRange: [-0.3, 0.3],
+      autoCompensatePos: true,
+      motions: ["TILT", "TILT + BREATH", "FULL ENGINE", "CASCADE", "SHIFT WEAVE", "DRIFT", "BREATH", "GROW"]
+    },
+    {
+      name: "EXPLOSION",
+      weight: 0.06,
+      N: [35, 60],
+      bx: [1, 3], by: [3, 8], gx: [4, 14], gy: [3, 9],
+      scale: [1.3, 2.5],
+      anchorAspect: "canonical-or-square",
+      positions: "center-heavy",
+      motions: ["FULL ENGINE", "CASCADE", "SHIFT WEAVE", "GROW"]
+    },
+    {
+      name: "PORTRAIT-BANNER",
+      weight: 0.03,
+      N: [3, 6],
+      bx: [3, 8], by: [8, 18], gx: [55, 110], gy: [22, 50],
+      scale: [1.4, 2.4],
+      anchorAspect: "wide",
+      positions: "center-heavy",
+      motions: ["BREATH", "TILT", "MORPH PULSE"]
+    }
+  ];
+
+  function pickWeighted(items) {
+    const total = items.reduce((s, x) => s + x.weight, 0);
+    let r = Math.random() * total;
+    for (const x of items) { r -= x.weight; if (r <= 0) return x; }
+    return items[items.length - 1];
+  }
+
+  function pickAnchorShape(spec) {
+    const wide      = { bW: [260, 400], bH: [55, 110] };
+    const canonical = { bW: [200, 290], bH: [95, 160] };
+    const square    = { bW: [140, 220], bH: [120, 220] };
+    const tall      = { bW: [100, 170], bH: [200, 320] };
+    if (spec === "wide")                      return wide;
+    if (spec === "canonical")                 return canonical;
+    if (spec === "wide-or-canonical")         return Math.random() < 0.5 ? wide : canonical;
+    if (spec === "canonical-or-square")       return Math.random() < 0.5 ? canonical : square;
+    // "any"
+    const all = [wide, canonical, square, tall];
+    return all[Math.floor(Math.random() * all.length)];
+  }
+
+  // Slight jitter around a base position so the same spec produces varied
+  // outputs across randomizes — less rigid grid feel.
+  function jitter(base, amount) {
+    return base + (Math.random() - 0.5) * amount;
+  }
+  function pickPosition(spec) {
+    if (spec === "center-heavy") {
+      // Most are "near-center" with small natural offset; rest are gently off-center
+      if (Math.random() < 0.6) {
+        return [jitter(0.5, 0.14), jitter(0.5, 0.14)];
+      }
+      const opts = [
+        [0.36, 0.5], [0.64, 0.5], [0.5, 0.36], [0.5, 0.64],
+        [0.38, 0.38], [0.62, 0.38], [0.38, 0.62], [0.62, 0.62]
+      ];
+      const p = opts[Math.floor(Math.random() * opts.length)];
+      return [jitter(p[0], 0.06), jitter(p[1], 0.06)];
+    }
+    if (spec === "corners") {
+      const opts = [
+        [0.32, 0.32], [0.68, 0.32], [0.32, 0.68], [0.68, 0.68]
+      ];
+      const p = opts[Math.floor(Math.random() * opts.length)];
+      return [jitter(p[0], 0.08), jitter(p[1], 0.08)];
+    }
+    if (spec === "extreme-corners") {
+      // Softer than v1.x — anchor lives near a corner but with breathing room
+      const opts = [
+        [0.30, 0.30], [0.70, 0.30], [0.30, 0.70], [0.70, 0.70]
+      ];
+      const p = opts[Math.floor(Math.random() * opts.length)];
+      return [jitter(p[0], 0.10), jitter(p[1], 0.10)];
+    }
+    // "any"
+    const opts = [
+      [0.5, 0.5], [0.5, 0.5],
+      [0.35, 0.5], [0.65, 0.5], [0.5, 0.35], [0.5, 0.65],
+      [0.32, 0.32], [0.68, 0.32], [0.32, 0.68], [0.68, 0.68]
+    ];
+    const p = opts[Math.floor(Math.random() * opts.length)];
+    return [jitter(p[0], 0.07), jitter(p[1], 0.07)];
+  }
+
+  // Pick a specific mood by name (used by mood-grid buttons), or random if not given
+  function findMood(name) {
+    return COMP_MOODS.find(m => m.name === name) || COMP_MOODS[0];
+  }
+
+  function randomizeAll(forceMoodName) {
+    const mood = forceMoodName ? findMood(forceMoodName) : pickWeighted(COMP_MOODS);
+    state.lastMood = mood.name;
+
+    // Stack
+    state.N = randInt(mood.N[0], mood.N[1]);
+    // Rotation logic: lockRotation always wins. Otherwise mood.lockRotation forces 0.
+    // mood.rotRange picks a notable angle (e.g. ROTATED). Default = -30 to 30.
+    if (state.lockRotation) {
+      state.rot = 0;
+    } else if (mood.lockRotation) {
+      state.rot = 0;
+    } else if (mood.rotRange) {
+      const sign = Math.random() < 0.5 ? -1 : 1;
+      state.rot = sign * rand(mood.rotRange[0], mood.rotRange[1]);
+    } else {
+      state.rot = rand(-30, 30);
+    }
+    state.scale = rand(mood.scale[0], mood.scale[1]);
+    state.curve = rand(0.92, 1.10);
+    // Mood can force lockRotation on (e.g. CENTERED).
+    if (mood.lockRotation) state.lockRotation = true;
+
+    // Position + anchorMode (coupled for "echo from corner/edge" layouts)
+    if (mood.layout === "corner-emergence") {
+      // Anchor pulled in from the ring's edge (0.35 not 0.5) so it's not "hard"
+      // against the boundary. Jitter still produces continuous variety.
+      const corners = [
+        { px: 0.36, py: 0.36, ahx:  0.35, ahy:  0.35 },
+        { px: 0.64, py: 0.36, ahx: -0.35, ahy:  0.35 },
+        { px: 0.36, py: 0.64, ahx:  0.35, ahy: -0.35 },
+        { px: 0.64, py: 0.64, ahx: -0.35, ahy: -0.35 }
+      ];
+      const c = corners[Math.floor(Math.random() * 4)];
+      state.px = jitter(c.px, 0.16);
+      state.py = jitter(c.py, 0.16);
+      state.ahx = Math.max(-0.5, Math.min(0.5, jitter(c.ahx, 0.20)));
+      state.ahy = Math.max(-0.5, Math.min(0.5, jitter(c.ahy, 0.20)));
+    } else if (mood.layout === "edge-emergence") {
+      const edges = [
+        { px: 0.5,  py: 0.68, ahx:  0,    ahy: -0.35 },
+        { px: 0.5,  py: 0.32, ahx:  0,    ahy:  0.35 },
+        { px: 0.68, py: 0.5,  ahx: -0.35, ahy:  0 },
+        { px: 0.32, py: 0.5,  ahx:  0.35, ahy:  0 }
+      ];
+      const e = edges[Math.floor(Math.random() * 4)];
+      state.px = jitter(e.px, 0.12);
+      state.py = jitter(e.py, 0.12);
+      state.ahx = Math.max(-0.5, Math.min(0.5, jitter(e.ahx, 0.18)));
+      state.ahy = Math.max(-0.5, Math.min(0.5, jitter(e.ahy, 0.18)));
+    } else if (mood.autoCompensatePos) {
+      // Echo-from variety while still filling the viewport. Pick a random anchor
+      // offset within the mood's allowed range, then compensate position so the
+      // composition's bounding box covers the whole canvas (TIGHT fits to both edges).
+      const [lo, hi] = mood.anchorRange || [-0.5, 0.5];
+      // Bias slightly toward center so we don't ONLY produce corner echoes —
+      // half the time use center anchor, half the time use a real offset.
+      if (Math.random() < 0.4) {
+        state.ahx = 0;
+        state.ahy = 0;
+      } else {
+        state.ahx = +rand(lo, hi).toFixed(3);
+        state.ahy = +rand(lo, hi).toFixed(3);
+      }
+      state.px = +(0.5 - state.ahx).toFixed(3);
+      state.py = +(0.5 - state.ahy).toFixed(3);
+    } else {
+      const pos = pickPosition(mood.positions);
+      state.px = pos[0];
+      state.py = pos[1];
+      // Bumped from 18% → 40% so center-style moods often pick non-center anchor too
+      if (Math.random() < 0.40) {
+        state.ahx = jitter(0, 0.50);  // ±0.25 around 0 — gentle drift
+        state.ahy = jitter(0, 0.50);
+      } else {
+        state.ahx = 0;
+        state.ahy = 0;
+      }
+    }
+    // Fit mode per mood: defaults to AUTO; overflow moods set LOOSE; new
+    // TIGHT-contained mood sets TIGHT.
+    state.fitMode = mood.fitMode || (mood.autoFit === false ? "LOOSE" : "AUTO");
+
+    // Anchor — shape category × the mood's band/gap ranges
+    const shape = pickAnchorShape(mood.anchorAspect);
+    state.bW = randInt(shape.bW[0], shape.bW[1]);
+    state.bH = randInt(shape.bH[0], shape.bH[1]);
+    state.bR = randInt(0, Math.floor(Math.min(state.bW, state.bH) * 0.45));
+    state.bx = rand(mood.bx[0], mood.bx[1]);
+    state.by = rand(mood.by[0], mood.by[1]);
+    state.gx = rand(mood.gx[0], mood.gx[1]);
+    state.gy = rand(mood.gy[0], mood.gy[1]);
+
+    // CANONICAL LOCK: when active, the innermost ring is forced to the brand's
+    // canonical 228:126 stadium proportions regardless of mood. Outer cascade
+    // still inherits the mood's character (ring count, gx/gy spread, motion,
+    // echo offset, fit mode). The result: every composition reads as a
+    // canonical-anchored variation — the client always recognizes the inner
+    // mark as the ARENA logo, no matter how wild the outer rings get.
+    if (state.canonicalLock) {
+      const CANONICAL_ASPECT = 228 / 126;
+      // Orientation: "wide" = original logo (228:126), "tall" = rotated 90°
+      // (126:228). Default "auto" picks wide for landscape/square, tall for
+      // portrait — so the inner mark always reads naturally inside the canvas.
+      const requested = state.canonicalOrient || "auto";
+      const orient = requested === "auto" ? (VH > VW * 1.05 ? "tall" : "wide") : requested;
+      const baseDim = randInt(180, 260);
+      if (orient === "tall") {
+        state.bH = baseDim;
+        state.bW = Math.round(baseDim / CANONICAL_ASPECT);
+      } else {
+        state.bW = baseDim;
+        state.bH = Math.round(baseDim / CANONICAL_ASPECT);
+      }
+      state.bR = Math.round(Math.min(state.bW, state.bH) * rand(0.36, 0.46));
+      // Band thickness inherits the orientation too — thicker bands along the
+      // canonical's "long" axis matches the brand wordmark's visual weight.
+      const thin = +rand(4, 9).toFixed(2);
+      const thick = +(thin * rand(1.5, 2.5)).toFixed(2);
+      if (orient === "tall") { state.bx = thick; state.by = thin; }
+      else                    { state.bx = thin;  state.by = thick; }
+    }
+
+    // fillViewport: lock every dimension's height to the canvas aspect ratio so the
+    // outermost ring always fills the frame (paired with TIGHT). Accounts for any
+    // rotation chosen above so ROTATED still fills edge-to-edge. Variety still lives
+    // in ring count, band thickness, gap rate, profile, and motion — but the mark's
+    // aspect ratio always matches the viewport. Without this, picking a wide vs.
+    // tall anchor shape made compositions seem to "bounce" inside the frame.
+    if (mood.fillViewport) {
+      const canvasAspect = VW / VH;
+      const θ = (state.rot * Math.PI) / 180;
+      const c = Math.abs(Math.cos(θ));
+      const s = Math.abs(Math.sin(θ));
+      // Solve un-rotated outer aspect so the rotated bounding box matches canvas.
+      // ratio = (α·c − s) / (c − α·s). Collapses to α when rotation is 0.
+      let targetAspect = canvasAspect;
+      const denom = c - canvasAspect * s;
+      const num = canvasAspect * c - s;
+      if (denom > 0.001 && num > 0.001) {
+        targetAspect = num / denom;
+      }
+      // Safety clamp: reject non-finite/negative results (fall back to canvasAspect),
+      // then clamp to a sane band so we don't end up with 50:1 needles. Allows
+      // portrait (canvasAspect < 1) — previously this was wrongly floored at 1.05.
+      if (!isFinite(targetAspect) || targetAspect <= 0.05) targetAspect = canvasAspect;
+      targetAspect = Math.max(0.2, Math.min(5, targetAspect));
+      const invAspect = 1 / targetAspect;
+      state.bH = Math.max(20, Math.round(state.bW * invAspect));
+      state.by = +(state.bx * invAspect).toFixed(2);
+      state.gy = +(state.gx * invAspect).toFixed(2);
+      state.bR = randInt(0, Math.floor(Math.min(state.bW, state.bH) * 0.45));
+    }
+
+    // slotStretchFill (MINIMAL): match the reference image. Innermost ring is a
+    // wide thin slot (much more elongated than canonical). Each ring outward
+    // stretches more vertically (or in the canvas's longer axis) until the
+    // outermost matches the canvas aspect at 96% fill. Sparse (4–5 rings).
+    // Uniform thin bands for a single-line-outline feel.
+    // If canonicalLock is also on, that block ran first and forced canonical
+    // inner — skip this stretch so the lock wins.
+    if (mood.slotStretchFill && !state.canonicalLock) {
+      state.curve = 1;
+      state.scale = 1;
+      // Force uniform, no profile variance — every ring outline reads the same.
+      state.bandProfile = "UNIFORM";
+      state.bandVar = 0;
+      // Slightly thicker bands so the outlines are visible at typical canvas
+      // sizes — 4–7 viewBox units render as a clean 1.5–2.5 screen pixels.
+      state.bx = +rand(4, 7).toFixed(2);
+      state.by = +rand(4, 7).toFixed(2);
+      const minDim = Math.min(VW, VH);
+      // Inner: wide thin slot. bW chunky, bH small. Aspect 5:1 to 10:1.
+      state.bW = Math.round(minDim * rand(0.22, 0.32));
+      const slotRatio = rand(5, 10);
+      state.bH = Math.max(14, Math.round(state.bW / slotRatio));
+      state.bR = Math.round(state.bH * 0.5);  // fully-rounded slot
+      const fill = 0.94;
+      const outerW = VW * fill;
+      const outerH = VH * fill;
+      const Nm1 = Math.max(1, state.N - 1);
+      state.gx = Math.max(1, +((outerW - state.bW) / (2 * Nm1) - state.bx).toFixed(2));
+      state.gy = Math.max(1, +((outerH - state.bH) / (2 * Nm1) - state.by).toFixed(2));
+    }
+
+    // Profile — never Uniform; always something with character. Exception:
+    // slotStretchFill (MINIMAL) wants uniform single-line outlines per the
+    // reference image, so it sets its own profile above and we skip here.
+    if (!(mood.slotStretchFill && !state.canonicalLock)) {
+      const profiles = ["TAPER_OUT", "TAPER_IN", "ALTERNATE", "TIERED", "HOURGLASS"];
+      state.bandProfile = profiles[Math.floor(Math.random() * profiles.length)];
+      state.bandVar = rand(0.40, 0.80);
+    }
+
+    return mood;
+  }
+
+  // Canonical lock is INDEPENDENT of the active mode. The Canonical button
+  // lights up when state.canonicalLock is true; Centered / Rotated buttons
+  // light up based on state.currentMode. Both can be active simultaneously
+  // (e.g. "canonical-locked + rotated" = tilted composition whose innermost
+  // ring is still the brand logo).
+  function syncCanonicalLockUI() {
+    const on = !!state.canonicalLock;
+    $("goCanonical").classList.toggle("mode-active", on);
+    // Swap the label so it's instantly obvious whether the lock is on.
+    $("goCanonicalLabel").textContent = on ? "🔒 Canonical" : "↩ Canonical";
+    // Flip button only visible while the lock is on.
+    const flipRow = $("canonicalFlipRow");
+    if (flipRow) flipRow.style.display = on ? "" : "none";
+    const flipLabel = $("flipCanonicalLabel");
+    if (flipLabel) {
+      const orient = state.canonicalOrient || "auto";
+      flipLabel.textContent = orient.charAt(0).toUpperCase() + orient.slice(1);
+    }
+  }
+  // Apply the current canonical orientation to the post-reset brand mark.
+  // Called when activating canonical-lock from a clean state AND when flipping.
+  function applyCanonicalOrientationToStatic() {
+    const orient = state.canonicalOrient === "auto" || !state.canonicalOrient
+      ? (VH > VW * 1.05 ? "tall" : "wide")
+      : state.canonicalOrient;
+    if (orient === "tall") {
+      const t = state.bW; state.bW = state.bH; state.bH = t;
+      const tx = state.bx; state.bx = state.by; state.by = tx;
+      const tg = state.gx; state.gx = state.gy; state.gy = tg;
+    }
+  }
+  // Click Flip → cycle Auto → Wide → Tall → Auto. Re-rolls the current
+  // composition under the new orientation so the user sees it immediately.
+  function flipCanonicalOrient() {
+    const cycle = { "auto": "wide", "wide": "tall", "tall": "auto" };
+    state.canonicalOrient = cycle[state.canonicalOrient || "auto"];
+    syncCanonicalLockUI();
+    if (state.currentMode === "CENTERED" || state.currentMode === "ROTATED") {
+      applyMoodFully(state.currentMode);
+    } else {
+      resetAnchor();
+      applyCanonicalOrientationToStatic();
+      syncAllSliders();
+      render();
+    }
+    toast("CANONICAL · " + state.canonicalOrient.toUpperCase());
+  }
+  function setCurrentMode(mode) {
+    state.currentMode = mode;
+    // Reset Centered + Rotated only — leave Canonical button alone (it tracks
+    // canonicalLock independently).
+    $("modeCentered").classList.remove("mode-active");
+    $("modeRotated").classList.remove("mode-active");
+    const map = { CENTERED: "modeCentered", ROTATED: "modeRotated" };
+    if (map[mode]) $(map[mode]).classList.add("mode-active");
+    syncCanonicalLockUI();
+  }
+
+  function expandStackSection() {
+    const stackLegend = [...document.querySelectorAll("fieldset.collapsible > .legend")]
+      .find(l => l.textContent.trim().startsWith("Stack"));
+    if (stackLegend) stackLegend.parentElement.classList.remove("collapsed");
+  }
+
+  function applyMoodFully(forceMoodName) {
+    if (forceMoodName) state.lockRotation = false;
+    const mood = randomizeAll(forceMoodName);
+    syncAllSliders();
+    syncBandProfileUI();
+    const motionName = mood.motions[Math.floor(Math.random() * mood.motions.length)];
+    const idx = SS_STATES.findIndex(s => s.name === motionName);
+    applySSStateInstant(idx >= 0 ? idx : 0);
+    if (!state.playing) togglePlay();
+    syncLockRot();
+    render();
+    toast(state.canonicalLock ? "🔒 " + mood.name : mood.name);
+    return mood;
+  }
+  // Randomize respects the currently-active mode:
+  //  - CENTERED active → re-rolls a new CENTERED variation
+  //  - ROTATED active  → re-rolls a new ROTATED variation
+  //  - neither active  → picks any mood at random
+  // This makes "Randomize" feel like "give me another one of these" once a mode is locked.
+  function randomizeRespectingMode() {
+    const mode = state.currentMode;
+    if (mode === "CENTERED" || mode === "ROTATED") {
+      applyMoodFully(mode);
+    } else {
+      setCurrentMode(null);
+      applyMoodFully();
+    }
+  }
+  $("randomizeAll").addEventListener("click", randomizeRespectingMode);
+  // Mirror Randomize + PNG export buttons on the canvas itself so users don't
+  // need to open the drawer to access the two most common actions.
+  $("stageRandomize").addEventListener("click", randomizeRespectingMode);
+  $("stageDownloadPNG").addEventListener("click", () => $("downloadPNG").click());
+  $("stageDownloadGIF").addEventListener("click", () => $("downloadGIF").click());
+  // Toggle behavior: clicking an already-active mode button deactivates it (without
+  // changing the current composition). Next Randomize will then pick from full spectrum.
+  $("modeCentered").addEventListener("click", () => {
+    if (state.currentMode === "CENTERED") {
+      setCurrentMode(null);
+      toast("CENTERED OFF");
+    } else {
+      setCurrentMode("CENTERED");
+      applyMoodFully("CENTERED");
+    }
+  });
+  $("modeRotated").addEventListener("click", () => {
+    if (state.currentMode === "ROTATED") {
+      setCurrentMode(null);
+      toast("ROTATED OFF");
+    } else {
+      setCurrentMode("ROTATED");
+      applyMoodFully("ROTATED");
+    }
+  });
+
+  // ─── Mood grid (every named mood as a clickable preset)
+  function buildMoodGrid() {
+    const grid = $("moodGrid");
+    grid.innerHTML = "";
+    for (const mood of COMP_MOODS) {
+      const b = document.createElement("button");
+      b.className = "btn";
+      b.textContent = mood.name;
+      b.addEventListener("click", () => applyMoodFully(mood.name));
+      grid.appendChild(b);
+    }
+  }
+  $("randomMood").addEventListener("click", () => applyMoodFully());
+
+  // ─── Canonical lock toggle. First click resets to the 4-ring brand mark
+  // and turns the lock ON — every subsequent Randomize / Centered / Rotated
+  // keeps the innermost ring's canonical 228:126 aspect (so the client always
+  // recognizes the ARENA logo at the center). Second click turns the lock OFF
+  // and returns to free-play. Doesn't disturb the active mode (Centered /
+  // Rotated stay lit if they were lit).
+  $("goCanonical").addEventListener("click", () => {
+    if (state.canonicalLock) {
+      // Toggle off — leave composition + active mode alone.
+      state.canonicalLock = false;
+      syncCanonicalLockUI();
+      toast("CANONICAL OFF");
+      return;
+    }
+    state.canonicalLock = true;
+    syncCanonicalLockUI();
+    // If a mode (Centered / Rotated) is active, re-roll it under the new lock
+    // so the user immediately sees their composition with the canonical inner.
+    // If no mode is active, show the static brand mark (V.1's behavior).
+    if (state.currentMode === "CENTERED" || state.currentMode === "ROTATED") {
+      applyMoodFully(state.currentMode);
+      toast("🔒 CANONICAL · " + state.currentMode);
+    } else {
+      for (const k in state.motion) state.motion[k].on = false;
+      state.screensaver = false;
+      $("ssToggle").classList.remove("on");
+      if (state.playing) togglePlay();
+      resetStack();
+      resetAnchor();
+      resetProfile();
+      applyCanonicalOrientationToStatic();
+      syncAllSliders();
+      syncMotionRowsUI();
+      syncSSStateUI();
+      toast("🔒 CANONICAL LOCKED");
+    }
+  });
+  $("flipCanonical").addEventListener("click", flipCanonicalOrient);
+
+  // ─── init
+  const fromURL = location.hash && location.hash.includes("e=");
+  loadHash();
+  applyFormat();
+  injectProfileIcons();
+  syncBandProfileUI();
+  buildMotionRows();
+  buildSSStateGrid();
+  buildMoodGrid();
+  syncAllSliders();
+  // Fresh load: pick a composition mood + matching motion. Variation is the
+  // tool's resting state; Canonical is the revert. Shared URLs (#e=) load
+  // exactly as encoded.
+  if (!fromURL) {
+    const mood = randomizeAll();
+    syncAllSliders();
+    syncBandProfileUI();
+    const motionName = mood.motions[Math.floor(Math.random() * mood.motions.length)];
+    const idx = SS_STATES.findIndex(s => s.name === motionName);
+    applySSStateInstant(idx >= 0 ? idx : 0);
+    state.playing = true;
+    $("playPause").textContent = "❚❚ Pause";
+  }
+  syncSSStateUI();
+  // Sync HUD Build label from the header's version spans so both displays
+  // always read the same value — no more drift between iter bumps.
+  (() => {
+    const v = $("buildVersion")?.textContent?.trim() || "";
+    const i = $("buildIter")?.textContent?.replace(/^\s*·\s*/, "").trim() || "";
+    if ($("meta-build")) $("meta-build").textContent = [v, i].filter(Boolean).join(" · ");
+  })();
+  render();
+  requestAnimationFrame(now => { lastFrame = now; rafId = requestAnimationFrame(frame); });
+})();
+</script>
+</body>
+</html>

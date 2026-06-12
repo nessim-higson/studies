@@ -1,0 +1,287 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>ARENA / Stress System</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body {
+    height: 100%;
+    background: #000;
+    color: #fff;
+    overflow: hidden;
+    font: 11px/1.4 ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    -webkit-font-smoothing: antialiased;
+    cursor: none;
+  }
+  body.show-cursor { cursor: default; }
+  #stage { position: fixed; inset: 0; background: #000; }
+  svg { width: 100%; height: 100%; display: block; }
+  .hud {
+    position: fixed;
+    pointer-events: none;
+    color: rgba(255,255,255,0.55);
+    text-transform: uppercase;
+    letter-spacing: 0.22em;
+    font-size: 10px;
+    opacity: 0;
+    transition: opacity 320ms;
+    mix-blend-mode: difference;
+    z-index: 10;
+  }
+  body.hud-on .hud { opacity: 1; }
+  .hud.tl { top: 22px; left: 24px; }
+  .hud.tr { top: 22px; right: 24px; text-align: right; }
+  .hud.bl { bottom: 22px; left: 24px; }
+  .hud.br { bottom: 22px; right: 24px; text-align: right; }
+  .hud b { color: #fff; font-weight: 600; }
+  .hint {
+    position: fixed;
+    bottom: 22px;
+    left: 50%;
+    transform: translateX(-50%);
+    color: rgba(255,255,255,0.4);
+    font-size: 10px;
+    letter-spacing: 0.3em;
+    text-transform: uppercase;
+    mix-blend-mode: difference;
+    transition: opacity 600ms;
+    z-index: 10;
+  }
+  body.hide-hint .hint { opacity: 0; }
+  /* pressure gauge along the right edge */
+  .gauge {
+    position: fixed;
+    right: 24px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 4px;
+    height: 240px;
+    background: rgba(255,255,255,0.08);
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 320ms;
+    z-index: 8;
+  }
+  body.hud-on .gauge { opacity: 1; }
+  .gauge .fill {
+    position: absolute;
+    bottom: 0; left: 0; right: 0;
+    background: #fff;
+    transition: height 60ms linear;
+  }
+  .gauge.critical .fill { background: #ff3a1f; }
+  .crosshair {
+    position: fixed;
+    width: 14px; height: 14px;
+    border: 1px solid rgba(255,255,255,0.6);
+    margin: -7px 0 0 -7px;
+    pointer-events: none;
+    mix-blend-mode: difference;
+    z-index: 20;
+  }
+  .crosshair.holding { background: rgba(255,58,31,0.4); border-color: #ff3a1f; }
+</style>
+</head>
+<body>
+<div id="stage">
+  <svg id="canvas" viewBox="0 0 1920 1080" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg">
+    <g id="root"></g>
+  </svg>
+</div>
+
+<div class="crosshair" id="crosshair"></div>
+<div class="gauge" id="gauge"><div class="fill" id="gaugeFill"></div></div>
+<div class="hud tl">ARENA<br><b>STRESS SYSTEM</b></div>
+<div class="hud tr"><span id="modeName">CRUSH</span><br><b id="modeIdx">01 / 06</b></div>
+<div class="hud bl">PRESSURE <b id="pressureVal">0.00</b><br>STATE <b id="state">REST</b></div>
+<div class="hud br">RINGS <b>4</b><br><b id="lockStatus">ALIGNED</b></div>
+<div class="hint">HOLD · APPLY PRESSURE &nbsp;&nbsp; RELEASE · SNAP &nbsp;&nbsp; M · MODE &nbsp;&nbsp; A · AUTO &nbsp;&nbsp; H · HUD &nbsp;&nbsp; F · FULL</div>
+
+<script>
+(() => {
+  const $ = id => document.getElementById(id);
+  const root = $("root");
+
+  const VW = 1920, VH = 1080;
+  const CX = VW / 2, CY = VH / 2;
+
+  // ─── canonical ring geometry
+  const RECIPE = { W: 736, H: 415, R: 72, bandX: 8.6, bandY: 24.5, gapX: 77, gapY: 22, dRb: 10.7, dRg: 3.8 };
+  const CANON = (() => {
+    const out = [];
+    let w = RECIPE.W, h = RECIPE.H, r = RECIPE.R;
+    for (let i = 0; i < 4; i++) {
+      out.push({ W: w, H: h, R: r, bandX: RECIPE.bandX, bandY: RECIPE.bandY, dRb: RECIPE.dRb });
+      const innerW = w - 2 * RECIPE.bandX;
+      const innerH = h - 2 * RECIPE.bandY;
+      const innerR = Math.max(0, r - RECIPE.dRb);
+      w = innerW - 2 * RECIPE.gapX;
+      h = innerH - 2 * RECIPE.gapY;
+      r = Math.max(0, innerR - RECIPE.dRg);
+    }
+    return out;
+  })();
+
+  function roundedRect(w, h, r) {
+    if (w <= 0 || h <= 0) return "";
+    r = Math.max(0, Math.min(r, w/2, h/2));
+    const x = -w/2, y = -h/2;
+    if (r < 0.5) return `M${x},${y}H${x+w}V${y+h}H${x}Z`;
+    return `M${x+r},${y}H${x+w-r}A${r},${r} 0 0 1 ${x+w},${y+r}V${y+h-r}A${r},${r} 0 0 1 ${x+w-r},${y+h}H${x+r}A${r},${r} 0 0 1 ${x},${y+h-r}V${y+r}A${r},${r} 0 0 1 ${x+r},${y}Z`;
+  }
+
+  function ringPath(r) {
+    return roundedRect(r.W, r.H, r.R) + " " +
+           roundedRect(r.W - 2*r.bandX, r.H - 2*r.bandY, Math.max(0, r.R - r.dRb));
+  }
+
+  // ─── deformation modes
+  // Each mode is a function (ringIdx, pressure) -> transform deltas.
+  // ringIdx: 0..3 (outer..inner). pressure: 0..~1.05 (overshoots above 1 when released).
+  const MODES = [
+    {
+      name: "CRUSH",
+      apply: (i, p) => ({ dx: 0, dy: 0, sx: 1 - p * (0.5 - i*0.06), sy: 1 - p * (0.5 - i*0.06), rot: 0, skew: 0 })
+    },
+    {
+      name: "STRETCH",
+      apply: (i, p) => ({ dx: 0, dy: 0, sx: 1 - p*0.45 + i*0.02*p, sy: 1 + p*0.95 - i*0.08*p, rot: 0, skew: 0 })
+    },
+    {
+      name: "SHEAR",
+      apply: (i, p) => ({ dx: 0, dy: 0, sx: 1, sy: 1, rot: 0, skew: p * (22 - i*2.5) })
+    },
+    {
+      name: "BUCKLE",
+      apply: (i, p) => {
+        const dir = i % 2 === 0 ? -1 : 1;
+        return { dx: dir * p * (140 - i*22), dy: -p * (40 - i*8) * dir, sx: 1, sy: 1, rot: dir * p * 8, skew: 0 };
+      }
+    },
+    {
+      name: "TWIST",
+      apply: (i, p) => ({ dx: 0, dy: 0, sx: 1 - p*0.08*i, sy: 1 - p*0.08*i, rot: p * (i*16 - 24), skew: 0 })
+    },
+    {
+      name: "RIP",
+      apply: (i, p) => {
+        // each ring flies outward at its own angle
+        const angles = [Math.PI * 1.15, Math.PI * 0.32, Math.PI * 1.78, Math.PI * 0.65];
+        const a = angles[i];
+        const d = p * (220 - i*36);
+        return { dx: Math.cos(a) * d, dy: Math.sin(a) * d, sx: 1 + p*0.12, sy: 1 + p*0.12, rot: p * (i % 2 === 0 ? -18 : 22), skew: 0 };
+      }
+    }
+  ];
+
+  let modeIdx = 0;
+  let mode = MODES[0];
+
+  // ─── pressure dynamics with spring/overshoot
+  let pressure = 0;
+  let pressureVel = 0;
+  let isHolding = false;
+  let autoMode = false;
+  let autoPhase = 0;
+
+  // ─── input
+  let mouseX = 0, mouseY = 0;
+  const crosshair = $("crosshair");
+
+  window.addEventListener("mousemove", e => {
+    mouseX = e.clientX; mouseY = e.clientY;
+    crosshair.style.left = e.clientX + "px";
+    crosshair.style.top = e.clientY + "px";
+    showUI();
+  });
+
+  function setHold(v) {
+    isHolding = v;
+    crosshair.classList.toggle("holding", v);
+  }
+
+  window.addEventListener("mousedown", e => { if (e.button === 0) setHold(true); });
+  window.addEventListener("mouseup",   e => { if (e.button === 0) setHold(false); });
+  window.addEventListener("keydown", e => {
+    if (e.key === "m" || e.key === "M") { modeIdx = (modeIdx + 1) % MODES.length; mode = MODES[modeIdx]; }
+    else if (e.key === "a" || e.key === "A") { autoMode = !autoMode; }
+    else if (e.key === "h" || e.key === "H") { document.body.classList.toggle("hud-on"); }
+    else if (e.key === "f" || e.key === "F") {
+      if (document.fullscreenElement) document.exitFullscreen();
+      else document.documentElement.requestFullscreen();
+    }
+  });
+
+  let last = performance.now();
+  function tick(now) {
+    const dt = Math.min(64, now - last);
+    last = now;
+    const dt60 = dt / 16.6667;
+
+    // auto-cycle pressure if autoMode is on
+    if (autoMode) {
+      autoPhase += dt / 1000;
+      const cycle = autoPhase % 5; // 5s cycle
+      if (cycle < 2.4)       setHold(true);   // build
+      else if (cycle < 2.9)  setHold(true);   // hold
+      else                   setHold(false);  // release
+    }
+
+    // pressure spring physics
+    const target = isHolding ? 1 : 0;
+    const stiffness = isHolding ? 0.012 : 0.10;
+    const damping = isHolding ? 0.10 : 0.14;
+    pressureVel += (target - pressure) * stiffness * dt60;
+    pressureVel *= Math.pow(1 - damping, dt60);
+    pressure += pressureVel * dt60;
+    // clamp slightly past 1 for overshoot on release
+    if (pressure < -0.04) { pressure = -0.04; pressureVel = 0; }
+
+    // render rings
+    let svg = "";
+    for (let i = 0; i < CANON.length; i++) {
+      const t = mode.apply(i, pressure);
+      const tx = CX + (t.dx || 0);
+      const ty = CY + (t.dy || 0);
+      const sx = t.sx || 1;
+      const sy = t.sy || 1;
+      const rot = t.rot || 0;
+      const skew = t.skew || 0;
+      svg += `<g transform="translate(${tx.toFixed(2)} ${ty.toFixed(2)}) rotate(${rot.toFixed(2)}) skewX(${skew.toFixed(2)}) scale(${sx.toFixed(4)} ${sy.toFixed(4)})"><path d="${ringPath(CANON[i])}" fill="#fff" fill-rule="evenodd"/></g>`;
+    }
+    root.innerHTML = svg;
+
+    // hud
+    const pct = Math.max(0, Math.min(1, pressure));
+    $("gaugeFill").style.height = (pct * 100) + "%";
+    $("gauge").classList.toggle("critical", pressure > 0.85);
+    $("pressureVal").textContent = pressure.toFixed(2);
+    $("state").textContent = isHolding ? (pressure > 0.9 ? "CRITICAL" : "LOADING") : (pressure > 0.05 ? "SNAPPING" : "REST");
+    $("modeName").textContent = mode.name + (autoMode ? " ·AUTO" : "");
+    $("modeIdx").textContent = String(modeIdx + 1).padStart(2,"0") + " / " + String(MODES.length).padStart(2,"0");
+    $("lockStatus").textContent = pressure < 0.03 ? "ALIGNED" : "STRESSED";
+
+    requestAnimationFrame(tick);
+  }
+
+  let idleTimer;
+  function showUI() {
+    document.body.classList.add("show-cursor");
+    document.body.classList.remove("hide-hint");
+    clearTimeout(idleTimer);
+    idleTimer = setTimeout(() => {
+      document.body.classList.remove("show-cursor");
+      document.body.classList.add("hide-hint");
+    }, 2400);
+  }
+  showUI();
+  document.body.classList.add("hud-on");
+  setTimeout(() => document.body.classList.remove("hud-on"), 3500);
+
+  requestAnimationFrame(now => { last = now; tick(now); });
+})();
+</script>
+</body>
+</html>

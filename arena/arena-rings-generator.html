@@ -1,0 +1,838 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>ARENA / Generator</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  :root {
+    --bg: #000;
+    --fg: #fff;
+    --muted: #6b6b6b;
+    --line: #1f1f1f;
+    --accent: #ff3a1f;
+    --panel: #050505;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body {
+    height: 100%;
+    background: var(--bg);
+    color: var(--fg);
+    font: 12px/1.4 ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    -webkit-font-smoothing: antialiased;
+    overflow: hidden;
+  }
+  main {
+    display: grid;
+    grid-template-columns: 340px 1fr;
+    height: 100vh;
+  }
+  aside {
+    border-right: 1px solid var(--line);
+    overflow-y: auto;
+    padding: 16px 18px;
+    background: var(--panel);
+  }
+  .brand {
+    font: 600 11px/1 ui-monospace, monospace;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    margin-bottom: 4px;
+  }
+  .sub {
+    color: var(--muted);
+    font-size: 10px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    margin-bottom: 22px;
+  }
+  fieldset {
+    border: 0;
+    border-top: 1px solid var(--line);
+    padding: 14px 0 10px;
+    margin: 0;
+  }
+  fieldset:first-of-type { border-top: 0; padding-top: 0; }
+  legend {
+    color: var(--muted);
+    font-size: 10px;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    padding: 0 0 12px;
+    width: 100%;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  legend .actions { display: flex; gap: 4px; }
+  .row {
+    display: grid;
+    grid-template-columns: 1fr 56px;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 8px;
+  }
+  .row label {
+    color: var(--muted);
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+  }
+  .row .val {
+    text-align: right;
+    color: var(--fg);
+    font-variant-numeric: tabular-nums;
+    font-size: 11px;
+  }
+  input[type=range] {
+    grid-column: 1 / -1;
+    width: 100%;
+    appearance: none;
+    background: transparent;
+    height: 14px;
+    margin: 0;
+  }
+  input[type=range]::-webkit-slider-runnable-track { height: 1px; background: var(--line); }
+  input[type=range]::-webkit-slider-thumb {
+    appearance: none;
+    width: 10px; height: 10px;
+    background: var(--fg);
+    border-radius: 0;
+    margin-top: -5px;
+    cursor: ew-resize;
+  }
+  input[type=range]:focus { outline: none; }
+  input[type=range]:focus::-webkit-slider-thumb { background: var(--accent); }
+
+  .mode-tabs {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 4px;
+    margin-bottom: 12px;
+  }
+  .mode-tab {
+    appearance: none;
+    background: transparent;
+    color: var(--muted);
+    border: 1px solid var(--line);
+    padding: 8px 0;
+    font: 600 9px/1 ui-monospace, monospace;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: border-color 80ms, background 80ms, color 80ms;
+  }
+  .mode-tab:hover { border-color: var(--muted); color: var(--fg); }
+  .mode-tab.active { background: var(--fg); color: var(--bg); border-color: var(--fg); }
+
+  button.btn {
+    appearance: none;
+    background: transparent;
+    color: var(--fg);
+    border: 1px solid var(--line);
+    padding: 8px 6px;
+    font: 600 10px/1 ui-monospace, monospace;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: background 80ms, color 80ms, border-color 80ms;
+  }
+  button.btn:hover { border-color: var(--fg); }
+  button.btn.primary { background: var(--fg); color: var(--bg); border-color: var(--fg); }
+  button.btn.primary:hover { background: var(--accent); border-color: var(--accent); color: var(--fg); }
+  button.btn.tiny { padding: 4px 6px; font-size: 8px; }
+  .btnrow { display: grid; grid-template-columns: repeat(2, 1fr); gap: 6px; }
+  .btnrow-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+  .toggles { display: flex; gap: 6px; flex-wrap: wrap; }
+  .toggles .btn { flex: 1; min-width: 0; }
+  .toggles .btn.on { background: var(--fg); color: var(--bg); border-color: var(--fg); }
+
+  .swatches {
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    gap: 4px;
+  }
+  .swatch-pick {
+    height: 22px;
+    border: 1px solid var(--line);
+    cursor: pointer;
+  }
+  .swatch-pick.active {
+    border-color: var(--fg);
+    box-shadow: inset 0 0 0 2px rgba(0,0,0,0.4);
+  }
+
+  .preset-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 6px;
+  }
+
+  section#stage {
+    position: relative;
+    display: grid;
+    place-items: center;
+    background: var(--stage-bg, #000);
+    overflow: hidden;
+    transition: background 120ms;
+  }
+  #stage::before {
+    content: "";
+    position: absolute; inset: 0;
+    background-image:
+      linear-gradient(to right, rgba(255,255,255,0.025) 1px, transparent 1px),
+      linear-gradient(to bottom, rgba(255,255,255,0.025) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+    opacity: var(--grid-opacity, 0);
+    transition: opacity 120ms;
+  }
+  svg#canvas {
+    width: min(96vw, calc(100vh * 1.78));
+    height: auto;
+    display: block;
+    z-index: 1;
+  }
+  .stage-meta {
+    position: absolute;
+    top: 18px;
+    right: 22px;
+    color: var(--muted);
+    font-size: 10px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    z-index: 2;
+    text-align: right;
+    line-height: 1.6;
+    pointer-events: none;
+  }
+  .stage-meta b { color: var(--fg); font-weight: 600; }
+  .stage-controls {
+    position: absolute;
+    bottom: 18px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    gap: 6px;
+    z-index: 2;
+    background: rgba(0,0,0,0.5);
+    border: 1px solid var(--line);
+    padding: 6px;
+  }
+  .stage-controls .btn { padding: 6px 10px; font-size: 9px; }
+  .toast {
+    position: fixed;
+    top: 20px;
+    left: 50%;
+    transform: translate(-50%, -120%);
+    background: var(--fg);
+    color: var(--bg);
+    padding: 8px 16px;
+    font: 600 10px/1 ui-monospace, monospace;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    transition: transform 240ms cubic-bezier(.2,.7,.3,1);
+    z-index: 100;
+    pointer-events: none;
+  }
+  .toast.show { transform: translate(-50%, 0); }
+</style>
+</head>
+<body>
+<main>
+  <aside>
+    <div class="brand">ARENA</div>
+    <div class="sub">Generator · v0.1</div>
+
+    <fieldset>
+      <legend>Pattern</legend>
+      <div class="mode-tabs" id="modeTabs">
+        <button class="mode-tab active" data-mode="WAVE">Wave</button>
+        <button class="mode-tab" data-mode="TRAIL">Trail</button>
+        <button class="mode-tab" data-mode="FIELD">Field</button>
+        <button class="mode-tab" data-mode="RADIAL">Radial</button>
+      </div>
+      <div id="modeParams"></div>
+    </fieldset>
+
+    <fieldset>
+      <legend>Motion</legend>
+      <div class="row"><label>Speed</label><span class="val" id="v-speed">0.00</span><input id="speed" type="range" min="0" max="5" step="0.05" value="0"></div>
+      <div class="row"><label>Phase</label><span class="val" id="v-phase">0</span><input id="phase" type="range" min="0" max="6.28" step="0.01" value="0"></div>
+      <div class="toggles">
+        <button class="btn" id="pausePlay">▶ Play</button>
+        <button class="btn tiny" id="stepBack">−1s</button>
+        <button class="btn tiny" id="stepFwd">+1s</button>
+      </div>
+    </fieldset>
+
+    <fieldset>
+      <legend>Mark</legend>
+      <div class="row"><label>Rings</label><span class="val" id="v-mn">4</span><input id="mn" type="range" min="1" max="10" step="1" value="4"></div>
+      <div class="row"><label>Mark Scale</label><span class="val" id="v-mscale">0.60</span><input id="mscale" type="range" min="0.05" max="2.5" step="0.01" value="0.60"></div>
+      <div class="row"><label>Width</label><span class="val" id="v-mW">736</span><input id="mW" type="range" min="100" max="1800" step="2" value="736"></div>
+      <div class="row"><label>Height</label><span class="val" id="v-mH">415</span><input id="mH" type="range" min="50" max="900" step="2" value="415"></div>
+      <div class="row"><label>Corner R</label><span class="val" id="v-mR">72</span><input id="mR" type="range" min="0" max="450" step="1" value="72"></div>
+      <div class="row"><label>Band V</label><span class="val" id="v-mBy">24.5</span><input id="mBy" type="range" min="1" max="80" step="0.5" value="24.5"></div>
+      <div class="row"><label>Band H</label><span class="val" id="v-mBx">8.6</span><input id="mBx" type="range" min="1" max="80" step="0.5" value="8.6"></div>
+    </fieldset>
+
+    <fieldset>
+      <legend>Color</legend>
+      <div class="row"><label>Stage</label><span class="val">BG</span></div>
+      <div class="swatches" data-target="bg">
+        <div class="swatch-pick active" data-c="#000" style="background:#000"></div>
+        <div class="swatch-pick" data-c="#fff" style="background:#fff"></div>
+        <div class="swatch-pick" data-c="#ff3a1f" style="background:#ff3a1f"></div>
+        <div class="swatch-pick" data-c="#ffe600" style="background:#ffe600"></div>
+        <div class="swatch-pick" data-c="#0a3cff" style="background:#0a3cff"></div>
+        <div class="swatch-pick" data-c="#1a1a1a" style="background:#1a1a1a"></div>
+      </div>
+      <div class="row" style="margin-top:10px"><label>Mark</label><span class="val">FG</span></div>
+      <div class="swatches" data-target="fg">
+        <div class="swatch-pick active" data-c="#fff" style="background:#fff"></div>
+        <div class="swatch-pick" data-c="#000" style="background:#000"></div>
+        <div class="swatch-pick" data-c="#ff3a1f" style="background:#ff3a1f"></div>
+        <div class="swatch-pick" data-c="#ffe600" style="background:#ffe600"></div>
+        <div class="swatch-pick" data-c="#0a3cff" style="background:#0a3cff"></div>
+        <div class="swatch-pick" data-c="#6b6b6b" style="background:#6b6b6b"></div>
+      </div>
+      <div class="toggles" style="margin-top:10px">
+        <button class="btn" id="t-grid">Grid</button>
+        <button class="btn" id="t-invert">Invert</button>
+      </div>
+    </fieldset>
+
+    <fieldset>
+      <legend>Presets</legend>
+      <div class="preset-grid">
+        <button class="btn" data-preset="poster-wave">Poster · Wave</button>
+        <button class="btn" data-preset="poster-trail">Poster · Trail</button>
+        <button class="btn" data-preset="dense-field">Dense Field</button>
+        <button class="btn" data-preset="rotor-radial">Rotor</button>
+        <button class="btn" data-preset="moire">Moiré</button>
+        <button class="btn" data-preset="tunnel">Tunnel</button>
+        <button class="btn" data-preset="ribbon">Ribbon</button>
+        <button class="btn" data-preset="echo">Echo</button>
+      </div>
+    </fieldset>
+
+    <fieldset>
+      <legend>Export</legend>
+      <div class="btnrow">
+        <button class="btn" id="copySVG">Copy SVG</button>
+        <button class="btn primary" id="downloadSVG">Download</button>
+      </div>
+      <div class="btnrow" style="margin-top:6px">
+        <button class="btn" id="copyURL">Copy URL</button>
+        <button class="btn" id="resetBtn">Reset</button>
+      </div>
+    </fieldset>
+  </aside>
+
+  <section id="stage">
+    <svg id="canvas" viewBox="0 0 1920 1080" preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg">
+      <rect id="bg" width="1920" height="1080" fill="#000"/>
+      <g id="root"></g>
+    </svg>
+    <div class="stage-meta">
+      MODE <b id="meta-mode">WAVE</b><br>
+      ITEMS <b id="meta-items">0</b><br>
+      TIME <b id="meta-time">0.00s</b><br>
+      <b id="meta-state">PAUSED</b>
+    </div>
+    <div class="stage-controls">
+      <button class="btn" id="snap">Freeze Frame</button>
+      <button class="btn" id="randomize">Randomize</button>
+    </div>
+  </section>
+</main>
+
+<div class="toast" id="toast">READY</div>
+
+<script>
+(() => {
+  const $ = id => document.getElementById(id);
+  const VW = 1920, VH = 1080;
+
+  // ─── canonical recipe + ring derivation
+  const RECIPE = { gapX: 77.72, gapY: 22.28, dRb: 10.69, dRg: 3.78 };
+
+  function deriveRings(W, H, R, bandX, bandY, dRb, n) {
+    const out = [];
+    let w = W, h = H, r = R;
+    for (let i = 0; i < n; i++) {
+      if (w <= 0 || h <= 0) break;
+      out.push({ W: w, H: h, R: r, bandX, bandY, dRb });
+      const iw = w - 2 * bandX;
+      const ih = h - 2 * bandY;
+      const ir = Math.max(0, r - dRb);
+      w = iw - 2 * RECIPE.gapX;
+      h = ih - 2 * RECIPE.gapY;
+      r = Math.max(0, ir - RECIPE.dRg);
+    }
+    return out;
+  }
+  function roundedRect(cx, cy, w, h, r) {
+    if (w <= 0 || h <= 0) return "";
+    r = Math.max(0, Math.min(r, w/2, h/2));
+    const x = cx - w/2, y = cy - h/2;
+    if (r < 0.5) return `M${x},${y}H${x+w}V${y+h}H${x}Z`;
+    return `M${x+r},${y}H${x+w-r}A${r},${r} 0 0 1 ${x+w},${y+r}V${y+h-r}A${r},${r} 0 0 1 ${x+w-r},${y+h}H${x+r}A${r},${r} 0 0 1 ${x},${y+h-r}V${y+r}A${r},${r} 0 0 1 ${x+r},${y}Z`;
+  }
+  function buildMarkPath(mark) {
+    const rings = deriveRings(mark.W, mark.H, mark.R, mark.bandX, mark.bandY, mark.dRb, mark.n);
+    const sub = [];
+    for (const r of rings) {
+      sub.push(roundedRect(0, 0, r.W, r.H, r.R));
+      const iw = r.W - 2 * r.bandX, ih = r.H - 2 * r.bandY, ir = Math.max(0, r.R - r.dRb);
+      if (iw > 0 && ih > 0) sub.push(roundedRect(0, 0, iw, ih, ir));
+    }
+    return sub.join(" ");
+  }
+
+  // ─── default state
+  const DEFAULT_STATE = () => ({
+    mode: "WAVE",
+    modes: {
+      WAVE: {
+        count: 14, amplitude: 220, frequency: 1.3, angle: -18, spread: 1900,
+        scaleStart: 1.0, scaleEnd: 0.32, rotProgress: 0
+      },
+      TRAIL: {
+        count: 18, angle: -28, spacing: 130, scaleStep: 0.88, rotStep: 0, originOffset: 0
+      },
+      FIELD: {
+        cols: 7, rows: 5, cellScale: 0.32, rotPattern: 0, scaleWave: 0, hSpacing: 1.0, vSpacing: 1.0
+      },
+      RADIAL: {
+        count: 14, radiusX: 600, radiusY: 360, satScale: 0.4, satRot: 0,
+        centerScale: 1.2, baseRot: 0
+      }
+    },
+    motion: { speed: 0, phase: 0 },
+    mark: { n: 4, scale: 0.60, W: 736, H: 415, R: 72, bandX: 8.6, bandY: 24.53, dRb: 10.69 },
+    bg: "#000",
+    color: "#fff",
+    view: { grid: false, invert: false }
+  });
+
+  let state = DEFAULT_STATE();
+  let animPaused = true;
+  let timeAccum = 0; // seconds of motion
+  let lastFrame = performance.now();
+
+  // ─── mode schemas
+  const SCHEMAS = {
+    WAVE: [
+      { key: "count",       label: "Count",       min: 2,    max: 60,  step: 1,    fmt: v=>v.toFixed(0) },
+      { key: "amplitude",   label: "Amplitude",   min: 0,    max: 500, step: 5,    fmt: v=>v.toFixed(0) },
+      { key: "frequency",   label: "Frequency",   min: 0.1,  max: 5,   step: 0.05, fmt: v=>v.toFixed(2) },
+      { key: "angle",       label: "Path Angle",  min: -90,  max: 90,  step: 1,    fmt: v=>v.toFixed(0) },
+      { key: "spread",      label: "Spread",      min: 200,  max: 3000,step: 50,   fmt: v=>v.toFixed(0) },
+      { key: "scaleStart",  label: "Scale Start", min: 0.05, max: 2.5, step: 0.02, fmt: v=>v.toFixed(2) },
+      { key: "scaleEnd",    label: "Scale End",   min: 0.05, max: 2.5, step: 0.02, fmt: v=>v.toFixed(2) },
+      { key: "rotProgress", label: "Rot Progress",min: -60,  max: 60,  step: 1,    fmt: v=>v.toFixed(0) }
+    ],
+    TRAIL: [
+      { key: "count",        label: "Count",       min: 2,    max: 80,  step: 1,    fmt: v=>v.toFixed(0) },
+      { key: "angle",        label: "Vector Angle",min: -180, max: 180, step: 1,    fmt: v=>v.toFixed(0) },
+      { key: "spacing",      label: "Spacing",     min: 10,   max: 400, step: 2,    fmt: v=>v.toFixed(0) },
+      { key: "scaleStep",    label: "Scale Step",  min: 0.5,  max: 1.05,step: 0.005,fmt: v=>v.toFixed(3) },
+      { key: "rotStep",      label: "Rot Step",    min: -30,  max: 30,  step: 0.5,  fmt: v=>v.toFixed(1) },
+      { key: "originOffset", label: "Origin Shift",min: -800, max: 800, step: 10,   fmt: v=>v.toFixed(0) }
+    ],
+    FIELD: [
+      { key: "cols",       label: "Columns",     min: 1, max: 20,   step: 1,    fmt: v=>v.toFixed(0) },
+      { key: "rows",       label: "Rows",        min: 1, max: 14,   step: 1,    fmt: v=>v.toFixed(0) },
+      { key: "cellScale",  label: "Cell Scale",  min: 0.05, max: 1, step: 0.01, fmt: v=>v.toFixed(2) },
+      { key: "rotPattern", label: "Rot Pattern", min: 0, max: 4,    step: 1,    fmt: v=>["NONE","ALT","CHECKER","DIAG","WAVE"][v] },
+      { key: "scaleWave",  label: "Scale Wave",  min: 0, max: 0.4,  step: 0.01, fmt: v=>v.toFixed(2) },
+      { key: "hSpacing",   label: "H Spacing",   min: 0.5, max:2.5, step: 0.02, fmt: v=>v.toFixed(2) },
+      { key: "vSpacing",   label: "V Spacing",   min: 0.5, max:2.5, step: 0.02, fmt: v=>v.toFixed(2) }
+    ],
+    RADIAL: [
+      { key: "count",       label: "Satellites",  min: 1,  max: 40, step: 1,    fmt: v=>v.toFixed(0) },
+      { key: "radiusX",     label: "Radius X",    min: 50, max: 1000,step: 10,  fmt: v=>v.toFixed(0) },
+      { key: "radiusY",     label: "Radius Y",    min: 50, max: 700, step: 10,  fmt: v=>v.toFixed(0) },
+      { key: "satScale",    label: "Satellite",   min: 0.05,max:1.5, step: 0.02,fmt: v=>v.toFixed(2) },
+      { key: "satRot",      label: "Tangent Rot", min: 0,  max: 1,   step: 1,   fmt: v=>v ? "ON" : "OFF" },
+      { key: "centerScale", label: "Center",      min: 0,  max: 2,   step: 0.05,fmt: v=>v.toFixed(2) },
+      { key: "baseRot",     label: "Base Rot",    min: -180,max:180, step: 1,   fmt: v=>v.toFixed(0) }
+    ]
+  };
+
+  function renderModeParams() {
+    const container = $("modeParams");
+    container.innerHTML = "";
+    const schema = SCHEMAS[state.mode];
+    const p = state.modes[state.mode];
+    schema.forEach(field => {
+      const row = document.createElement("div");
+      row.className = "row";
+      const v = p[field.key];
+      row.innerHTML = `<label>${field.label}</label><span class="val" id="vp-${field.key}">${field.fmt(v)}</span><input id="p-${field.key}" type="range" min="${field.min}" max="${field.max}" step="${field.step}" value="${v}">`;
+      container.appendChild(row);
+      const input = row.querySelector("input");
+      input.addEventListener("input", () => {
+        p[field.key] = parseFloat(input.value);
+        $(`vp-${field.key}`).textContent = field.fmt(p[field.key]);
+        render();
+      });
+    });
+  }
+
+  // ─── pattern generators
+  function genWave(t) {
+    const p = state.modes.WAVE;
+    const phase = state.motion.phase + t * 0.6;
+    const angle = p.angle * Math.PI / 180;
+    const dx = Math.cos(angle), dy = Math.sin(angle);
+    const perpX = -dy, perpY = dx;
+    const cx = VW/2, cy = VH/2;
+    const out = [];
+    const n = Math.max(2, Math.round(p.count));
+    for (let i = 0; i < n; i++) {
+      const tt = (i / (n - 1)) - 0.5;
+      const distAlong = tt * p.spread;
+      const waveOffset = Math.sin(tt * p.frequency * Math.PI * 2 + phase) * p.amplitude;
+      const x = cx + dx * distAlong + perpX * waveOffset;
+      const y = cy + dy * distAlong + perpY * waveOffset;
+      const u = i / Math.max(1, n - 1);
+      const scale = p.scaleStart + (p.scaleEnd - p.scaleStart) * u;
+      const rot = u * p.rotProgress;
+      out.push({ x, y, scale, rot });
+    }
+    return out;
+  }
+
+  function genTrail(t) {
+    const p = state.modes.TRAIL;
+    const angle = p.angle * Math.PI / 180;
+    const dx = Math.cos(angle), dy = Math.sin(angle);
+    const cx = VW/2, cy = VH/2;
+    const out = [];
+    const n = Math.max(2, Math.round(p.count));
+    // origin offset along the vector, animated by motion phase
+    const flow = state.motion.phase * 30 + t * 60;
+    const startOff = p.originOffset - flow;
+    for (let i = 0; i < n; i++) {
+      const dist = startOff + i * p.spacing;
+      const x = cx + dx * dist;
+      const y = cy + dy * dist;
+      const scale = Math.pow(p.scaleStep, i);
+      const rot = i * p.rotStep;
+      out.push({ x, y, scale, rot });
+    }
+    return out;
+  }
+
+  function genField(t) {
+    const p = state.modes.FIELD;
+    const cols = Math.max(1, Math.round(p.cols));
+    const rows = Math.max(1, Math.round(p.rows));
+    const phase = state.motion.phase + t * 0.6;
+    const cellW = VW / (cols + 1) * p.hSpacing;
+    const cellH = VH / (rows + 1) * p.vSpacing;
+    const out = [];
+    const totalW = cellW * (cols - 1);
+    const totalH = cellH * (rows - 1);
+    const offX = VW/2 - totalW/2;
+    const offY = VH/2 - totalH/2;
+    for (let row = 0; row < rows; row++) {
+      for (let col = 0; col < cols; col++) {
+        const x = offX + col * cellW;
+        const y = offY + row * cellH;
+        let rot = 0;
+        if      (p.rotPattern === 1) rot = ((row + col) % 2) * 90;
+        else if (p.rotPattern === 2) rot = ((row + col) % 2) ? 0 : 90;
+        else if (p.rotPattern === 3) rot = (col - row) * 22;
+        else if (p.rotPattern === 4) rot = Math.sin(col * 0.5 + row * 0.4 + phase) * 28;
+        const scale = p.cellScale + Math.sin(col * 0.5 + row * 0.3 + phase) * p.scaleWave;
+        out.push({ x, y, scale, rot });
+      }
+    }
+    return out;
+  }
+
+  function genRadial(t) {
+    const p = state.modes.RADIAL;
+    const cx = VW/2, cy = VH/2;
+    const out = [];
+    if (p.centerScale > 0.01) out.push({ x: cx, y: cy, scale: p.centerScale, rot: p.baseRot });
+    const n = Math.max(1, Math.round(p.count));
+    const baseAngle = (state.motion.phase + t * 0.6) + p.baseRot * Math.PI / 180;
+    for (let i = 0; i < n; i++) {
+      const a = baseAngle + (i / n) * Math.PI * 2;
+      const x = cx + Math.cos(a) * p.radiusX;
+      const y = cy + Math.sin(a) * p.radiusY;
+      const tangentRot = p.satRot ? (a * 180 / Math.PI) + 90 : p.baseRot;
+      out.push({ x, y, scale: p.satScale, rot: tangentRot });
+    }
+    return out;
+  }
+
+  const GENERATORS = { WAVE: genWave, TRAIL: genTrail, FIELD: genField, RADIAL: genRadial };
+
+  // ─── render
+  const root = $("root");
+  function render() {
+    const m = state.mark;
+    const path = buildMarkPath(m);
+    const items = GENERATORS[state.mode](timeAccum);
+    const fg = state.view.invert ? state.bg : state.color;
+    const bg = state.view.invert ? state.color : state.bg;
+    $("bg").setAttribute("fill", bg);
+    document.documentElement.style.setProperty("--stage-bg", bg);
+    document.documentElement.style.setProperty("--grid-opacity", state.view.grid ? "1" : "0");
+
+    let svg = "";
+    for (const it of items) {
+      if (it.scale < 0.005) continue;
+      const s = it.scale * m.scale;
+      svg += `<g transform="translate(${it.x.toFixed(2)} ${it.y.toFixed(2)}) rotate(${it.rot.toFixed(2)}) scale(${s.toFixed(4)})"><path d="${path}" fill="${fg}" fill-rule="evenodd"/></g>`;
+    }
+    root.innerHTML = svg;
+
+    $("meta-mode").textContent = state.mode;
+    $("meta-items").textContent = items.length;
+    $("meta-time").textContent = timeAccum.toFixed(2) + "s";
+    $("meta-state").textContent = animPaused ? "PAUSED" : "PLAYING";
+
+    syncURL();
+  }
+
+  // ─── input bindings: mode tabs
+  $("modeTabs").querySelectorAll(".mode-tab").forEach(t => {
+    t.addEventListener("click", () => {
+      state.mode = t.dataset.mode;
+      document.querySelectorAll(".mode-tab").forEach(x => x.classList.toggle("active", x === t));
+      renderModeParams();
+      render();
+    });
+  });
+
+  // mark sliders
+  const MARK_KEYS = { mn: "n", mscale: "scale", mW: "W", mH: "H", mR: "R", mBy: "bandY", mBx: "bandX" };
+  Object.entries(MARK_KEYS).forEach(([id, key]) => {
+    $(id).addEventListener("input", () => {
+      const v = parseFloat($(id).value);
+      state.mark[key] = key === "n" ? Math.round(v) : v;
+      const fmt = key === "n" ? v=>v.toFixed(0) : (key === "scale" ? v=>v.toFixed(2) : (["bandX","bandY"].includes(key) ? v=>v.toFixed(1) : v=>v.toFixed(0)));
+      $("v-" + id).textContent = fmt(state.mark[key]);
+      render();
+    });
+  });
+
+  // motion
+  $("speed").addEventListener("input", () => {
+    state.motion.speed = parseFloat($("speed").value);
+    $("v-speed").textContent = state.motion.speed.toFixed(2);
+    if (state.motion.speed > 0 && animPaused) { togglePlay(); }
+    else if (state.motion.speed === 0 && !animPaused) { togglePlay(); }
+  });
+  $("phase").addEventListener("input", () => {
+    state.motion.phase = parseFloat($("phase").value);
+    $("v-phase").textContent = state.motion.phase.toFixed(2);
+    render();
+  });
+  function togglePlay() {
+    animPaused = !animPaused;
+    $("pausePlay").textContent = animPaused ? "▶ Play" : "❚❚ Pause";
+    lastFrame = performance.now();
+    render();
+  }
+  $("pausePlay").addEventListener("click", togglePlay);
+  $("stepBack").addEventListener("click", () => { timeAccum = Math.max(0, timeAccum - 1); render(); });
+  $("stepFwd").addEventListener("click", () => { timeAccum += 1; render(); });
+  $("snap").addEventListener("click", () => {
+    if (!animPaused) togglePlay();
+    toast("FROZEN @ " + timeAccum.toFixed(2) + "s");
+  });
+
+  // swatches
+  document.querySelectorAll(".swatches").forEach(g => {
+    g.addEventListener("click", e => {
+      const s = e.target.closest(".swatch-pick");
+      if (!s) return;
+      const target = g.dataset.target;
+      if (target === "bg") state.bg = s.dataset.c;
+      if (target === "fg") state.color = s.dataset.c;
+      g.querySelectorAll(".swatch-pick").forEach(x => x.classList.toggle("active", x === s));
+      render();
+    });
+  });
+  // toggles
+  $("t-grid").addEventListener("click", () => { state.view.grid = !state.view.grid; $("t-grid").classList.toggle("on", state.view.grid); render(); });
+  $("t-invert").addEventListener("click", () => { state.view.invert = !state.view.invert; $("t-invert").classList.toggle("on", state.view.invert); render(); });
+
+  // randomize
+  $("randomize").addEventListener("click", () => {
+    const schema = SCHEMAS[state.mode];
+    const p = state.modes[state.mode];
+    schema.forEach(field => {
+      const range = field.max - field.min;
+      let v = field.min + Math.random() * range;
+      if (field.step >= 1) v = Math.round(v / field.step) * field.step;
+      p[field.key] = v;
+    });
+    renderModeParams();
+    render();
+    toast("RANDOMIZED");
+  });
+
+  // presets — recreate the reference imagery
+  const PRESETS = {
+    "poster-wave": { mode: "WAVE", patch: { WAVE: { count: 8, amplitude: 380, frequency: 0.7, angle: -22, spread: 2400, scaleStart: 1.6, scaleEnd: 0.35, rotProgress: 0 }}, mark: { n: 1, scale: 0.55 } },
+    "poster-trail": { mode: "TRAIL", patch: { TRAIL: { count: 22, angle: -30, spacing: 90, scaleStep: 0.91, rotStep: 0, originOffset: -300 }}, mark: { n: 1, scale: 0.55 } },
+    "dense-field":  { mode: "FIELD", patch: { FIELD: { cols: 9, rows: 5, cellScale: 0.22, rotPattern: 1, scaleWave: 0, hSpacing: 1.0, vSpacing: 1.1 }}, mark: { n: 1, scale: 1 } },
+    "rotor-radial": { mode: "RADIAL", patch: { RADIAL: { count: 8, radiusX: 560, radiusY: 340, satScale: 0.35, satRot: 1, centerScale: 1.0, baseRot: 0 }}, mark: { n: 4, scale: 0.6 } },
+    "moire":        { mode: "FIELD", patch: { FIELD: { cols: 13, rows: 8, cellScale: 0.18, rotPattern: 3, scaleWave: 0, hSpacing: 0.95, vSpacing: 1.0 }}, mark: { n: 1, scale: 1 } },
+    "tunnel":       { mode: "TRAIL", patch: { TRAIL: { count: 30, angle: -45, spacing: 70, scaleStep: 0.88, rotStep: 2.5, originOffset: 500 }}, mark: { n: 1, scale: 0.7 } },
+    "ribbon":       { mode: "WAVE", patch: { WAVE: { count: 30, amplitude: 240, frequency: 1.6, angle: 0, spread: 2200, scaleStart: 0.45, scaleEnd: 0.45, rotProgress: 0 }}, mark: { n: 1, scale: 0.6 } },
+    "echo":         { mode: "TRAIL", patch: { TRAIL: { count: 8, angle: 0, spacing: 220, scaleStep: 0.78, rotStep: 0, originOffset: -700 }}, mark: { n: 4, scale: 0.9 } }
+  };
+  document.querySelectorAll("[data-preset]").forEach(b => {
+    b.addEventListener("click", () => {
+      const preset = PRESETS[b.dataset.preset];
+      if (!preset) return;
+      state.mode = preset.mode;
+      Object.entries(preset.patch).forEach(([m, params]) => {
+        Object.assign(state.modes[m], params);
+      });
+      if (preset.mark) Object.assign(state.mark, preset.mark);
+      document.querySelectorAll(".mode-tab").forEach(x => x.classList.toggle("active", x.dataset.mode === state.mode));
+      // sync mark sliders
+      Object.entries(MARK_KEYS).forEach(([id, key]) => {
+        $(id).value = state.mark[key];
+        const fmt = key === "n" ? v=>v.toFixed(0) : (key === "scale" ? v=>v.toFixed(2) : (["bandX","bandY"].includes(key) ? v=>v.toFixed(1) : v=>v.toFixed(0)));
+        $("v-" + id).textContent = fmt(state.mark[key]);
+      });
+      renderModeParams();
+      render();
+      toast(b.dataset.preset.toUpperCase());
+    });
+  });
+
+  // export
+  function serializeSVG() {
+    const m = state.mark;
+    const path = buildMarkPath(m);
+    const items = GENERATORS[state.mode](timeAccum);
+    const fg = state.view.invert ? state.bg : state.color;
+    const bg = state.view.invert ? state.color : state.bg;
+    let inner = "";
+    for (const it of items) {
+      if (it.scale < 0.005) continue;
+      const s = it.scale * m.scale;
+      inner += `<g transform="translate(${it.x.toFixed(2)} ${it.y.toFixed(2)}) rotate(${it.rot.toFixed(2)}) scale(${s.toFixed(4)})"><path d="${path}" fill="${fg}" fill-rule="evenodd"/></g>`;
+    }
+    return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1920 1080"><rect width="1920" height="1080" fill="${bg}"/>${inner}</svg>`;
+  }
+  $("copySVG").addEventListener("click", async () => {
+    try { await navigator.clipboard.writeText(serializeSVG()); toast("SVG COPIED"); }
+    catch(e) { toast("COPY FAILED"); }
+  });
+  $("downloadSVG").addEventListener("click", () => {
+    const blob = new Blob([serializeSVG()], { type: "image/svg+xml" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `arena-${state.mode.toLowerCase()}-${Date.now()}.svg`;
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(url), 500);
+    toast("DOWNLOADED");
+  });
+
+  // URL state
+  let urlTimer;
+  function syncURL() {
+    clearTimeout(urlTimer);
+    urlTimer = setTimeout(() => {
+      const compact = { m: state.mode, p: state.modes[state.mode], mk: state.mark, bg: state.bg, fg: state.color, ph: state.motion.phase };
+      const enc = btoa(unescape(encodeURIComponent(JSON.stringify(compact))));
+      history.replaceState(null, "", "#g=" + enc);
+    }, 300);
+  }
+  function loadHash() {
+    const m = location.hash.match(/g=([A-Za-z0-9+/=_-]+)/);
+    if (!m) return;
+    try {
+      const obj = JSON.parse(decodeURIComponent(escape(atob(m[1]))));
+      state.mode = obj.m;
+      state.modes[obj.m] = { ...state.modes[obj.m], ...obj.p };
+      state.mark = { ...state.mark, ...obj.mk };
+      state.bg = obj.bg; state.color = obj.fg;
+      state.motion.phase = obj.ph || 0;
+      // sync UI
+      document.querySelectorAll(".mode-tab").forEach(x => x.classList.toggle("active", x.dataset.mode === state.mode));
+      Object.entries(MARK_KEYS).forEach(([id, key]) => {
+        $(id).value = state.mark[key];
+        const fmt = key === "n" ? v=>v.toFixed(0) : (key === "scale" ? v=>v.toFixed(2) : (["bandX","bandY"].includes(key) ? v=>v.toFixed(1) : v=>v.toFixed(0)));
+        $("v-" + id).textContent = fmt(state.mark[key]);
+      });
+      document.querySelectorAll(".swatches[data-target='bg'] .swatch-pick").forEach(s => s.classList.toggle("active", s.dataset.c === state.bg));
+      document.querySelectorAll(".swatches[data-target='fg'] .swatch-pick").forEach(s => s.classList.toggle("active", s.dataset.c === state.color));
+    } catch (e) {}
+  }
+
+  $("copyURL").addEventListener("click", async () => {
+    syncURL();
+    setTimeout(async () => {
+      try { await navigator.clipboard.writeText(location.href); toast("URL COPIED"); }
+      catch(e) { toast("COPY FAILED"); }
+    }, 320);
+  });
+  $("resetBtn").addEventListener("click", () => {
+    if (!confirm("Reset to default state?")) return;
+    state = DEFAULT_STATE();
+    location.hash = "";
+    document.querySelectorAll(".mode-tab").forEach(x => x.classList.toggle("active", x.dataset.mode === state.mode));
+    Object.entries(MARK_KEYS).forEach(([id, key]) => {
+      $(id).value = state.mark[key];
+      const fmt = key === "n" ? v=>v.toFixed(0) : (key === "scale" ? v=>v.toFixed(2) : (["bandX","bandY"].includes(key) ? v=>v.toFixed(1) : v=>v.toFixed(0)));
+      $("v-" + id).textContent = fmt(state.mark[key]);
+    });
+    document.querySelectorAll(".swatches[data-target='bg'] .swatch-pick").forEach(s => s.classList.toggle("active", s.dataset.c === state.bg));
+    document.querySelectorAll(".swatches[data-target='fg'] .swatch-pick").forEach(s => s.classList.toggle("active", s.dataset.c === state.color));
+    $("speed").value = 0; $("v-speed").textContent = "0.00";
+    $("phase").value = 0; $("v-phase").textContent = "0";
+    timeAccum = 0;
+    animPaused = true;
+    $("pausePlay").textContent = "▶ Play";
+    renderModeParams();
+    render();
+    toast("RESET");
+  });
+
+  // toast
+  let toastTimer;
+  function toast(msg) {
+    const t = $("toast");
+    t.textContent = msg;
+    t.classList.add("show");
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => t.classList.remove("show"), 1500);
+  }
+
+  // ─── animation loop
+  function frame(now) {
+    if (!animPaused) {
+      const dt = (now - lastFrame) / 1000;
+      timeAccum += dt * state.motion.speed;
+      lastFrame = now;
+      render();
+    }
+    requestAnimationFrame(frame);
+  }
+  lastFrame = performance.now();
+  requestAnimationFrame(frame);
+
+  // init
+  loadHash();
+  renderModeParams();
+  render();
+})();
+</script>
+</body>
+</html>

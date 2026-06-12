@@ -1,0 +1,290 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>ARENA / Letters from Rings</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body {
+    height: 100%;
+    background: #000;
+    color: #fff;
+    overflow: hidden;
+    font: 11px/1.4 ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    -webkit-font-smoothing: antialiased;
+    cursor: none;
+  }
+  body.show-cursor { cursor: default; }
+  #stage { position: fixed; inset: 0; background: #000; }
+  svg { width: 100%; height: 100%; display: block; }
+  .hud {
+    position: fixed;
+    pointer-events: none;
+    color: rgba(255,255,255,0.55);
+    text-transform: uppercase;
+    letter-spacing: 0.22em;
+    font-size: 10px;
+    opacity: 0;
+    transition: opacity 320ms;
+    mix-blend-mode: difference;
+    z-index: 10;
+  }
+  body.hud-on .hud { opacity: 1; }
+  .hud.tl { top: 22px; left: 24px; }
+  .hud.tr { top: 22px; right: 24px; text-align: right; }
+  .hud.bl { bottom: 22px; left: 24px; }
+  .hud.br { bottom: 22px; right: 24px; text-align: right; }
+  .hud b { color: #fff; font-weight: 600; }
+  .hint {
+    position: fixed;
+    bottom: 22px;
+    left: 50%;
+    transform: translateX(-50%);
+    color: rgba(255,255,255,0.4);
+    font-size: 10px;
+    letter-spacing: 0.3em;
+    text-transform: uppercase;
+    mix-blend-mode: difference;
+    transition: opacity 600ms;
+    z-index: 10;
+  }
+  body.hide-hint .hint { opacity: 0; }
+  .word {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, 200px);
+    pointer-events: none;
+    color: rgba(255,255,255,0.5);
+    font: 600 14px/1 ui-monospace, monospace;
+    letter-spacing: 0.5em;
+    mix-blend-mode: difference;
+    z-index: 10;
+    opacity: 0;
+    transition: opacity 320ms;
+  }
+  body.hud-on .word { opacity: 1; }
+  .word span { transition: color 200ms; color: rgba(255,255,255,0.3); }
+  .word span.active { color: #fff; }
+</style>
+</head>
+<body>
+<div id="stage">
+  <svg id="canvas" viewBox="0 0 1920 1080" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg">
+    <g id="root"></g>
+  </svg>
+</div>
+
+<div class="hud tl">ARENA<br><b>LETTERS FROM RINGS</b></div>
+<div class="hud tr"><span id="stateName">CANONICAL</span><br><b id="stateIdx">01 / 06</b></div>
+<div class="hud bl">PRIMITIVES <b>4</b><br><b id="phase">DWELL</b></div>
+<div class="hud br"><b id="lockStatus">ALIGNED</b><br><b id="formMode">MARK</b></div>
+<div class="word" id="word"><span data-i="0">A</span><span data-i="1">R</span><span data-i="2">E</span><span data-i="3">N</span><span data-i="4">A</span></div>
+<div class="hint">SPACE · PAUSE &nbsp;&nbsp; N · NEXT &nbsp;&nbsp; C · CANONICAL &nbsp;&nbsp; H · HUD &nbsp;&nbsp; F · FULL</div>
+
+<script>
+(() => {
+  const $ = id => document.getElementById(id);
+  const root = $("root");
+
+  const VW = 1920, VH = 1080;
+  const CX = VW / 2, CY = VH / 2;
+
+  function roundedRect(w, h, r) {
+    if (w <= 0 || h <= 0) return "";
+    r = Math.max(0, Math.min(r, w/2, h/2));
+    const x = -w/2, y = -h/2;
+    if (r < 0.5) return `M${x},${y}H${x+w}V${y+h}H${x}Z`;
+    return `M${x+r},${y}H${x+w-r}A${r},${r} 0 0 1 ${x+w},${y+r}V${y+h-r}A${r},${r} 0 0 1 ${x+w-r},${y+h}H${x+r}A${r},${r} 0 0 1 ${x},${y+h-r}V${y+r}A${r},${r} 0 0 1 ${x+r},${y}Z`;
+  }
+
+  // ─── primitive: outer stadium + inner stadium (filled with even-odd; if inner is zero, it's a solid stroke)
+  function primPath(p) {
+    return roundedRect(p.w, p.h, p.r) + " " + roundedRect(p.iw || 0, p.ih || 0, p.ir || 0);
+  }
+
+  // ─── states: 4 primitives per state
+  // each primitive: { cx, cy, w, h, r, rot, iw, ih, ir }
+  // Canonical: 4 nested ring bands (each is outer-minus-inner of the canonical recipe).
+  // Letters: 4 solid stadium strokes (iw=ih=ir=0).
+  const CANONICAL = [
+    { cx:0, cy:0, w:736, h:415, r:72, rot:0, iw:718.97, ih:365.97, ir:61.41 },
+    { cx:0, cy:0, w:564, h:322, r:58, rot:0, iw:546.32, ih:272.37, ir:46.95 },
+    { cx:0, cy:0, w:401, h:228, r:43, rot:0, iw:383.47, ih:178.77, ir:32.49 },
+    { cx:0, cy:0, w:228, h:126, r:29, rot:0, iw:210.82, ih:76.58,  ir:18.02 }
+  ];
+
+  // Letters built from 4 stadium strokes. All centered on canvas centre.
+  // Letterforms reference the Arena Regular spirit: tall, blocky, with diagonal cuts.
+  const A_LETTER = [
+    { cx:-95, cy: 20, w:60, h:420, r:30, rot: 12, iw:0, ih:0, ir:0 },  // left leg
+    { cx: 95, cy: 20, w:60, h:420, r:30, rot:-12, iw:0, ih:0, ir:0 },  // right leg
+    { cx:  0, cy: 60, w:200, h:50, r:25, rot:  0, iw:0, ih:0, ir:0 },  // crossbar
+    { cx:  0, cy:-200, w:140, h:50, r:25, rot:0, iw:0, ih:0, ir:0 }    // apex cap
+  ];
+  const R_LETTER = [
+    { cx:-100, cy:0, w:60, h:420, r:30, rot:0,  iw:0, ih:0, ir:0 },   // left stem
+    { cx: -10, cy:-160, w:200, h:50, r:25, rot:0, iw:0, ih:0, ir:0 }, // top bar
+    { cx: -10, cy: 10,  w:180, h:50, r:25, rot:0, iw:0, ih:0, ir:0 }, // middle bar
+    { cx:  60, cy: 130, w:60, h:240, r:30, rot:-26, iw:0, ih:0, ir:0 }// diagonal leg
+  ];
+  const E_LETTER = [
+    { cx:-85, cy:0, w:60, h:420, r:30, rot:0, iw:0, ih:0, ir:0 },     // stem
+    { cx: 20, cy:-160, w:220, h:50, r:25, rot:0, iw:0, ih:0, ir:0 },  // top
+    { cx:  5, cy:  0,  w:180, h:50, r:25, rot:0, iw:0, ih:0, ir:0 },  // middle
+    { cx: 20, cy: 160, w:220, h:50, r:25, rot:0, iw:0, ih:0, ir:0 }   // bottom
+  ];
+  const N_LETTER = [
+    { cx:-100, cy:0, w:60, h:420, r:30, rot:0, iw:0, ih:0, ir:0 },    // left stem
+    { cx: 100, cy:0, w:60, h:420, r:30, rot:0, iw:0, ih:0, ir:0 },    // right stem
+    { cx:  0,  cy:0, w:60, h:480, r:30, rot:24, iw:0, ih:0, ir:0 },   // diagonal
+    { cx:  0,  cy:230, w:0, h:0, r:0, rot:0, iw:0, ih:0, ir:0 }       // hidden
+  ];
+
+  const STATES = [
+    { name: "CANONICAL", prims: CANONICAL, dwell: 2600, transition: 1400, letterIdx: -1 },
+    { name: "A",         prims: A_LETTER,  dwell: 1300, transition: 1400, letterIdx: 0 },
+    { name: "R",         prims: R_LETTER,  dwell: 1300, transition: 1400, letterIdx: 1 },
+    { name: "E",         prims: E_LETTER,  dwell: 1300, transition: 1400, letterIdx: 2 },
+    { name: "N",         prims: N_LETTER,  dwell: 1300, transition: 1400, letterIdx: 3 },
+    { name: "A",         prims: A_LETTER,  dwell: 1800, transition: 1400, letterIdx: 4 }
+  ];
+
+  let stateIdx = 0;
+  let nextStateIdx = 1;
+  let current = STATES[0].prims.map(p => ({ ...p }));
+  let target = STATES[1].prims.map(p => ({ ...p }));
+  let phaseStart = performance.now();
+  let phase = "DWELL";
+  let pausedAt = null;
+  let pauseOffset = 0;
+
+  function nowMs() {
+    if (pausedAt !== null) return pausedAt - pauseOffset;
+    return performance.now() - pauseOffset;
+  }
+
+  // ─── interpolation
+  const ease = t => t < 0.5 ? 4*t*t*t : 1 - Math.pow(-2*t + 2, 3) / 2;
+  const lerp = (a, b, t) => a + (b - a) * t;
+  function lerpPrim(a, b, t) {
+    return {
+      cx: lerp(a.cx, b.cx, t),
+      cy: lerp(a.cy, b.cy, t),
+      w:  lerp(a.w,  b.w,  t),
+      h:  lerp(a.h,  b.h,  t),
+      r:  lerp(a.r,  b.r,  t),
+      rot: lerp(a.rot, b.rot, t),
+      iw: lerp(a.iw, b.iw, t),
+      ih: lerp(a.ih, b.ih, t),
+      ir: lerp(a.ir, b.ir, t)
+    };
+  }
+
+  function setActiveLetter(idx) {
+    document.querySelectorAll("#word span").forEach(s => {
+      s.classList.toggle("active", +s.dataset.i === idx);
+    });
+  }
+
+  // ─── render
+  let scaleK = 1; // global scale to fit letterforms reasonably
+  function tick() {
+    const now = nowMs();
+    const elapsed = now - phaseStart;
+    const s = STATES[stateIdx];
+    const t = STATES[nextStateIdx];
+    let blendT = 1;
+    if (phase === "TRANSITION") {
+      blendT = Math.min(1, elapsed / s.transition);
+      if (blendT >= 1) {
+        phase = "DWELL";
+        phaseStart = now;
+        stateIdx = nextStateIdx;
+        nextStateIdx = (stateIdx + 1) % STATES.length;
+        current = STATES[stateIdx].prims.map(p => ({ ...p }));
+        target = STATES[nextStateIdx].prims.map(p => ({ ...p }));
+      }
+    } else if (phase === "DWELL") {
+      if (elapsed >= s.dwell) {
+        phase = "TRANSITION";
+        phaseStart = now;
+      }
+      blendT = 0;
+    }
+
+    const e = ease(blendT);
+    const prims = current.map((cp, i) => lerpPrim(cp, target[i], e));
+
+    let svg = "";
+    for (const p of prims) {
+      const x = CX + p.cx * scaleK;
+      const y = CY + p.cy * scaleK;
+      svg += `<g transform="translate(${x.toFixed(2)} ${y.toFixed(2)}) rotate(${p.rot.toFixed(2)}) scale(${scaleK.toFixed(3)})"><path d="${primPath(p)}" fill="#fff" fill-rule="evenodd"/></g>`;
+    }
+    root.innerHTML = svg;
+
+    // hud
+    const showingState = phase === "DWELL" ? STATES[stateIdx] : (e < 0.5 ? STATES[stateIdx] : STATES[nextStateIdx]);
+    $("stateName").textContent = showingState.name;
+    $("stateIdx").textContent = String(stateIdx + 1).padStart(2,"0") + " / " + String(STATES.length).padStart(2,"0");
+    $("phase").textContent = phase + (phase === "TRANSITION" ? " " + Math.round(blendT * 100) + "%" : "");
+    $("lockStatus").textContent = stateIdx === 0 && phase === "DWELL" ? "ALIGNED" : "LETTERFORM";
+    $("formMode").textContent = showingState.letterIdx >= 0 ? "LETTER" : "MARK";
+    setActiveLetter(showingState.letterIdx);
+
+    requestAnimationFrame(tick);
+  }
+
+  // ─── input
+  window.addEventListener("keydown", e => {
+    if (e.key === " ") {
+      e.preventDefault();
+      if (pausedAt !== null) { pauseOffset += performance.now() - pausedAt; pausedAt = null; }
+      else pausedAt = performance.now();
+    } else if (e.key === "n" || e.key === "N") {
+      // jump to next state immediately
+      stateIdx = nextStateIdx;
+      nextStateIdx = (stateIdx + 1) % STATES.length;
+      current = STATES[stateIdx].prims.map(p => ({ ...p }));
+      target = STATES[nextStateIdx].prims.map(p => ({ ...p }));
+      phase = "DWELL";
+      phaseStart = nowMs();
+    } else if (e.key === "c" || e.key === "C") {
+      // jump back to canonical
+      stateIdx = 0;
+      nextStateIdx = 1;
+      current = STATES[0].prims.map(p => ({ ...p }));
+      target = STATES[1].prims.map(p => ({ ...p }));
+      phase = "DWELL";
+      phaseStart = nowMs();
+    } else if (e.key === "h" || e.key === "H") {
+      document.body.classList.toggle("hud-on");
+    } else if (e.key === "f" || e.key === "F") {
+      if (document.fullscreenElement) document.exitFullscreen();
+      else document.documentElement.requestFullscreen();
+    }
+  });
+
+  let idleTimer;
+  function showUI() {
+    document.body.classList.add("show-cursor");
+    document.body.classList.remove("hide-hint");
+    clearTimeout(idleTimer);
+    idleTimer = setTimeout(() => {
+      document.body.classList.remove("show-cursor");
+      document.body.classList.add("hide-hint");
+    }, 2400);
+  }
+  document.addEventListener("mousemove", showUI);
+  showUI();
+  document.body.classList.add("hud-on");
+  // keep the word visible always
+  // (don't auto-hide HUD on init for this prototype — the word + state are core)
+
+  requestAnimationFrame(tick);
+})();
+</script>
+</body>
+</html>

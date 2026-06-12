@@ -1,0 +1,336 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>ARENA / Cursor Forge</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body {
+    height: 100%;
+    background: #000;
+    color: #fff;
+    overflow: hidden;
+    font: 11px/1.4 ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    -webkit-font-smoothing: antialiased;
+    cursor: none;
+  }
+  body.show-cursor { cursor: default; }
+  #stage {
+    position: fixed;
+    inset: 0;
+    background: #000;
+  }
+  svg { width: 100%; height: 100%; display: block; }
+  .hud {
+    position: fixed;
+    pointer-events: none;
+    color: rgba(255,255,255,0.55);
+    text-transform: uppercase;
+    letter-spacing: 0.22em;
+    font-size: 10px;
+    opacity: 0;
+    transition: opacity 320ms;
+    mix-blend-mode: difference;
+    z-index: 10;
+  }
+  body.hud-on .hud { opacity: 1; }
+  .hud.tl { top: 22px; left: 24px; }
+  .hud.tr { top: 22px; right: 24px; text-align: right; }
+  .hud.bl { bottom: 22px; left: 24px; }
+  .hud.br { bottom: 22px; right: 24px; text-align: right; }
+  .hud b { color: #fff; font-weight: 600; }
+  .hint {
+    position: fixed;
+    bottom: 22px;
+    left: 50%;
+    transform: translateX(-50%);
+    color: rgba(255,255,255,0.4);
+    font-size: 10px;
+    letter-spacing: 0.3em;
+    text-transform: uppercase;
+    mix-blend-mode: difference;
+    transition: opacity 600ms;
+    z-index: 10;
+  }
+  body.hide-hint .hint { opacity: 0; }
+  .reticle {
+    position: fixed;
+    width: 22px; height: 22px;
+    border: 1px solid rgba(255,255,255,0.7);
+    margin: -11px 0 0 -11px;
+    pointer-events: none;
+    mix-blend-mode: difference;
+    transition: width 200ms, height 200ms, margin 200ms, border-color 120ms;
+    z-index: 20;
+  }
+  .reticle.forging {
+    width: 44px; height: 44px;
+    margin: -22px 0 0 -22px;
+    border-color: #ff3a1f;
+  }
+  .reticle::before, .reticle::after {
+    content: ""; position: absolute; background: rgba(255,255,255,0.85);
+  }
+  .reticle::before { left: 50%; top: -10px; height: 8px; width: 1px; margin-left: -0.5px; }
+  .reticle::after  { top: 50%; left: -10px; width: 8px; height: 1px; margin-top: -0.5px; }
+</style>
+</head>
+<body>
+<div id="stage">
+  <svg id="canvas" viewBox="0 0 1920 1080" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg">
+    <g id="root"></g>
+  </svg>
+</div>
+
+<div class="reticle" id="reticle"></div>
+<div class="hud tl">ARENA<br><b>CURSOR FORGE</b></div>
+<div class="hud tr"><span id="modeName">PUSH</span><br><b id="modeIdx">01 / 04</b></div>
+<div class="hud bl">FORCE <b id="force">0.00</b><br>ACTIVITY <b id="activity">REST</b></div>
+<div class="hud br">RINGS <b>4</b><br><b id="lockStatus">ALIGNED</b></div>
+<div class="hint">MOVE · STEER &nbsp;&nbsp; HOLD · FORGE &nbsp;&nbsp; M · MODE &nbsp;&nbsp; H · HUD &nbsp;&nbsp; F · FULLSCREEN</div>
+
+<script>
+(() => {
+  const $ = id => document.getElementById(id);
+  const root = $("root");
+  const reticle = $("reticle");
+
+  const VW = 1920, VH = 1080;
+  const CX = VW / 2, CY = VH / 2;
+
+  // ─── canonical ring geometry (derived from RINGS.svg recipe)
+  const RECIPE = { W: 736, H: 415, R: 72, bandX: 8.6, bandY: 24.5, gapX: 77, gapY: 22, dRb: 10.7, dRg: 3.8 };
+  const CANON = (() => {
+    const out = [];
+    let w = RECIPE.W, h = RECIPE.H, r = RECIPE.R;
+    for (let i = 0; i < 4; i++) {
+      out.push({ W: w, H: h, R: r, bandX: RECIPE.bandX, bandY: RECIPE.bandY, dRb: RECIPE.dRb });
+      const innerW = w - 2 * RECIPE.bandX;
+      const innerH = h - 2 * RECIPE.bandY;
+      const innerR = Math.max(0, r - RECIPE.dRb);
+      w = innerW - 2 * RECIPE.gapX;
+      h = innerH - 2 * RECIPE.gapY;
+      r = Math.max(0, innerR - RECIPE.dRg);
+    }
+    return out;
+  })();
+
+  function roundedRect(w, h, r) {
+    if (w <= 0 || h <= 0) return "";
+    r = Math.max(0, Math.min(r, w / 2, h / 2));
+    const x = -w / 2, y = -h / 2;
+    if (r < 0.5) return `M${x},${y}H${x+w}V${y+h}H${x}Z`;
+    return `M${x+r},${y}H${x+w-r}A${r},${r} 0 0 1 ${x+w},${y+r}V${y+h-r}A${r},${r} 0 0 1 ${x+w-r},${y+h}H${x+r}A${r},${r} 0 0 1 ${x},${y+h-r}V${y+r}A${r},${r} 0 0 1 ${x+r},${y}Z`;
+  }
+
+  function ringPath(r) {
+    return roundedRect(r.W, r.H, r.R) + " " +
+           roundedRect(r.W - 2 * r.bandX, r.H - 2 * r.bandY, Math.max(0, r.R - r.dRb));
+  }
+
+  // ─── physics state per ring
+  // Outer rings have higher inertia (lower stiffness, more damping).
+  // Inner rings are twitchy and dart toward the cursor more responsively.
+  const PHYS = [
+    { stiffness: 0.045, damping: 0.16, forceScale: 1.0, rotStiffness: 0.020 },
+    { stiffness: 0.055, damping: 0.15, forceScale: 1.4, rotStiffness: 0.030 },
+    { stiffness: 0.075, damping: 0.14, forceScale: 1.9, rotStiffness: 0.045 },
+    { stiffness: 0.110, damping: 0.13, forceScale: 2.6, rotStiffness: 0.065 }
+  ];
+
+  const ringState = CANON.map((c, i) => ({
+    cx: 0, cy: 0, vx: 0, vy: 0,        // offset from center, velocity
+    sx: 1, sy: 1, vsx: 0, vsy: 0,       // scale + scale velocity
+    rot: 0, vrot: 0,                    // rotation degrees + velocity
+    geom: c,
+    phys: PHYS[i],
+    idx: i
+  }));
+
+  // ─── input
+  let mouse = { x: CX, y: CY, screenX: 0, screenY: 0 };
+  let mouseActive = false;
+  let lastMouseAt = 0;
+  let isForging = false;
+
+  function clientToCanvas(clientX, clientY) {
+    const rect = document.getElementById("canvas").getBoundingClientRect();
+    const x = ((clientX - rect.left) / rect.width)  * VW;
+    const y = ((clientY - rect.top)  / rect.height) * VH;
+    return { x, y };
+  }
+
+  window.addEventListener("mousemove", e => {
+    mouse.screenX = e.clientX;
+    mouse.screenY = e.clientY;
+    const pt = clientToCanvas(e.clientX, e.clientY);
+    mouse.x = pt.x;
+    mouse.y = pt.y;
+    mouseActive = true;
+    lastMouseAt = performance.now();
+    reticle.style.left = e.clientX + "px";
+    reticle.style.top  = e.clientY + "px";
+    showUI();
+  });
+
+  window.addEventListener("mousedown", e => {
+    if (e.button === 0) { isForging = true; reticle.classList.add("forging"); }
+  });
+  window.addEventListener("mouseup", e => {
+    if (e.button === 0) { isForging = false; reticle.classList.remove("forging"); }
+  });
+
+  // ─── modes
+  const MODES = ["PUSH", "PULL", "ORBIT", "DISTORT"];
+  let modeIdx = 0;
+  let mode = MODES[0];
+
+  // ─── helpers
+  function computeForce(rx, ry, mx, my, modeName, scale) {
+    const dx = rx - mx;
+    const dy = ry - my;
+    const dist = Math.hypot(dx, dy);
+    if (dist < 1) return { fx: 0, fy: 0, fSx: 0, fSy: 0, fRot: 0, mag: 0 };
+    const ux = dx / dist;
+    const uy = dy / dist;
+    // inverse-square magnitude clamped, falls to 0 beyond range
+    const mag = Math.min(280, 90000 / (dist * dist + 220));
+    const m = mag * scale;
+
+    if (modeName === "PUSH") {
+      return { fx: ux * m, fy: uy * m, fSx: 0, fSy: 0, fRot: 0, mag };
+    }
+    if (modeName === "PULL") {
+      return { fx: -ux * m, fy: -uy * m, fSx: 0, fSy: 0, fRot: 0, mag };
+    }
+    if (modeName === "ORBIT") {
+      // tangential force perpendicular to radius
+      return { fx: -uy * m * 0.85, fy: ux * m * 0.85, fSx: 0, fSy: 0, fRot: m * 0.012, mag };
+    }
+    if (modeName === "DISTORT") {
+      // compress along cursor direction, stretch perpendicular
+      const closeness = Math.min(1, m / 220);
+      // angle of cursor relative to ring
+      const ang = Math.atan2(dy, dx); // radians
+      // decompose desired scale into sx, sy via projection
+      const compress = 1 - closeness * 0.32;
+      const stretch  = 1 + closeness * 0.32;
+      // approximate by aligning the dominant axis
+      const c = Math.cos(ang), s = Math.sin(ang);
+      // use absolute alignment: if cursor is more horizontal, compress sx; if more vertical, compress sy
+      const horiz = Math.abs(c);
+      const vert  = Math.abs(s);
+      const targetSx = compress * horiz + stretch * vert;
+      const targetSy = compress * vert + stretch * horiz;
+      return {
+        fx: 0, fy: 0,
+        fSx: (targetSx - 1) * 0.3,  // pushed toward target scale
+        fSy: (targetSy - 1) * 0.3,
+        fRot: 0, mag
+      };
+    }
+    return { fx: 0, fy: 0, fSx: 0, fSy: 0, fRot: 0, mag };
+  }
+
+  let last = performance.now();
+  let totalForce = 0;
+
+  function tick(now) {
+    const dt = Math.min(64, now - last);
+    last = now;
+    const dt60 = dt / 16.6667;
+    // mouse inactive timeout
+    if (now - lastMouseAt > 1800) mouseActive = false;
+
+    let aggregateForce = 0;
+    let svg = "";
+    for (const r of ringState) {
+      // resting target = canonical (cx=0, cy=0, sx=1, sy=1, rot=0)
+      // force adds an external displacement target
+      let fx = 0, fy = 0, fSx = 0, fSy = 0, fRot = 0, mag = 0;
+      if (mouseActive) {
+        const f = computeForce(CX + r.cx, CY + r.cy, mouse.x, mouse.y, mode, r.phys.forceScale * (isForging ? 2.4 : 1));
+        fx = f.fx; fy = f.fy; fSx = f.fSx; fSy = f.fSy; fRot = f.fRot;
+        mag = f.mag;
+      }
+      aggregateForce += mag;
+
+      // target positions/scales include the force-driven displacement
+      const targetCx = fx;
+      const targetCy = fy;
+      const targetSx = 1 + fSx;
+      const targetSy = 1 + fSy;
+      const targetRot = fRot * 12; // degrees
+
+      // spring physics — Hookean toward target
+      r.vx += (targetCx - r.cx) * r.phys.stiffness * dt60;
+      r.vy += (targetCy - r.cy) * r.phys.stiffness * dt60;
+      r.vsx += (targetSx - r.sx) * (r.phys.stiffness * 1.2) * dt60;
+      r.vsy += (targetSy - r.sy) * (r.phys.stiffness * 1.2) * dt60;
+      r.vrot += (targetRot - r.rot) * r.phys.rotStiffness * dt60;
+
+      r.vx *= Math.pow(1 - r.phys.damping, dt60);
+      r.vy *= Math.pow(1 - r.phys.damping, dt60);
+      r.vsx *= Math.pow(1 - r.phys.damping, dt60);
+      r.vsy *= Math.pow(1 - r.phys.damping, dt60);
+      r.vrot *= Math.pow(1 - r.phys.damping, dt60);
+
+      r.cx += r.vx * dt60;
+      r.cy += r.vy * dt60;
+      r.sx += r.vsx * dt60;
+      r.sy += r.vsy * dt60;
+      r.rot += r.vrot * dt60;
+
+      const x = CX + r.cx;
+      const y = CY + r.cy;
+      svg += `<g transform="translate(${x.toFixed(2)} ${y.toFixed(2)}) rotate(${r.rot.toFixed(2)}) scale(${r.sx.toFixed(4)} ${r.sy.toFixed(4)})"><path d="${ringPath(r.geom)}" fill="#fff" fill-rule="evenodd"/></g>`;
+    }
+    root.innerHTML = svg;
+
+    // smooth aggregate force for HUD
+    totalForce = totalForce * 0.85 + aggregateForce * 0.15;
+    $("force").textContent = totalForce.toFixed(2);
+
+    // alignment indicator: how close to canonical
+    const drift = ringState.reduce((s, r) => s + Math.abs(r.cx) + Math.abs(r.cy) + Math.abs(r.sx - 1) * 200 + Math.abs(r.sy - 1) * 200, 0);
+    $("lockStatus").textContent = drift < 4 ? "ALIGNED" : "FORGED";
+    $("activity").textContent = mouseActive ? (isForging ? "FORGING" : "ACTIVE") : "REST";
+    $("modeName").textContent = mode;
+    $("modeIdx").textContent = String(modeIdx + 1).padStart(2,"0") + " / " + String(MODES.length).padStart(2,"0");
+
+    requestAnimationFrame(tick);
+  }
+
+  // ─── keys
+  window.addEventListener("keydown", e => {
+    if (e.key === "m" || e.key === "M") {
+      modeIdx = (modeIdx + 1) % MODES.length;
+      mode = MODES[modeIdx];
+    } else if (e.key === "h" || e.key === "H") {
+      document.body.classList.toggle("hud-on");
+    } else if (e.key === "f" || e.key === "F") {
+      if (document.fullscreenElement) document.exitFullscreen();
+      else document.documentElement.requestFullscreen();
+    }
+  });
+
+  let idleTimer;
+  function showUI() {
+    document.body.classList.add("show-cursor");
+    document.body.classList.remove("hide-hint");
+    clearTimeout(idleTimer);
+    idleTimer = setTimeout(() => {
+      document.body.classList.remove("show-cursor");
+      document.body.classList.add("hide-hint");
+    }, 2400);
+  }
+  showUI();
+  document.body.classList.add("hud-on");
+  setTimeout(() => document.body.classList.remove("hud-on"), 3500);
+
+  requestAnimationFrame(now => { last = now; tick(now); });
+})();
+</script>
+</body>
+</html>

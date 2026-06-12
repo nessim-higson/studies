@@ -1,0 +1,520 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>ARENA · Drawer Style Comps</title>
+<style>
+  :root {
+    --bg: #0a0a0a;
+    --panel: #161616;
+    --fg: #fafafa;
+    --muted: #8a8a8a;
+    --line: #2a2a2a;
+    --accent: #ffe600;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    padding: 28px;
+    background: var(--bg);
+    color: var(--fg);
+    font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  h1 {
+    font: 700 16px/1.1 "Helvetica Neue", Helvetica, Arial, sans-serif;
+    letter-spacing: 0.04em;
+    margin: 0 0 4px;
+  }
+  .subtitle {
+    color: var(--muted);
+    font-size: 12px;
+    letter-spacing: 0.02em;
+    margin-bottom: 28px;
+  }
+  .row {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 26px;
+    align-items: start;
+  }
+  .comp {
+    background: var(--panel);
+    padding: 0;
+    overflow: hidden;
+  }
+  .comp-label {
+    background: rgba(255, 230, 0, 0.12);
+    color: var(--accent);
+    font: 700 12px/1.2 "Helvetica Neue", Helvetica, Arial, sans-serif;
+    letter-spacing: 0.02em;
+    padding: 14px 18px;
+    border-bottom: 1px solid rgba(255, 230, 0, 0.30);
+  }
+  .comp-label small { display:block; color: var(--muted); font-size:11px; font-weight:500; letter-spacing:0; margin-top:5px; }
+  .comp-body { padding: 18px; }
+
+  /* ─────────── shared mini-drawer structure ─────────── */
+  .brand-logo {
+    display: block;
+    width: 60%;
+    height: auto;
+    max-height: 28px;
+    margin: 22px auto 16px;
+    cursor: pointer;
+    transition: opacity 120ms;
+  }
+  .brand-logo:hover { opacity: 0.7; }
+  .sub-meta {
+    color: var(--muted);
+    font-size: 11px;
+    letter-spacing: 0.02em;
+    text-align: center;
+    margin-bottom: 16px;
+  }
+
+  /* ============================================================
+     STYLE A — Current (baseline)
+     ============================================================ */
+  .a .header-actions { display:grid; grid-template-columns: 1fr 1fr; gap: 6px; margin: 0 0 6px; }
+  .a .header-actions.single { grid-template-columns: 1fr; }
+  .a .header-btn {
+    background: transparent;
+    border: 1px solid var(--line);
+    color: var(--fg);
+    padding: 12px 6px;
+    font: 600 14px/1 "Helvetica Neue", Helvetica, Arial, sans-serif;
+    letter-spacing: 0;
+
+    cursor: pointer;
+  }
+  .a .header-btn.primary { background: var(--fg); color: var(--bg); border-color: var(--fg); }
+  .a .header-btn.active { background: var(--accent); color: var(--bg); border-color: var(--accent); }
+  .a .section { margin-top: 22px; }
+  .a .legend {
+    background: #2e2e2e;
+    color: var(--fg);
+    padding: 14px;
+    margin: 0 -18px;
+    font: 600 15px/1 "Helvetica Neue", Helvetica, Arial, sans-serif;
+    letter-spacing: 0;
+
+    border-left: 3px solid var(--accent);
+  }
+  .a .legend::before { content: "▾ "; color: var(--accent); }
+  .a .row-line { display: grid; grid-template-columns: 1fr auto; gap: 10px; align-items: center; padding: 10px 0; font-size: 13px; letter-spacing: 0; color: var(--muted); }
+  .a .row-line .val { color: var(--fg); font-weight: 600; }
+  .a .slider { grid-column: 1 / -1; height: 14px; appearance: none; background: transparent; }
+  .a .slider::-webkit-slider-runnable-track { height: 1px; background: var(--line); }
+  .a .slider::-webkit-slider-thumb { appearance: none; width: 10px; height: 10px; background: var(--fg); margin-top: -5px; }
+  .a .toggle-btn {
+    background: transparent;
+    border: 1px solid var(--line);
+    color: var(--fg);
+    padding: 7px 8px;
+    font: 500 13px/1 "Helvetica Neue", Helvetica, Arial, sans-serif;
+    letter-spacing: 0;
+
+    cursor: pointer;
+  }
+  .a .toggle-btn.on { background: var(--accent); color: var(--bg); border-color: var(--accent); }
+
+  /* ============================================================
+     STYLE B — Light Refresh
+     Same language, rounded corners, more spacing, bigger sliders
+     ============================================================ */
+  .b .header-actions { display:grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 0 0 8px; }
+  .b .header-actions.single { grid-template-columns: 1fr; }
+  .b .header-btn {
+    background: transparent;
+    border: 1px solid var(--line);
+    color: var(--fg);
+    padding: 14px 6px;
+    font: 600 14px/1 "Helvetica Neue", Helvetica, Arial, sans-serif;
+    letter-spacing: 0;
+
+    cursor: pointer;
+    border-radius: 8px;
+  }
+  .b .header-btn.primary { background: var(--fg); color: var(--bg); border-color: var(--fg); }
+  .b .header-btn.active { background: var(--accent); color: var(--bg); border-color: var(--accent); }
+  .b .section { margin-top: 24px; }
+  .b .legend {
+    background: #2a2a2a;
+    color: var(--fg);
+    padding: 16px;
+    margin: 0 -18px;
+    font: 600 15px/1 "Helvetica Neue", Helvetica, Arial, sans-serif;
+    letter-spacing: 0;
+
+    border-left: 3px solid var(--accent);
+    border-radius: 0 8px 8px 0;
+  }
+  .b .legend::before { content: "▾ "; color: var(--accent); }
+  .b .row-line { display: grid; grid-template-columns: 1fr auto; gap: 10px; align-items: center; padding: 14px 0; font-size: 13px; letter-spacing: 0; color: var(--muted); }
+  .b .row-line .val { color: var(--fg); font-weight: 600; }
+  .b .slider { grid-column: 1 / -1; height: 22px; appearance: none; background: transparent; }
+  .b .slider::-webkit-slider-runnable-track { height: 2px; background: var(--line); border-radius: 1px; }
+  .b .slider::-webkit-slider-thumb { appearance: none; width: 16px; height: 16px; background: var(--fg); margin-top: -7px; border-radius: 50%; }
+  .b .toggle-btn {
+    background: transparent;
+    border: 1px solid var(--line);
+    color: var(--fg);
+    padding: 10px 10px;
+    font: 500 13px/1 "Helvetica Neue", Helvetica, Arial, sans-serif;
+    letter-spacing: 0;
+
+    cursor: pointer;
+    border-radius: 6px;
+  }
+  .b .toggle-btn.on { background: var(--accent); color: var(--bg); border-color: var(--accent); }
+
+  /* ============================================================
+     STYLE C — Switch Toggles (light refresh + pill switches)
+     ============================================================ */
+  .c .header-actions { display:grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 0 0 8px; }
+  .c .header-actions.single { grid-template-columns: 1fr; }
+  .c .header-btn {
+    background: transparent;
+    border: 1px solid var(--line);
+    color: var(--fg);
+    padding: 14px 6px;
+    font: 600 14px/1 "Helvetica Neue", Helvetica, Arial, sans-serif;
+    letter-spacing: 0;
+
+    cursor: pointer;
+    border-radius: 8px;
+  }
+  .c .header-btn.primary { background: var(--fg); color: var(--bg); border-color: var(--fg); }
+  .c .header-btn.active { background: var(--accent); color: var(--bg); border-color: var(--accent); }
+  /* Switch-style toggle for binary states (Wordmark, Canonical lock, Grid, Invert) */
+  .c .switch-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 14px 0;
+    font: 600 14px/1 "Helvetica Neue", Helvetica, Arial, sans-serif;
+    letter-spacing: 0;
+
+  }
+  .c .switch {
+    position: relative;
+    width: 44px;
+    height: 24px;
+    background: #1f1f1f;
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    cursor: pointer;
+    transition: background 120ms, border-color 120ms;
+  }
+  .c .switch::after {
+    content: "";
+    position: absolute;
+    top: 3px; left: 3px;
+    width: 16px; height: 16px;
+    background: #888;
+    border-radius: 50%;
+    transition: transform 160ms, background 120ms;
+  }
+  .c .switch.on { background: var(--accent); border-color: var(--accent); }
+  .c .switch.on::after { transform: translateX(20px); background: var(--fg); }
+  .c .section { margin-top: 24px; }
+  .c .legend {
+    background: #2a2a2a;
+    color: var(--fg);
+    padding: 16px;
+    margin: 0 -18px;
+    font: 600 15px/1 "Helvetica Neue", Helvetica, Arial, sans-serif;
+    letter-spacing: 0;
+
+    border-left: 3px solid var(--accent);
+    border-radius: 0 8px 8px 0;
+  }
+  .c .legend::before { content: "▾ "; color: var(--accent); }
+  .c .row-line { display: grid; grid-template-columns: 1fr auto; gap: 10px; align-items: center; padding: 14px 0; font-size: 13px; letter-spacing: 0; color: var(--muted); }
+  .c .row-line .val { color: var(--fg); font-weight: 600; }
+  .c .slider { grid-column: 1 / -1; height: 22px; appearance: none; background: transparent; }
+  .c .slider::-webkit-slider-runnable-track { height: 2px; background: var(--line); border-radius: 1px; }
+  .c .slider::-webkit-slider-thumb { appearance: none; width: 16px; height: 16px; background: var(--fg); margin-top: -7px; border-radius: 50%; }
+
+  /* ============================================================
+     STYLE D — Full Redesign (card-based, elevation, header pills)
+     ============================================================ */
+  .d { padding: 0; }
+  .d .comp-body { padding: 20px; background: #0c0c0c; }
+  .d .header-actions { display:grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 0 0 10px; }
+  .d .header-actions.single { grid-template-columns: 1fr; }
+  .d .header-btn {
+    background: #1c1c1c;
+    border: 1px solid #2a2a2a;
+    color: var(--fg);
+    padding: 16px 6px;
+    font: 600 14px/1 "Helvetica Neue", Helvetica, Arial, sans-serif;
+    letter-spacing: 0;
+
+    cursor: pointer;
+    border-radius: 12px;
+    transition: background 120ms, border-color 120ms;
+  }
+  .d .header-btn.primary { background: var(--fg); color: var(--bg); border-color: var(--fg); }
+  .d .header-btn.active { background: var(--accent); color: var(--bg); border-color: var(--accent); }
+  /* Card-based sections */
+  .d .card {
+    background: #1c1c1c;
+    border: 1px solid #2a2a2a;
+    border-radius: 14px;
+    padding: 0;
+    margin-top: 16px;
+    overflow: hidden;
+  }
+  .d .card-header {
+    background: #232323;
+    padding: 18px 20px;
+    font: 600 15px/1 "Helvetica Neue", Helvetica, Arial, sans-serif;
+    letter-spacing: 0;
+
+    color: var(--fg);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    cursor: pointer;
+  }
+  .d .card-header::before { content: "▾"; color: var(--accent); margin-right: 10px; }
+  .d .card-header > span:first-of-type { flex: 1; }
+  .d .card-body { padding: 18px 20px; }
+  .d .switch-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 14px 0;
+    font: 600 14px/1 "Helvetica Neue", Helvetica, Arial, sans-serif;
+    letter-spacing: 0;
+
+  }
+  .d .switch {
+    position: relative;
+    width: 48px;
+    height: 26px;
+    background: #2a2a2a;
+    border-radius: 14px;
+    cursor: pointer;
+    transition: background 120ms;
+  }
+  .d .switch::after {
+    content: "";
+    position: absolute;
+    top: 3px; left: 3px;
+    width: 20px; height: 20px;
+    background: #888;
+    border-radius: 50%;
+    transition: transform 160ms, background 120ms;
+  }
+  .d .switch.on { background: var(--accent); }
+  .d .switch.on::after { transform: translateX(22px); background: var(--fg); }
+  .d .row-line { display: grid; grid-template-columns: 1fr auto; gap: 10px; align-items: center; padding: 16px 0; font-size: 13px; letter-spacing: 0; color: var(--muted); }
+  .d .row-line .val { color: var(--fg); font-weight: 600; }
+  .d .slider { grid-column: 1 / -1; height: 26px; appearance: none; background: transparent; }
+  .d .slider::-webkit-slider-runnable-track { height: 4px; background: #2a2a2a; border-radius: 2px; }
+  .d .slider::-webkit-slider-thumb { appearance: none; width: 20px; height: 20px; background: var(--fg); margin-top: -8px; border-radius: 50%; box-shadow: 0 2px 8px rgba(0,0,0,0.4); }
+</style>
+</head>
+<body>
+
+<h1>Drawer Style Comps</h1>
+<div class="subtitle">Four directions to consider · same content, different rhythm</div>
+
+<div class="row">
+
+  <!-- ─────── A — Current ─────── -->
+  <div class="comp a">
+    <div class="comp-label">A · Current<small>baseline today</small></div>
+    <div class="comp-body">
+      <a href="javascript:location.reload()" title="Reload — reset to defaults"><img class="brand-logo" src="arena-logo.png" alt="ARENA"></a>
+      <div class="sub-meta">Ring Engine · V.2 · iter 12</div>
+      <div class="header-actions">
+        <button class="header-btn active">🔒 Canonical</button>
+        <button class="header-btn primary">↻ Randomize</button>
+      </div>
+      <div class="header-actions">
+        <button class="header-btn active">⊕ Centered</button>
+        <button class="header-btn">⊗ Rotated</button>
+      </div>
+      <div class="header-actions single">
+        <button class="header-btn active">⊞ Wordmark On</button>
+      </div>
+
+      <div class="section">
+        <div class="legend">Stack</div>
+        <div class="row-line">
+          <span>Ring Count</span>
+          <span class="val">14</span>
+          <input class="slider" type="range" value="56">
+        </div>
+        <div class="row-line">
+          <span>Position X</span>
+          <span class="val">0.50</span>
+          <input class="slider" type="range" value="50">
+        </div>
+        <div class="row-line">
+          <span>Rotation</span>
+          <span class="val">0°</span>
+          <input class="slider" type="range" value="50">
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:10px">
+          <button class="toggle-btn on">Grid</button>
+          <button class="toggle-btn">Invert</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ─────── B — Light Refresh ─────── -->
+  <div class="comp b">
+    <div class="comp-label">B · Light Refresh<small>rounded corners · breathing room · bigger sliders</small></div>
+    <div class="comp-body">
+      <a href="javascript:location.reload()" title="Reload — reset to defaults"><img class="brand-logo" src="arena-logo.png" alt="ARENA"></a>
+      <div class="sub-meta">Ring Engine · V.2 · iter 12</div>
+      <div class="header-actions">
+        <button class="header-btn active">🔒 Canonical</button>
+        <button class="header-btn primary">↻ Randomize</button>
+      </div>
+      <div class="header-actions">
+        <button class="header-btn active">⊕ Centered</button>
+        <button class="header-btn">⊗ Rotated</button>
+      </div>
+      <div class="header-actions single">
+        <button class="header-btn active">⊞ Wordmark On</button>
+      </div>
+
+      <div class="section">
+        <div class="legend">Stack</div>
+        <div class="row-line">
+          <span>Ring Count</span>
+          <span class="val">14</span>
+          <input class="slider" type="range" value="56">
+        </div>
+        <div class="row-line">
+          <span>Position X</span>
+          <span class="val">0.50</span>
+          <input class="slider" type="range" value="50">
+        </div>
+        <div class="row-line">
+          <span>Rotation</span>
+          <span class="val">0°</span>
+          <input class="slider" type="range" value="50">
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:14px">
+          <button class="toggle-btn on">Grid</button>
+          <button class="toggle-btn">Invert</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ─────── C — Switch Toggles ─────── -->
+  <div class="comp c">
+    <div class="comp-label">C · Switch Toggles<small>B + pill-switch binary toggles</small></div>
+    <div class="comp-body">
+      <a href="javascript:location.reload()" title="Reload — reset to defaults"><img class="brand-logo" src="arena-logo.png" alt="ARENA"></a>
+      <div class="sub-meta">Ring Engine · V.2 · iter 12</div>
+      <div class="header-actions">
+        <button class="header-btn active">🔒 Canonical</button>
+        <button class="header-btn primary">↻ Randomize</button>
+      </div>
+      <div class="header-actions">
+        <button class="header-btn active">⊕ Centered</button>
+        <button class="header-btn">⊗ Rotated</button>
+      </div>
+      <!-- Wordmark as a switch instead of button -->
+      <div class="switch-row" style="background:#1c1c1c;border:1px solid var(--line);border-radius:10px;padding:14px 16px;margin-top:8px">
+        <span>⊞ Wordmark</span>
+        <div class="switch on"></div>
+      </div>
+
+      <div class="section">
+        <div class="legend">Stack</div>
+        <div class="row-line">
+          <span>Ring Count</span>
+          <span class="val">14</span>
+          <input class="slider" type="range" value="56">
+        </div>
+        <div class="row-line">
+          <span>Position X</span>
+          <span class="val">0.50</span>
+          <input class="slider" type="range" value="50">
+        </div>
+        <div class="row-line">
+          <span>Rotation</span>
+          <span class="val">0°</span>
+          <input class="slider" type="range" value="50">
+        </div>
+        <div class="switch-row">
+          <span>Grid</span>
+          <div class="switch on"></div>
+        </div>
+        <div class="switch-row">
+          <span>Invert</span>
+          <div class="switch"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ─────── D — Full Redesign ─────── -->
+  <div class="comp d">
+    <div class="comp-label">D · Full Redesign<small>card containers · header pills · pure switches</small></div>
+    <div class="comp-body">
+      <a href="javascript:location.reload()" title="Reload — reset to defaults"><img class="brand-logo" src="arena-logo.png" alt="ARENA"></a>
+      <div class="sub-meta">Ring Engine · V.2 · iter 12</div>
+      <div class="header-actions">
+        <button class="header-btn active">🔒 Canonical</button>
+        <button class="header-btn primary">↻ Randomize</button>
+      </div>
+      <div class="header-actions">
+        <button class="header-btn active">⊕ Centered</button>
+        <button class="header-btn">⊗ Rotated</button>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <span>⊞ Wordmark</span>
+          <div class="switch on"></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <span>Stack</span>
+        </div>
+        <div class="card-body">
+          <div class="row-line">
+            <span>Ring Count</span>
+            <span class="val">14</span>
+            <input class="slider" type="range" value="56">
+          </div>
+          <div class="row-line">
+            <span>Position X</span>
+            <span class="val">0.50</span>
+            <input class="slider" type="range" value="50">
+          </div>
+          <div class="row-line">
+            <span>Rotation</span>
+            <span class="val">0°</span>
+            <input class="slider" type="range" value="50">
+          </div>
+          <div class="switch-row">
+            <span>Grid</span>
+            <div class="switch on"></div>
+          </div>
+          <div class="switch-row">
+            <span>Invert</span>
+            <div class="switch"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+</body>
+</html>

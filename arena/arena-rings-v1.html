@@ -1,0 +1,516 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>ARENA / Ring Explorer</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  :root {
+    --bg: #000;
+    --fg: #fff;
+    --muted: #6b6b6b;
+    --line: #1f1f1f;
+    --hi: #fff;
+    --accent: #ff3a1f;
+    --yellow: #ffe600;
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; margin: 0; }
+  body {
+    background: var(--bg);
+    color: var(--fg);
+    font: 12px/1.4 ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    -webkit-font-smoothing: antialiased;
+    overflow: hidden;
+  }
+  main {
+    display: grid;
+    grid-template-columns: 320px 1fr;
+    height: 100vh;
+  }
+  aside {
+    border-right: 1px solid var(--line);
+    overflow-y: auto;
+    padding: 16px;
+    background: #050505;
+  }
+  aside h1 {
+    font: 600 11px/1 ui-monospace, monospace;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    margin: 0 0 4px;
+    color: var(--fg);
+  }
+  aside .sub {
+    color: var(--muted);
+    font-size: 10px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    margin-bottom: 24px;
+  }
+  fieldset {
+    border: 0;
+    border-top: 1px solid var(--line);
+    padding: 14px 0 10px;
+    margin: 0;
+  }
+  fieldset:first-of-type { border-top: 0; padding-top: 0; }
+  legend {
+    color: var(--muted);
+    font-size: 10px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    padding: 0 0 10px;
+  }
+  .row {
+    display: grid;
+    grid-template-columns: 1fr 56px;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 8px;
+  }
+  .row label {
+    color: var(--muted);
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+  }
+  .row .val {
+    text-align: right;
+    color: var(--fg);
+    font-variant-numeric: tabular-nums;
+    font-size: 11px;
+  }
+  input[type=range] {
+    grid-column: 1 / -1;
+    width: 100%;
+    appearance: none;
+    background: transparent;
+    height: 14px;
+    margin: 0;
+  }
+  input[type=range]::-webkit-slider-runnable-track {
+    height: 1px;
+    background: var(--line);
+  }
+  input[type=range]::-webkit-slider-thumb {
+    appearance: none;
+    width: 10px;
+    height: 10px;
+    background: var(--fg);
+    border-radius: 0;
+    margin-top: -5px;
+    cursor: ew-resize;
+  }
+  input[type=range]:focus { outline: none; }
+  input[type=range]:focus::-webkit-slider-thumb { background: var(--accent); }
+  .btnrow {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 6px;
+    margin-top: 6px;
+  }
+  button {
+    appearance: none;
+    background: transparent;
+    color: var(--fg);
+    border: 1px solid var(--line);
+    padding: 8px 6px;
+    font: 600 10px/1 ui-monospace, monospace;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: background 80ms, color 80ms, border-color 80ms;
+  }
+  button:hover { border-color: var(--fg); }
+  button.primary { background: var(--fg); color: var(--bg); border-color: var(--fg); }
+  button.primary:hover { background: var(--accent); border-color: var(--accent); color: var(--fg); }
+  .swatches {
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    gap: 4px;
+  }
+  .swatch {
+    height: 28px;
+    border: 1px solid var(--line);
+    cursor: pointer;
+    position: relative;
+  }
+  .swatch.active { border-color: var(--fg); }
+  .swatch.active::after {
+    content: "";
+    position: absolute; inset: 2px;
+    border: 1px solid rgba(255,255,255,0.4);
+    pointer-events: none;
+  }
+  section#stage {
+    position: relative;
+    display: grid;
+    place-items: center;
+    background: var(--stage-bg, #000);
+    transition: background 120ms;
+  }
+  #stage::before {
+    content: "";
+    position: absolute; inset: 0;
+    background-image:
+      linear-gradient(to right, rgba(255,255,255,0.02) 1px, transparent 1px),
+      linear-gradient(to bottom, rgba(255,255,255,0.02) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+    opacity: var(--grid-opacity, 0);
+    transition: opacity 120ms;
+  }
+  svg#mark {
+    width: min(92vw, calc(100vh * 1.78));
+    height: auto;
+    display: block;
+    z-index: 1;
+  }
+  .stage-meta {
+    position: absolute;
+    top: 18px;
+    right: 22px;
+    color: var(--muted);
+    font-size: 10px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    z-index: 2;
+    text-align: right;
+    line-height: 1.6;
+  }
+  .stage-meta b { color: var(--fg); font-weight: 600; }
+  .footer {
+    position: absolute;
+    bottom: 18px;
+    left: 22px;
+    right: 22px;
+    display: flex;
+    justify-content: space-between;
+    color: var(--muted);
+    font-size: 10px;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    z-index: 2;
+  }
+  .presets {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 6px;
+    margin-top: 8px;
+  }
+  .toggles {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+  }
+  .toggles button { flex: 1; min-width: 0; }
+  .toggles button.on { background: var(--fg); color: var(--bg); border-color: var(--fg); }
+</style>
+</head>
+<body>
+<main>
+  <aside>
+    <h1>ARENA</h1>
+    <div class="sub">Ring Explorer · v0.1</div>
+
+    <fieldset>
+      <legend>Geometry</legend>
+      <div class="row"><label>Rings</label><span class="val" id="v-N">4</span><input id="N" type="range" min="1" max="14" step="1" value="4"></div>
+      <div class="row"><label>Width</label><span class="val" id="v-W">736</span><input id="W" type="range" min="200" max="1800" step="2" value="736"></div>
+      <div class="row"><label>Height</label><span class="val" id="v-H">415</span><input id="H" type="range" min="100" max="900" step="2" value="415"></div>
+      <div class="row"><label>Corner R</label><span class="val" id="v-R">72</span><input id="R" type="range" min="0" max="450" step="1" value="72"></div>
+    </fieldset>
+
+    <fieldset>
+      <legend>Ring Profile</legend>
+      <div class="row"><label>Band Thick V</label><span class="val" id="v-bandY">24.5</span><input id="bandY" type="range" min="2" max="60" step="0.5" value="24.5"></div>
+      <div class="row"><label>Band Thick H</label><span class="val" id="v-bandX">8.6</span><input id="bandX" type="range" min="2" max="60" step="0.5" value="8.6"></div>
+      <div class="row"><label>Gap V</label><span class="val" id="v-gapY">22.3</span><input id="gapY" type="range" min="2" max="120" step="0.5" value="22.3"></div>
+      <div class="row"><label>Gap H</label><span class="val" id="v-gapX">77.7</span><input id="gapX" type="range" min="2" max="180" step="0.5" value="77.7"></div>
+      <div class="row"><label>Band R Δ</label><span class="val" id="v-dRb">10.7</span><input id="dRb" type="range" min="0" max="40" step="0.1" value="10.7"></div>
+      <div class="row"><label>Gap R Δ</label><span class="val" id="v-dRg">3.8</span><input id="dRg" type="range" min="0" max="40" step="0.1" value="3.8"></div>
+    </fieldset>
+
+    <fieldset>
+      <legend>Transform</legend>
+      <div class="row"><label>Rotation</label><span class="val" id="v-rot">0</span><input id="rot" type="range" min="-180" max="180" step="1" value="0"></div>
+      <div class="row"><label>Scale</label><span class="val" id="v-scale">1.00</span><input id="scale" type="range" min="0.2" max="2" step="0.01" value="1"></div>
+    </fieldset>
+
+    <fieldset>
+      <legend>Color</legend>
+      <div class="row"><label>Stage</label><span class="val">BG</span></div>
+      <div class="swatches" data-target="bg">
+        <div class="swatch active" data-c="#000" style="background:#000"></div>
+        <div class="swatch" data-c="#fff" style="background:#fff"></div>
+        <div class="swatch" data-c="#ff3a1f" style="background:#ff3a1f"></div>
+        <div class="swatch" data-c="#ffe600" style="background:#ffe600"></div>
+        <div class="swatch" data-c="#0a3cff" style="background:#0a3cff"></div>
+        <div class="swatch" data-c="#1a1a1a" style="background:#1a1a1a"></div>
+      </div>
+      <div class="row" style="margin-top:10px"><label>Mark</label><span class="val">FG</span></div>
+      <div class="swatches" data-target="fg">
+        <div class="swatch active" data-c="#fff" style="background:#fff"></div>
+        <div class="swatch" data-c="#000" style="background:#000"></div>
+        <div class="swatch" data-c="#ff3a1f" style="background:#ff3a1f"></div>
+        <div class="swatch" data-c="#ffe600" style="background:#ffe600"></div>
+        <div class="swatch" data-c="#0a3cff" style="background:#0a3cff"></div>
+        <div class="swatch" data-c="#6b6b6b" style="background:#6b6b6b"></div>
+      </div>
+    </fieldset>
+
+    <fieldset>
+      <legend>View</legend>
+      <div class="toggles">
+        <button id="t-grid">Grid</button>
+        <button id="t-axis">Axis</button>
+        <button id="t-invert">Invert</button>
+      </div>
+    </fieldset>
+
+    <fieldset>
+      <legend>Presets</legend>
+      <div class="presets">
+        <button data-preset="canonical">Canonical</button>
+        <button data-preset="square">Square</button>
+        <button data-preset="pill">Pill</button>
+        <button data-preset="sharp">Sharp</button>
+        <button data-preset="wide">Ultra Wide</button>
+        <button data-preset="tall">Portrait</button>
+        <button data-preset="many">Many Rings</button>
+        <button data-preset="uniform">Uniform Band</button>
+        <button data-preset="thin">Thin Bands</button>
+        <button data-preset="thick">Thick Bands</button>
+        <button data-preset="atomic">Atomic</button>
+        <button data-preset="frame">Frame</button>
+      </div>
+    </fieldset>
+
+    <fieldset>
+      <legend>Export</legend>
+      <div class="btnrow">
+        <button id="copy">Copy SVG</button>
+        <button class="primary" id="download">Download</button>
+      </div>
+    </fieldset>
+  </aside>
+
+  <section id="stage">
+    <svg id="mark" viewBox="0 0 1920 1080" preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg">
+      <rect id="bg" width="1920" height="1080" fill="#000"/>
+      <g id="axis" style="display:none">
+        <line x1="0" y1="540" x2="1920" y2="540" stroke="#ff3a1f" stroke-width="0.5" opacity="0.4"/>
+        <line x1="960" y1="0" x2="960" y2="1080" stroke="#ff3a1f" stroke-width="0.5" opacity="0.4"/>
+      </g>
+      <g id="markG"></g>
+    </svg>
+    <div class="stage-meta">
+      <div>FORM <b id="m-form">CANONICAL</b></div>
+      <div>RINGS <b id="m-rings">4</b></div>
+      <div>RATIO <b id="m-ratio">1.78</b></div>
+    </div>
+    <div class="footer">
+      <div>ARENA / IDENTITY SYSTEM</div>
+      <div id="m-status">READY</div>
+    </div>
+  </section>
+</main>
+
+<script>
+(() => {
+  const CANONICAL = {
+    N: 4, W: 736.17, H: 415.03, R: 72.10,
+    bandX: 8.6, bandY: 24.53,
+    gapX: 77.72, gapY: 22.28,
+    dRb: 10.69, dRg: 3.78,
+    rot: 0, scale: 1,
+    bg: "#000", fg: "#fff",
+    grid: false, axis: false, invert: false,
+    form: "CANONICAL"
+  };
+
+  const PRESETS = {
+    canonical: { ...CANONICAL },
+    square: { ...CANONICAL, W: 600, H: 600, R: 80, form: "SQUARE" },
+    pill: { ...CANONICAL, W: 800, H: 380, R: 190, form: "PILL" },
+    sharp: { ...CANONICAL, R: 0, dRb: 0, dRg: 0, form: "SHARP" },
+    wide: { ...CANONICAL, W: 1500, H: 360, R: 60, form: "ULTRA WIDE" },
+    tall: { ...CANONICAL, W: 360, H: 700, R: 70, form: "PORTRAIT" },
+    many: { ...CANONICAL, N: 12, bandY: 14, bandX: 4, gapY: 8, gapX: 28, dRb: 5, dRg: 1.5, form: "MANY RINGS" },
+    uniform: { ...CANONICAL, bandX: 18, bandY: 18, gapX: 28, gapY: 28, dRb: 8, dRg: 4, form: "UNIFORM BAND" },
+    thin: { ...CANONICAL, bandY: 6, bandX: 3, gapY: 40, gapX: 90, dRb: 4, dRg: 6, form: "THIN BANDS" },
+    thick: { ...CANONICAL, bandY: 55, bandX: 25, gapY: 6, gapX: 24, dRb: 18, dRg: 1.5, form: "THICK BANDS" },
+    atomic: { ...CANONICAL, N: 7, W: 900, H: 500, R: 250, bandY: 8, bandX: 8, gapY: 30, gapX: 30, dRb: 8, dRg: 8, form: "ATOMIC" },
+    frame: { ...CANONICAL, N: 2, W: 1700, H: 950, R: 30, bandY: 18, bandX: 18, gapY: 22, gapX: 22, dRb: 6, dRg: 6, form: "FRAME" }
+  };
+
+  const state = { ...CANONICAL };
+
+  // --- path helpers
+  function roundedRect(cx, cy, w, h, r) {
+    if (w <= 0 || h <= 0) return "";
+    r = Math.max(0, Math.min(r, w / 2, h / 2));
+    const x = cx - w / 2, y = cy - h / 2;
+    if (r === 0) {
+      return `M${x},${y}H${x+w}V${y+h}H${x}Z`;
+    }
+    return `M${x+r},${y}H${x+w-r}A${r},${r} 0 0 1 ${x+w},${y+r}V${y+h-r}A${r},${r} 0 0 1 ${x+w-r},${y+h}H${x+r}A${r},${r} 0 0 1 ${x},${y+h-r}V${y+r}A${r},${r} 0 0 1 ${x+r},${y}Z`;
+  }
+
+  function buildRings(s) {
+    const cx = 1920 / 2, cy = 1080 / 2;
+    let w = s.W, h = s.H, r = s.R;
+    const subPaths = [];
+    for (let i = 0; i < s.N; i++) {
+      if (w <= 0 || h <= 0) break;
+      const innerW = w - 2 * s.bandX;
+      const innerH = h - 2 * s.bandY;
+      const innerR = Math.max(0, r - s.dRb);
+      subPaths.push(roundedRect(cx, cy, w, h, r));
+      if (innerW > 0 && innerH > 0) {
+        subPaths.push(roundedRect(cx, cy, innerW, innerH, innerR));
+      }
+      w = innerW - 2 * s.gapX;
+      h = innerH - 2 * s.gapY;
+      r = Math.max(0, innerR - s.dRg);
+    }
+    return subPaths.join(" ");
+  }
+
+  // --- render
+  const $ = id => document.getElementById(id);
+  const markG = $("markG");
+  const bgRect = $("bg");
+  const axisG = $("axis");
+
+  function render() {
+    const d = buildRings(state);
+    const fg = state.invert ? state.bg : state.fg;
+    const bg = state.invert ? state.fg : state.bg;
+    markG.innerHTML = `<path d="${d}" fill="${fg}" fill-rule="evenodd"/>`;
+    markG.setAttribute("transform", `translate(${1920/2} ${1080/2}) rotate(${state.rot}) scale(${state.scale}) translate(${-1920/2} ${-1080/2})`);
+    bgRect.setAttribute("fill", bg);
+    axisG.style.display = state.axis ? "block" : "none";
+    document.documentElement.style.setProperty("--stage-bg", bg);
+    document.documentElement.style.setProperty("--grid-opacity", state.grid ? "1" : "0");
+    $("m-form").textContent = state.form;
+    $("m-rings").textContent = state.N;
+    $("m-ratio").textContent = (state.W / state.H).toFixed(2);
+  }
+
+  // --- bindings
+  const NUM_KEYS = ["N","W","H","R","bandX","bandY","gapX","gapY","dRb","dRg","rot","scale"];
+  NUM_KEYS.forEach(k => {
+    const input = $(k);
+    const valEl = $("v-" + k);
+    input.addEventListener("input", () => {
+      const v = parseFloat(input.value);
+      state[k] = v;
+      valEl.textContent = (k === "scale") ? v.toFixed(2) : (Number.isInteger(v) ? v : v.toFixed(1));
+      state.form = "CUSTOM";
+      render();
+    });
+  });
+
+  function applyState(s) {
+    Object.assign(state, s);
+    NUM_KEYS.forEach(k => {
+      const input = $(k);
+      input.value = state[k];
+      const valEl = $("v-" + k);
+      const v = state[k];
+      valEl.textContent = (k === "scale") ? v.toFixed(2) : (Number.isInteger(v) ? v : v.toFixed(1));
+    });
+    // swatches
+    document.querySelectorAll('.swatches').forEach(g => {
+      const target = g.dataset.target;
+      g.querySelectorAll('.swatch').forEach(sw => {
+        sw.classList.toggle('active', sw.dataset.c === state[target]);
+      });
+    });
+    // toggles
+    $("t-grid").classList.toggle("on", !!state.grid);
+    $("t-axis").classList.toggle("on", !!state.axis);
+    $("t-invert").classList.toggle("on", !!state.invert);
+    render();
+  }
+
+  // presets
+  document.querySelectorAll("[data-preset]").forEach(b => {
+    b.addEventListener("click", () => {
+      const preset = PRESETS[b.dataset.preset];
+      applyState({ ...preset });
+    });
+  });
+
+  // swatches
+  document.querySelectorAll(".swatches").forEach(g => {
+    g.addEventListener("click", e => {
+      const sw = e.target.closest(".swatch");
+      if (!sw) return;
+      const target = g.dataset.target;
+      state[target] = sw.dataset.c;
+      g.querySelectorAll(".swatch").forEach(x => x.classList.remove("active"));
+      sw.classList.add("active");
+      render();
+    });
+  });
+
+  // toggles
+  $("t-grid").addEventListener("click", () => { state.grid = !state.grid; $("t-grid").classList.toggle("on", state.grid); render(); });
+  $("t-axis").addEventListener("click", () => { state.axis = !state.axis; $("t-axis").classList.toggle("on", state.axis); render(); });
+  $("t-invert").addEventListener("click", () => { state.invert = !state.invert; $("t-invert").classList.toggle("on", state.invert); render(); });
+
+  // export
+  function serializeMark() {
+    const fg = state.invert ? state.bg : state.fg;
+    const bg = state.invert ? state.fg : state.bg;
+    const d = buildRings(state);
+    const transform = `transform="translate(${1920/2} ${1080/2}) rotate(${state.rot}) scale(${state.scale}) translate(${-1920/2} ${-1080/2})"`;
+    return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1920 1080">
+  <rect width="1920" height="1080" fill="${bg}"/>
+  <g ${transform}><path d="${d}" fill="${fg}" fill-rule="evenodd"/></g>
+</svg>`;
+  }
+
+  $("copy").addEventListener("click", async () => {
+    try {
+      await navigator.clipboard.writeText(serializeMark());
+      flash("COPIED");
+    } catch (e) {
+      flash("COPY FAILED");
+    }
+  });
+
+  $("download").addEventListener("click", () => {
+    const blob = new Blob([serializeMark()], { type: "image/svg+xml" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `arena-${state.form.toLowerCase().replace(/\s+/g, "-")}-${state.N}r.svg`;
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(url), 500);
+    flash("DOWNLOADED");
+  });
+
+  function flash(msg) {
+    const s = $("m-status");
+    s.textContent = msg;
+    setTimeout(() => s.textContent = "READY", 1200);
+  }
+
+  // keyboard niceties
+  window.addEventListener("keydown", e => {
+    if (e.target.tagName === "INPUT") return;
+    if (e.key === "r") applyState({ ...CANONICAL });
+    if (e.key === "g") { state.grid = !state.grid; render(); $("t-grid").classList.toggle("on", state.grid); }
+    if (e.key === "i") { state.invert = !state.invert; render(); $("t-invert").classList.toggle("on", state.invert); }
+  });
+
+  // init
+  applyState({ ...CANONICAL });
+})();
+</script>
+</body>
+</html>

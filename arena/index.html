@@ -1,0 +1,370 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>ARENA / Prototypes</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body {
+    background: #000;
+    color: #fff;
+    font: 13px/1.5 ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    -webkit-font-smoothing: antialiased;
+    min-height: 100vh;
+  }
+  header {
+    border-bottom: 1px solid #1f1f1f;
+    padding: 40px 48px 32px;
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 32px;
+    flex-wrap: wrap;
+  }
+  h1 {
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.32em;
+    text-transform: uppercase;
+    margin-bottom: 12px;
+    color: #6b6b6b;
+  }
+  .title {
+    font-size: 44px;
+    font-weight: 200;
+    letter-spacing: -0.01em;
+    line-height: 1;
+  }
+  .title b { font-weight: 600; }
+  .meta {
+    font-size: 11px;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: #6b6b6b;
+    text-align: right;
+    line-height: 1.8;
+  }
+  .meta b { color: #fff; }
+  main {
+    padding: 40px 48px 80px;
+  }
+  .legend {
+    font-size: 11px;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: #6b6b6b;
+    margin-bottom: 28px;
+    max-width: 720px;
+    line-height: 1.8;
+  }
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
+    gap: 1px;
+    background: #1f1f1f;
+    border: 1px solid #1f1f1f;
+  }
+  .card {
+    background: #000;
+    padding: 28px;
+    display: flex;
+    flex-direction: column;
+    text-decoration: none;
+    color: inherit;
+    transition: background 120ms;
+    min-height: 320px;
+  }
+  .card:hover { background: #0a0a0a; }
+  .card .num {
+    font-size: 10px;
+    letter-spacing: 0.32em;
+    color: #6b6b6b;
+    margin-bottom: 14px;
+  }
+  .card .name {
+    font-size: 22px;
+    font-weight: 600;
+    letter-spacing: -0.005em;
+    margin-bottom: 4px;
+  }
+  .card .tagline {
+    color: #6b6b6b;
+    margin-bottom: 24px;
+    font-size: 12px;
+    line-height: 1.5;
+  }
+  .card .desc {
+    color: #b0b0b0;
+    font-size: 12px;
+    line-height: 1.7;
+    flex: 1;
+  }
+  .card .keys {
+    margin-top: 20px;
+    padding-top: 16px;
+    border-top: 1px solid #1f1f1f;
+    color: #6b6b6b;
+    font-size: 10px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    line-height: 1.8;
+  }
+  .card .keys b { color: #fff; }
+  .card .tag {
+    display: inline-block;
+    font-size: 9px;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: #6b6b6b;
+    border: 1px solid #1f1f1f;
+    padding: 3px 8px;
+    margin-right: 4px;
+    margin-top: 8px;
+  }
+  .card .tag.new { color: #ff3a1f; border-color: #ff3a1f; }
+  .preview {
+    width: 100%;
+    height: 110px;
+    margin-bottom: 22px;
+    border: 1px solid #1f1f1f;
+    background: #000;
+    display: grid;
+    place-items: center;
+    overflow: hidden;
+  }
+  .preview svg { width: 70%; height: 80%; }
+  footer {
+    margin-top: 48px;
+    padding-top: 28px;
+    border-top: 1px solid #1f1f1f;
+    color: #6b6b6b;
+    font-size: 11px;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    line-height: 1.9;
+  }
+  footer code {
+    background: #0a0a0a;
+    border: 1px solid #1f1f1f;
+    padding: 1px 6px;
+    color: #fff;
+    font-family: inherit;
+    letter-spacing: 0;
+  }
+</style>
+</head>
+<body>
+<header>
+  <div>
+    <h1>ARENA / IDENTITY SYSTEM</h1>
+    <div class="title">Ring <b>prototypes</b></div>
+  </div>
+  <div class="meta">
+    10 EXPERIMENTS<br>
+    <b>GITHUB · the-arena</b><br>
+    GIT TRACKED
+  </div>
+</header>
+
+<main>
+  <div class="legend">
+    All prototypes share the canonical 4-ring mark geometry from RINGS.svg. Each pushes a different axis of the system — manipulation, motion, decomposition, multiplicity, deformation. No surface treatments. Pure geometry.
+  </div>
+
+  <div class="grid">
+    <a class="card" href="arena-rings.html">
+      <div class="preview">
+        <svg viewBox="-50 -30 100 60" xmlns="http://www.w3.org/2000/svg">
+          <rect x="-40" y="-22" width="80" height="44" rx="9" fill="none" stroke="#fff" stroke-width="1"/>
+          <rect x="-30" y="-16" width="60" height="32" rx="7" fill="none" stroke="#fff" stroke-width="1"/>
+          <rect x="-20" y="-10" width="40" height="20" rx="5" fill="none" stroke="#fff" stroke-width="1"/>
+          <rect x="-10" y="-5" width="20" height="10" rx="3" fill="none" stroke="#fff" stroke-width="1"/>
+        </svg>
+      </div>
+      <div class="num">01 / PLAYGROUND</div>
+      <div class="name">Ring Explorer</div>
+      <div class="tagline">Manipulable canonical mark with 12 form presets.</div>
+      <div class="desc">Sliders for ring count, envelope dimensions, band thickness (separate V/H), inter-ring gap, corner radius. Export SVG. The system-defining tool.</div>
+      <div class="keys"><b>SLIDERS</b> · <b>R</b> RESET · <b>G</b> GRID · <b>I</b> INVERT</div>
+    </a>
+
+    <a class="card" href="arena-rings-motion.html">
+      <div class="preview">
+        <svg viewBox="-50 -30 100 60" xmlns="http://www.w3.org/2000/svg">
+          <rect x="-44" y="-26" width="88" height="52" rx="10" fill="none" stroke="#fff" stroke-width="1" opacity="0.4"/>
+          <rect x="-32" y="-14" width="64" height="28" rx="7" fill="none" stroke="#fff" stroke-width="1" opacity="0.7"/>
+          <rect x="-18" y="-9" width="36" height="18" rx="5" fill="none" stroke="#fff" stroke-width="1"/>
+        </svg>
+      </div>
+      <div class="num">02 / MOTION</div>
+      <div class="name">Single Mark Morphing</div>
+      <div class="tagline">One mark drifting between 14 moods.</div>
+      <div class="desc">Director cycles through Canonical, Wide Open, Pillar, Many, Pill, Square, Atomic, Alert, Sliver, Overscale, Offset, Inversion, Forge, Drift. Per-ring breathing on top.</div>
+      <div class="keys"><b>F</b> FULL · <b>SPACE</b> PAUSE · <b>N</b> NEXT · <b>H</b> HUD</div>
+    </a>
+
+    <a class="card" href="arena-rings-independent.html">
+      <div class="preview">
+        <svg viewBox="-50 -30 100 60" xmlns="http://www.w3.org/2000/svg">
+          <rect x="-44" y="-10" width="22" height="20" rx="4" fill="none" stroke="#fff" stroke-width="1"/>
+          <rect x="-15" y="-22" width="22" height="44" rx="6" fill="none" stroke="#fff" stroke-width="1"/>
+          <rect x="12" y="-6" width="22" height="12" rx="3" fill="none" stroke="#fff" stroke-width="1"/>
+          <rect x="20" y="-26" width="22" height="22" rx="5" fill="none" stroke="#fff" stroke-width="1" transform="rotate(18 31 -15)"/>
+        </svg>
+      </div>
+      <div class="num">03 / INDEPENDENT</div>
+      <div class="name">Decoupled Ring Motion</div>
+      <div class="tagline">4 rings transform on their own, then re-lock.</div>
+      <div class="desc">Each ring rendered as its own group with independent transform. 14 compositions — drift, scatter, orbit, twist, asymmetric — periodically returning to canonical as the brand "lock" moment.</div>
+      <div class="keys"><b>F</b> FULL · <b>SPACE</b> PAUSE · <b>N</b> NEXT · <b>C</b> LOCK</div>
+    </a>
+
+    <a class="card" href="arena-rings-forge.html">
+      <div class="preview">
+        <svg viewBox="-50 -30 100 60" xmlns="http://www.w3.org/2000/svg">
+          <rect x="-45" y="-22" width="80" height="44" rx="9" fill="none" stroke="#fff" stroke-width="1" transform="translate(-5 -3)"/>
+          <rect x="-30" y="-16" width="60" height="32" rx="7" fill="none" stroke="#fff" stroke-width="1" transform="translate(-4 -2)"/>
+          <rect x="-20" y="-10" width="40" height="20" rx="5" fill="none" stroke="#fff" stroke-width="1" transform="translate(-2 -1)"/>
+          <rect x="-10" y="-5" width="20" height="10" rx="3" fill="none" stroke="#fff" stroke-width="1"/>
+          <circle cx="32" cy="20" r="2" fill="#ff3a1f"/>
+        </svg>
+      </div>
+      <div class="num">04 / FORGE <span class="tag new">NEW</span></div>
+      <div class="name">Cursor Forge</div>
+      <div class="tagline">Rings deform around the cursor via spring physics.</div>
+      <div class="desc">Each ring has its own mass/stiffness. The cursor exerts inverse-square force. Four modes: PUSH, PULL, ORBIT, DISTORT. Hold to forge. Release: springs back to canonical.</div>
+      <div class="keys"><b>MOVE</b> STEER · <b>HOLD</b> FORGE · <b>M</b> MODE · <b>H</b> HUD</div>
+    </a>
+
+    <a class="card" href="arena-rings-stress.html">
+      <div class="preview">
+        <svg viewBox="-50 -30 100 60" xmlns="http://www.w3.org/2000/svg">
+          <g transform="skewX(14)">
+            <rect x="-40" y="-22" width="80" height="44" rx="9" fill="none" stroke="#fff" stroke-width="1"/>
+            <rect x="-30" y="-16" width="60" height="32" rx="7" fill="none" stroke="#fff" stroke-width="1"/>
+            <rect x="-20" y="-10" width="40" height="20" rx="5" fill="none" stroke="#fff" stroke-width="1"/>
+            <rect x="-10" y="-5" width="20" height="10" rx="3" fill="none" stroke="#fff" stroke-width="1"/>
+          </g>
+        </svg>
+      </div>
+      <div class="num">05 / STRESS <span class="tag new">NEW</span></div>
+      <div class="name">Stress System</div>
+      <div class="tagline">Pressure deforms the mark. Release snaps back hard.</div>
+      <div class="desc">Six deformation modes — CRUSH, STRETCH, SHEAR, BUCKLE, TWIST, RIP. Hold mouse to build pressure (slow ramp). Release for spring snap-back with overshoot. AUTO mode for hands-off.</div>
+      <div class="keys"><b>HOLD</b> PRESSURE · <b>M</b> MODE · <b>A</b> AUTO · <b>H</b> HUD</div>
+    </a>
+
+    <a class="card" href="arena-rings-swarm.html">
+      <div class="preview">
+        <svg viewBox="-50 -30 100 60" xmlns="http://www.w3.org/2000/svg">
+          <g fill="none" stroke="#fff" stroke-width="0.7">
+            <rect x="-44" y="-26" width="16" height="9" rx="2"/>
+            <rect x="-22" y="-23" width="14" height="8" rx="2"/>
+            <rect x="2" y="-26" width="18" height="10" rx="2.5"/>
+            <rect x="26" y="-22" width="14" height="8" rx="2"/>
+            <rect x="-40" y="-8" width="20" height="11" rx="2.5"/>
+            <rect x="-14" y="-5" width="22" height="12" rx="3"/>
+            <rect x="14" y="-8" width="20" height="11" rx="2.5"/>
+            <rect x="-36" y="14" width="14" height="8" rx="2"/>
+            <rect x="-12" y="16" width="18" height="10" rx="2.5"/>
+            <rect x="14" y="14" width="14" height="8" rx="2"/>
+          </g>
+        </svg>
+      </div>
+      <div class="num">06 / SWARM <span class="tag new">NEW</span></div>
+      <div class="name">Swarm Field</div>
+      <div class="tagline">Many marks tiling the canvas. Brand as language.</div>
+      <div class="desc">24 (adjustable) copies of the full mark across the canvas, each alive. Five layouts: SCATTER, GRID, CONCENTRIC, ORBIT, STREAM. Hold mouse to flock marks toward cursor.</div>
+      <div class="keys"><b>M</b> LAYOUT · <b>HOLD</b> FLOCK · <b>+/−</b> COUNT · <b>H</b> HUD</div>
+    </a>
+
+    <a class="card" href="arena-rings-letters.html">
+      <div class="preview">
+        <svg viewBox="-50 -30 100 60" xmlns="http://www.w3.org/2000/svg">
+          <g fill="#fff">
+            <rect x="-26" y="-22" width="8" height="44" rx="4" transform="rotate(10 -22 0)"/>
+            <rect x="6" y="-22" width="8" height="44" rx="4" transform="rotate(-10 10 0)"/>
+            <rect x="-15" y="0" width="22" height="6" rx="3"/>
+          </g>
+        </svg>
+      </div>
+      <div class="num">07 / LETTERS</div>
+      <div class="name">Letters from Rings</div>
+      <div class="tagline">The mark becomes A · R · E · N · A.</div>
+      <div class="desc">Four stadium primitives rearrange between six states: canonical mark + 5 letterforms. The ring band fills in as it morphs into a letter stroke. Same DNA, different conformations.</div>
+      <div class="keys"><b>AUTO</b> CYCLE · <b>N</b> NEXT · <b>C</b> CANONICAL · <b>H</b> HUD</div>
+    </a>
+
+    <a class="card" href="arena-rings-composer.html">
+      <div class="preview">
+        <svg viewBox="-50 -30 100 60" xmlns="http://www.w3.org/2000/svg">
+          <g fill="none" stroke="#fff" stroke-width="0.9">
+            <rect x="-44" y="-22" width="34" height="22" rx="5"/>
+            <rect x="-38" y="-18" width="22" height="14" rx="3"/>
+            <rect x="6" y="2" width="40" height="22" rx="6"/>
+            <rect x="14" y="6" width="24" height="14" rx="4"/>
+          </g>
+          <rect x="-46" y="-24" width="38" height="26" rx="5" fill="none" stroke="#ff3a1f" stroke-width="0.5" stroke-dasharray="2 2"/>
+        </svg>
+      </div>
+      <div class="num">08 / COMPOSER <span class="tag new">NEW</span></div>
+      <div class="name">Multi-Mark Composer</div>
+      <div class="tagline">Per-ring controls + place multiple marks + URL sharing.</div>
+      <div class="desc">Composer canvas hosts N marks. Each mark has independent ring sliders (R1–R4 tabs), drag to position, click to select. URL hash captures the whole composition; localStorage Library saves named configs.</div>
+      <div class="keys"><b>N</b> ADD · <b>D</b> DUP · <b>DEL</b> REMOVE · <b>DRAG</b> MOVE</div>
+    </a>
+
+    <a class="card" href="arena-rings-generator.html">
+      <div class="preview">
+        <svg viewBox="-50 -30 100 60" xmlns="http://www.w3.org/2000/svg">
+          <g fill="none" stroke="#fff" stroke-width="0.8">
+            <rect x="-44" y="14" width="14" height="8" rx="2" transform="rotate(-12)"/>
+            <rect x="-26" y="10" width="14" height="8" rx="2" transform="rotate(-12)"/>
+            <rect x="-8" y="6" width="14" height="8" rx="2" transform="rotate(-12)"/>
+            <rect x="10" y="2" width="14" height="8" rx="2" transform="rotate(-12)"/>
+            <rect x="28" y="-2" width="14" height="8" rx="2" transform="rotate(-12)"/>
+            <rect x="-44" y="-2" width="14" height="8" rx="2" transform="rotate(-12)"/>
+            <rect x="-26" y="-6" width="14" height="8" rx="2" transform="rotate(-12)"/>
+            <rect x="-8" y="-10" width="14" height="8" rx="2" transform="rotate(-12)"/>
+            <rect x="10" y="-14" width="14" height="8" rx="2" transform="rotate(-12)"/>
+            <rect x="28" y="-18" width="14" height="8" rx="2" transform="rotate(-12)"/>
+          </g>
+        </svg>
+      </div>
+      <div class="num">09 / GENERATOR <span class="tag new">NEW</span></div>
+      <div class="name">Pattern Generator</div>
+      <div class="tagline">Parametric replicator: wave, trail, field, radial.</div>
+      <div class="desc">Tile the canonical mark across the canvas using four pattern modes — sine wave, linear-perspective trail, tessellated field, radial orbit. Each mode has its own slider schema. Optional opt-in motion. Freeze frame + export.</div>
+      <div class="keys"><b>SLIDERS</b> · <b>SPEED</b> · <b>FREEZE</b> · <b>EXPORT</b></div>
+    </a>
+
+    <a class="card" href="arena-rings-engine.html">
+      <div class="preview">
+        <svg viewBox="-50 -30 100 60" xmlns="http://www.w3.org/2000/svg">
+          <g fill="none" stroke="#fff" stroke-width="0.6" transform="rotate(25)">
+            <rect x="-46" y="-26" width="92" height="52" rx="10"/>
+            <rect x="-40" y="-22" width="80" height="44" rx="9"/>
+            <rect x="-34" y="-18" width="68" height="36" rx="8"/>
+            <rect x="-28" y="-14" width="56" height="28" rx="6"/>
+            <rect x="-22" y="-10" width="44" height="20" rx="5"/>
+            <rect x="-16" y="-6" width="32" height="12" rx="3"/>
+            <rect x="-10" y="-2" width="20" height="4" rx="2"/>
+          </g>
+        </svg>
+      </div>
+      <div class="num">10 / ENGINE <span class="tag new">NEW</span></div>
+      <div class="name">Ring Engine</div>
+      <div class="tagline">One mark, many rings (1–60), combinable motion + screensaver.</div>
+      <div class="desc">A single stack with ring count as the hero. Rotate, anchor off-canvas, adjust spacing curve. 8 motion behaviors (Tilt, Breathe, Cascade, Counter, Drift, Shift, Grow, Morph) — each toggle + speed, fully combinable. Auto-Cycle screensaver mode blends through 9 curated motion states.</div>
+      <div class="keys"><b>SLIDERS</b> · <b>MOTION TOGGLES</b> · <b>AUTO CYCLE</b> · <b>FREEZE</b></div>
+    </a>
+  </div>
+
+  <footer>
+    Keyboard shortcuts (most prototypes): <code>F</code> fullscreen · <code>H</code> hud · <code>SPACE</code> pause.<br>
+    Source: <a href="https://github.com/nessim-higson/the-arena" style="color:#fff;text-decoration:none;border-bottom:1px solid #1f1f1f">github.com/nessim-higson/the-arena</a> · each prototype = one commit, every change auto-deploys.
+  </footer>
+</main>
+</body>
+</html>

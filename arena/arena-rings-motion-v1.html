@@ -1,0 +1,262 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>ARENA / Motion</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body {
+    height: 100%;
+    background: #000;
+    color: #fff;
+    overflow: hidden;
+    font: 11px/1.4 ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    -webkit-font-smoothing: antialiased;
+    cursor: none;
+  }
+  body.show-cursor { cursor: default; }
+  #stage {
+    position: fixed;
+    inset: 0;
+    background: #000;
+    transition: background 1400ms cubic-bezier(.55,.1,.45,.9);
+  }
+  svg {
+    width: 100%;
+    height: 100%;
+    display: block;
+  }
+  .hud {
+    position: fixed;
+    pointer-events: none;
+    color: rgba(255,255,255,0.55);
+    text-transform: uppercase;
+    letter-spacing: 0.22em;
+    font-size: 10px;
+    opacity: 0;
+    transition: opacity 320ms;
+    mix-blend-mode: difference;
+  }
+  body.hud-on .hud { opacity: 1; }
+  .hud.tl { top: 22px; left: 24px; }
+  .hud.tr { top: 22px; right: 24px; text-align: right; }
+  .hud.bl { bottom: 22px; left: 24px; }
+  .hud.br { bottom: 22px; right: 24px; text-align: right; }
+  .hud b { color: #fff; font-weight: 600; }
+  .hint {
+    position: fixed;
+    bottom: 22px;
+    left: 50%;
+    transform: translateX(-50%);
+    color: rgba(255,255,255,0.4);
+    font-size: 10px;
+    letter-spacing: 0.3em;
+    text-transform: uppercase;
+    mix-blend-mode: difference;
+    transition: opacity 600ms;
+  }
+  body.hide-hint .hint { opacity: 0; }
+</style>
+</head>
+<body>
+<div id="stage">
+  <svg id="canvas" viewBox="0 0 1920 1080" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg">
+    <g id="markG"></g>
+  </svg>
+</div>
+
+<div class="hud tl">ARENA<br><b>SYSTEM IDLE</b></div>
+<div class="hud tr"><span id="moodName">CANONICAL</span><br><b id="moodIdx">01 / 14</b></div>
+<div class="hud bl"><span id="ringCount">4</span> RINGS<br><b id="ratio">1.78</b></div>
+<div class="hud br"><span id="state">FLOW</span><br><b id="phase">—</b></div>
+<div class="hint">F · FULLSCREEN &nbsp;&nbsp; SPACE · PAUSE &nbsp;&nbsp; N · NEXT &nbsp;&nbsp; H · HUD</div>
+
+<script>
+(() => {
+  const $ = id => document.getElementById(id);
+  const markG = $("markG");
+  const stage = $("stage");
+
+  // --- geometry
+  function roundedRect(cx, cy, w, h, r) {
+    if (w <= 0 || h <= 0) return "";
+    r = Math.max(0, Math.min(r, w / 2, h / 2));
+    const x = cx - w / 2, y = cy - h / 2;
+    if (r < 0.5) return `M${x},${y}H${x+w}V${y+h}H${x}Z`;
+    return `M${x+r},${y}H${x+w-r}A${r},${r} 0 0 1 ${x+w},${y+r}V${y+h-r}A${r},${r} 0 0 1 ${x+w-r},${y+h}H${x+r}A${r},${r} 0 0 1 ${x},${y+h-r}V${y+r}A${r},${r} 0 0 1 ${x+r},${y}Z`;
+  }
+
+  // build rings with per-ring breathing offsets driven by time
+  function buildRings(s, t) {
+    const cx = 1920 / 2 + s.offX, cy = 1080 / 2 + s.offY;
+    let w = s.W, h = s.H, r = s.R;
+    const subPaths = [];
+    for (let i = 0; i < s.N; i++) {
+      if (w <= 0 || h <= 0) break;
+      // per-ring sinusoidal breathing: ring i breathes at phase i*0.7
+      const phase = t * 0.0008 + i * 0.7;
+      const breathW = 1 + Math.sin(phase) * 0.014;
+      const breathH = 1 + Math.sin(phase + 1.3) * 0.018;
+      const wobR = 1 + Math.sin(phase * 1.4 + i * 0.4) * 0.05;
+      const wi = w * breathW, hi = h * breathH, ri = r * wobR;
+
+      const innerW = wi - 2 * s.bandX;
+      const innerH = hi - 2 * s.bandY;
+      const innerR = Math.max(0, ri - s.dRb);
+      subPaths.push(roundedRect(cx, cy, wi, hi, ri));
+      if (innerW > 0 && innerH > 0) subPaths.push(roundedRect(cx, cy, innerW, innerH, innerR));
+
+      w = innerW - 2 * s.gapX;
+      h = innerH - 2 * s.gapY;
+      r = Math.max(0, innerR - s.dRg);
+    }
+    return subPaths.join(" ");
+  }
+
+  // --- moods: each is a target state. Canonical first, exotic ones woven through.
+  const MOODS = [
+    { n:"CANONICAL", N:4, W:736, H:415, R:72, bandX:8.6, bandY:24.5, gapX:77, gapY:22, dRb:10.7, dRg:3.8, scale:1.6, offX:0, offY:0, rot:0, bg:"#000", fg:"#fff" },
+    { n:"WIDE OPEN", N:4, W:1500, H:360, R:60, bandX:6, bandY:18, gapX:90, gapY:18, dRb:8, dRg:3, scale:1.0, offX:0, offY:0, rot:0, bg:"#000", fg:"#fff" },
+    { n:"PILLAR", N:5, W:340, H:760, R:160, bandX:6, bandY:24, gapX:30, gapY:60, dRb:10, dRg:5, scale:1.1, offX:0, offY:0, rot:0, bg:"#000", fg:"#fff" },
+    { n:"MANY", N:11, W:760, H:430, R:80, bandX:4, bandY:14, gapX:24, gapY:8, dRb:5, dRg:1.5, scale:1.7, offX:0, offY:0, rot:0, bg:"#000", fg:"#fff" },
+    { n:"PILL", N:4, W:820, H:380, R:190, bandX:8, bandY:24, gapX:80, gapY:22, dRb:11, dRg:4, scale:1.6, offX:0, offY:0, rot:0, bg:"#000", fg:"#fff" },
+    { n:"SQUARE", N:5, W:620, H:620, R:100, bandX:14, bandY:22, gapX:38, gapY:38, dRb:12, dRg:5, scale:1.4, offX:0, offY:0, rot:0, bg:"#000", fg:"#fff" },
+    { n:"ATOMIC", N:7, W:900, H:500, R:240, bandX:10, bandY:14, gapX:30, gapY:24, dRb:10, dRg:8, scale:1.5, offX:0, offY:0, rot:0, bg:"#000", fg:"#fff" },
+    { n:"ALERT", N:4, W:736, H:415, R:72, bandX:8.6, bandY:24.5, gapX:77, gapY:22, dRb:10.7, dRg:3.8, scale:1.6, offX:0, offY:0, rot:0, bg:"#ff3a1f", fg:"#000" },
+    { n:"SLIVER", N:4, W:740, H:96, R:48, bandX:4, bandY:10, gapX:90, gapY:6, dRb:6, dRg:3, scale:1.4, offX:0, offY:0, rot:0, bg:"#000", fg:"#fff" },
+    { n:"OVERSCALE", N:4, W:736, H:415, R:72, bandX:8.6, bandY:24.5, gapX:77, gapY:22, dRb:10.7, dRg:3.8, scale:3.4, offX:0, offY:0, rot:0, bg:"#000", fg:"#fff" },
+    { n:"OFFSET", N:4, W:736, H:415, R:72, bandX:8.6, bandY:24.5, gapX:77, gapY:22, dRb:10.7, dRg:3.8, scale:1.2, offX:-380, offY:240, rot:0, bg:"#000", fg:"#fff" },
+    { n:"INVERSION", N:4, W:736, H:415, R:72, bandX:8.6, bandY:24.5, gapX:77, gapY:22, dRb:10.7, dRg:3.8, scale:1.6, offX:0, offY:0, rot:0, bg:"#fff", fg:"#000" },
+    { n:"FORGE", N:3, W:1300, H:760, R:40, bandX:24, bandY:36, gapX:90, gapY:60, dRb:18, dRg:5, scale:1.0, offX:0, offY:0, rot:0, bg:"#000", fg:"#fff" },
+    { n:"DRIFT", N:6, W:660, H:660, R:330, bandX:7, bandY:7, gapX:36, gapY:36, dRb:8, dRg:5, scale:1.4, offX:0, offY:0, rot:23, bg:"#000", fg:"#fff" }
+  ];
+
+  // --- interpolation
+  const NUM_KEYS = ["N","W","H","R","bandX","bandY","gapX","gapY","dRb","dRg","scale","offX","offY","rot"];
+  const ease = t => t < 0.5 ? 4*t*t*t : 1 - Math.pow(-2*t + 2, 3) / 2; // easeInOutCubic
+  function lerpNum(a, b, t) { return a + (b - a) * t; }
+  function lerpState(a, b, t) {
+    const e = ease(t);
+    const out = {};
+    NUM_KEYS.forEach(k => out[k] = lerpNum(a[k], b[k], e));
+    out.N = Math.round(out.N);
+    out.bg = b.bg;
+    out.fg = b.fg;
+    out.n = b.n;
+    return out;
+  }
+
+  // --- director
+  let currentIdx = 0;
+  let nextIdx = 1;
+  let current = { ...MOODS[0] };
+  let target = { ...MOODS[1] };
+  let phase = "TRANSITION"; // TRANSITION | DWELL
+  let phaseStart = performance.now();
+  let pausedAt = null;
+  let pauseOffset = 0;
+  let TRANSITION_MS = 4200;
+  let DWELL_MS = 2400;
+
+  function pickNext() {
+    // avoid repeats and try to vary
+    let i;
+    do { i = Math.floor(Math.random() * MOODS.length); } while (i === currentIdx);
+    return i;
+  }
+
+  function nowMs() {
+    if (pausedAt !== null) return pausedAt - pauseOffset;
+    return performance.now() - pauseOffset;
+  }
+
+  function tick() {
+    const now = nowMs();
+    const elapsed = now - phaseStart;
+    let s;
+    if (phase === "TRANSITION") {
+      const t = Math.min(1, elapsed / TRANSITION_MS);
+      s = lerpState(current, target, t);
+      if (t >= 1) {
+        phase = "DWELL";
+        phaseStart = now;
+        current = { ...MOODS[nextIdx] };
+        currentIdx = nextIdx;
+      }
+    } else {
+      s = { ...current, n: current.n };
+      if (elapsed >= DWELL_MS) {
+        nextIdx = pickNext();
+        target = { ...MOODS[nextIdx] };
+        phase = "TRANSITION";
+        phaseStart = now;
+      }
+    }
+
+    // render
+    const d = buildRings(s, now);
+    markG.innerHTML = `<path d="${d}" fill="${s.fg}" fill-rule="evenodd"/>`;
+    // rotation + scale around center
+    markG.setAttribute("transform", `translate(${1920/2} ${1080/2}) rotate(${s.rot}) scale(${s.scale}) translate(${-1920/2} ${-1080/2})`);
+    stage.style.background = s.bg;
+
+    // hud
+    $("moodName").textContent = s.n || "—";
+    $("moodIdx").textContent = String(currentIdx + 1).padStart(2,"0") + " / " + String(MOODS.length).padStart(2,"0");
+    $("ringCount").textContent = s.N;
+    $("ratio").textContent = (s.W / s.H).toFixed(2);
+    $("state").textContent = pausedAt !== null ? "HOLD" : "FLOW";
+    $("phase").textContent = phase === "TRANSITION" ? "MORPH " + Math.round((elapsed / TRANSITION_MS) * 100) + "%" : "DWELL";
+
+    requestAnimationFrame(tick);
+  }
+
+  // --- input
+  window.addEventListener("keydown", e => {
+    if (e.key === " ") {
+      e.preventDefault();
+      if (pausedAt !== null) {
+        pauseOffset += performance.now() - pausedAt;
+        pausedAt = null;
+      } else {
+        pausedAt = performance.now();
+      }
+    } else if (e.key === "n" || e.key === "N") {
+      // jump to next immediately
+      nextIdx = pickNext();
+      target = { ...MOODS[nextIdx] };
+      phase = "TRANSITION";
+      phaseStart = nowMs();
+    } else if (e.key === "h" || e.key === "H") {
+      document.body.classList.toggle("hud-on");
+    } else if (e.key === "f" || e.key === "F") {
+      if (document.fullscreenElement) document.exitFullscreen();
+      else document.documentElement.requestFullscreen();
+    }
+  });
+
+  // cursor and hint hide on idle
+  let idleTimer;
+  function showUI() {
+    document.body.classList.add("show-cursor");
+    document.body.classList.remove("hide-hint");
+    clearTimeout(idleTimer);
+    idleTimer = setTimeout(() => {
+      document.body.classList.remove("show-cursor");
+      document.body.classList.add("hide-hint");
+    }, 2400);
+  }
+  document.addEventListener("mousemove", showUI);
+  showUI();
+
+  // initial hud on
+  document.body.classList.add("hud-on");
+  setTimeout(() => document.body.classList.remove("hud-on"), 3500);
+
+  // go
+  requestAnimationFrame(tick);
+})();
+</script>
+</body>
+</html>
