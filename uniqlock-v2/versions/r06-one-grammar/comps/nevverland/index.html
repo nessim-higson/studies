@@ -37,10 +37,11 @@
   <div class="prompt">1 / 2 / 3 — cut density · m mute · click to enter, sound on</div>
 </div>
 
+<script>window.UQ_ASSET_ROOT = location.origin + location.pathname.replace(/versions\/.*$/, "");</script>
 <script type="module">
 import { createConductor } from '../../js/conductor.js';
 
-const SRC = (typeof window !== 'undefined' && window.UQ_ASSET_ROOT ? window.UQ_ASSET_ROOT : '../../') + 'assets/reel/nevverland.m4v';
+const SRC = (window.UQ_ASSET_ROOT || '../../') + 'assets/reel/nevverland.m4v';
 
 // shot boundaries measured from the reel by frame-difference analysis
 // [start, duration] — these are the reel's real cuts
