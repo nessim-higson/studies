@@ -1,0 +1,495 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>McLane Teitel</title>
+<meta name="description" content="McLane Teitel is a product and visual designer based in Brooklyn, New York. Currently on the Product Design Studio at Shopify." />
+<meta name="theme-color" content="#f0f4f0" />
+<style>
+  @font-face{
+    font-family:'TWKLausannePan';
+    src:url('fonts/TWKLausannePan-300.woff2') format('woff2');
+    font-weight:300;font-display:swap;
+  }
+  @font-face{
+    font-family:'TWKLausanne';
+    src:url('fonts/TWKLausanne-350.woff2') format('woff2');
+    font-weight:350;font-display:swap;
+  }
+  :root{--background:#f0f4f0;--foreground:#000;}
+  *{box-sizing:border-box;margin:0;padding:0;}
+  html{scroll-behavior:auto;height:100%;}
+  body{
+    background:#f0f4f0;color:var(--foreground);
+    font-family:'TWKLausannePan',system-ui,-apple-system,sans-serif;
+    -webkit-font-smoothing:auto;-webkit-text-stroke:.2px;
+    height:100%;overflow:hidden;
+  }
+
+  /* ---- the deck stage ---- */
+  #stage{
+    position:fixed;top:-50px;left:0;right:0;bottom:-50px;
+    display:flex;align-items:center;justify-content:center;
+    background:#f0f4f0;overflow:hidden;
+  }
+
+  /* background headline (sits behind the deck) */
+  #headline-wrap{
+    position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+    z-index:0;pointer-events:none;padding-bottom:6vh;opacity:0;
+  }
+  #headline{
+    font-family:'TWKLausannePan',sans-serif;font-weight:300;font-size:34px;color:#000;
+    text-align:center;max-width:clamp(440px,22vw + 300px,640px);
+    letter-spacing:-0.01em;padding:0 20px;line-height:1.18;pointer-events:auto;
+  }
+
+  /* the deck container (lifts in, holds cards + closing content) */
+  #deck{
+    position:relative;
+    height:min(79vh, calc(min(94vw,1260px) * 3 / 5));
+    aspect-ratio:5 / 3;max-width:min(94vw,1260px);
+    will-change:transform;
+  }
+
+  .card{
+    position:absolute;inset:0;
+    border-radius:clamp(8px,2vw,20px);
+    border:0.5px solid rgba(0,0,0,0.05);
+    overflow:hidden;transform-origin:center bottom;will-change:transform;
+  }
+  .card>.media{width:100%;height:100%;background-color:#f7f7f7;}
+  .card video,.card img{width:100%;height:100%;object-fit:cover;display:block;}
+
+  /* closing content (timeline + bio), revealed at the end */
+  #closing{
+    position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+    z-index:0;padding:40px;opacity:0;pointer-events:none;touch-action:auto;
+  }
+  #closing .inner{display:flex;flex-direction:column;align-items:center;}
+  #icon-row{position:relative;margin-bottom:24px;}
+  #icon-row .icons{display:flex;gap:8px;}
+  .icon-wiggle{width:40px;height:40px;border-radius:10px;cursor:pointer;}
+  .label{
+    position:absolute;bottom:100%;left:0;right:0;display:flex;justify-content:center;
+    margin-bottom:20px;pointer-events:none;
+  }
+  .label .lab-inner{
+    position:relative;opacity:0;transform:translateY(3px);
+    transition:opacity .3s ease,transform .3s ease;text-align:center;white-space:nowrap;
+  }
+  .label .lab-inner span{
+    display:block;font-family:'TWKLausannePan',sans-serif;font-weight:300;
+    font-size:15px;color:#000;line-height:1.3;
+  }
+  .label .lab-inner span.yr{opacity:.5;}
+
+  .closing-text{
+    font-family:'TWKLausannePan',sans-serif;font-weight:300;font-size:18px;color:#000;
+    text-align:center;line-height:1.45;max-width:560px;
+  }
+  .mclane-link{
+    text-decoration:underline;text-underline-offset:3px;text-decoration-thickness:0.5px;
+    text-decoration-color:rgba(0,0,0,0.75);cursor:default;pointer-events:auto;
+    color:inherit;position:relative;
+  }
+  .get-in-touch{
+    background:none;border:none;padding:0;font:inherit;color:inherit;letter-spacing:inherit;
+    cursor:pointer;text-decoration:none;-webkit-tap-highlight-color:transparent;
+    touch-action:manipulation;transition:opacity .4s ease;
+  }
+  .git-arrow{
+    display:inline-block;position:relative;clip-path:inset(0);margin-left:4px;
+    font-family:'SF Pro',system-ui;font-weight:300;
+  }
+  .git-arrow-out,.git-arrow-in{display:inline-block;}
+  .git-arrow-in{position:absolute;top:0;left:0;transform:translateX(-100%);}
+  .get-in-touch:hover .git-arrow-out{animation:.35s cubic-bezier(.65,0,.35,1) forwards git-arrow-out-anim;}
+  .get-in-touch:hover .git-arrow-in{animation:.35s cubic-bezier(.65,0,.35,1) forwards git-arrow-in-anim;}
+  @keyframes git-arrow-out-anim{to{transform:translateX(100%);}}
+  @keyframes git-arrow-in-anim{0%{transform:translateX(-100%);}to{transform:translateX(0);}}
+
+  .touched{
+    position:absolute;top:0;left:50%;transform:translateX(-50%);white-space:nowrap;
+    opacity:0;transition:opacity .4s ease;pointer-events:none;
+  }
+  .copied-toast{
+    display:inline-block;padding:6px 12px;background:#fff;border-radius:8px;font-size:14px;color:#000;
+    white-space:nowrap;opacity:0;transform:translateY(6px) rotate(-3deg);
+    transition:opacity .4s cubic-bezier(.16,1,.3,1),transform .4s cubic-bezier(.16,1,.3,1);
+    pointer-events:none;
+  }
+
+  @keyframes wiggle{0%{transform:rotate(-2deg);}50%{transform:rotate(2deg);}to{transform:rotate(-2deg);}}
+  .icon-wiggle:hover,.icon-wiggle.wiggling{animation:.3s ease-in-out infinite wiggle;}
+
+  /* hidden "fur" character */
+  #fur{
+    position:absolute;bottom:-170px;left:50%;transform:translateX(-50%);
+    width:340px;height:486px;z-index:1;opacity:0;transition:opacity .5s ease;
+    pointer-events:none;overflow:hidden;background:transparent;
+  }
+  #fur video{width:100%;height:auto;object-fit:contain;object-position:top center;}
+
+  /* backdrop blur layer */
+  #backdrop{
+    position:fixed;top:-50px;left:0;right:0;bottom:-50px;
+    backdrop-filter:blur(0px);-webkit-backdrop-filter:blur(0px);background:transparent;
+    transition:backdrop-filter .3s ease,-webkit-backdrop-filter .3s ease,background .3s ease;
+    pointer-events:none;z-index:-1;
+  }
+
+  /* social popup */
+  #social{
+    position:fixed;top:0;left:0;
+    transform:translate(-50%,-50%) scale(0.55);
+    background:#fff;border-radius:999px;padding:10px 14px;
+    box-shadow:0 8px 32px rgba(0,0,0,0.12);
+    display:flex;flex-direction:row;gap:12px;align-items:center;
+    z-index:10000;opacity:0;pointer-events:none;
+    transition:opacity .2s ease,transform .25s cubic-bezier(.16,1,.3,1);
+  }
+  #social a{
+    width:52px;height:52px;border-radius:50%;display:flex;align-items:center;justify-content:center;
+    text-decoration:none;transition:transform .2s ease,opacity .2s ease;
+    opacity:0;transform:translateY(16px) scale(0.5);
+  }
+  #social.open a{opacity:1;transform:translateY(0) scale(1);}
+  #social a:hover{transform:translateY(-3px) scale(1.08);}
+
+  @media(max-width:768px){
+    #headline{font-size:24px;line-height:1.2;letter-spacing:0;max-width:90vw;}
+    .closing-text{max-width:90vw;}
+    #fur{width:90vw;height:60vh;bottom:-205px;}
+  }
+</style>
+</head>
+<body>
+<div id="stage">
+
+  <div id="headline-wrap">
+    <h1 id="headline">McLane is a product designer whose work is driven by usefulness, simplicity, and visual expression.</h1>
+  </div>
+
+  <div id="deck">
+    <div id="closing">
+      <div class="inner">
+        <div id="icon-row">
+          <!-- hover labels + icons injected by JS -->
+        </div>
+        <p class="closing-text">
+          <span class="mclane-link" id="mclane-link">McLane</span> is now on the Product Design Studio at Shopify reimagining how people sell and shop. He previously designed products at Squarespace, Airbnb, and Instagram, and teaches interaction design and senior portfolio at the School of Visual Arts in New York.
+          <span style="display:block;margin-top:0.75em"></span>
+          <span style="display:block;text-align:center">
+            <span style="position:relative;display:inline-block">
+              <button type="button" class="get-in-touch" id="git" aria-label="Copy email address">Get in touch<span class="git-arrow"><span class="git-arrow-out">→</span><span class="git-arrow-in">→</span></span></button>
+              <span class="touched" id="touched">I'm touched</span>
+            </span>
+          </span>
+          <span style="display:block;margin-top:16px;text-align:center">
+            <span class="copied-toast" id="copied">Email copied</span>
+          </span>
+        </p>
+      </div>
+    </div>
+    <!-- cards injected by JS -->
+  </div>
+
+  <div id="fur">
+    <video autoplay loop muted playsinline preload="metadata">
+      <source src="https://pub-29538ab109e54342b38840217c4fce91.r2.dev/videos/mclane-fur.webm" type='video/webm; codecs="vp09.00.10.08.01"'>
+      <source src="https://www.mclaneteitel.com/videos/mclane-fur-desktop.mp4" type="video/mp4">
+    </video>
+  </div>
+
+  <div id="backdrop"></div>
+
+  <div id="social">
+    <a href="https://www.linkedin.com/in/mclane-teitel-0888a489/" target="_blank" rel="noopener noreferrer" style="background:#007BB6"><svg width="24" height="24" viewBox="0 0 90 90" fill="#fff"><path d="M1.48 29.91h18.657v60.01H1.48V29.91zM10.809.08c5.963 0 10.809 4.846 10.809 10.819 0 5.967-4.846 10.813-10.809 10.813C4.832 21.712 0 16.866 0 10.899 0 4.926 4.832.08 10.809.08"/><path d="M31.835 29.91h17.89v8.206h.255c2.49-4.72 8.576-9.692 17.647-9.692C86.514 28.424 90 40.849 90 57.007V89.92H71.357V60.737c0-6.961-.121-15.912-9.692-15.912-9.706 0-11.187 7.587-11.187 15.412V89.92H31.835V29.91z"/></svg></a>
+    <a href="https://x.com/mclaneteitel" target="_blank" rel="noopener noreferrer" style="background:#000"><svg width="22" height="22" viewBox="0 0 512 462.799" fill="#fff"><path fill-rule="nonzero" d="M403.229 0h78.506L310.219 196.04 512 462.799H354.002L230.261 301.007 88.669 462.799h-78.56l183.455-209.683L0 0h161.999l111.856 147.88L403.229 0zm-27.556 415.805h43.505L138.363 44.527h-46.68l283.99 371.278z"/></svg></a>
+    <a href="https://www.instagram.com/mclaneteitel/" target="_blank" rel="noopener noreferrer" style="background:radial-gradient(circle at 30% 107%,#fdf497 0%,#fdf497 5%,#fd5949 45%,#d6249f 60%,#285AEB 90%)"><svg width="28" height="28" viewBox="0 0 16 16" fill="#fff"><path d="M8 0C5.829 0 5.556.01 4.703.048 3.85.088 3.269.222 2.76.42a3.9 3.9 0 00-1.417.923A3.9 3.9 0 00.42 2.76C.222 3.268.087 3.85.048 4.7.01 5.555 0 5.827 0 8.001c0 2.172.01 2.444.048 3.297.04.852.174 1.433.372 1.942.205.526.478.972.923 1.417.444.445.89.719 1.416.923.51.198 1.09.333 1.942.372C5.555 15.99 5.827 16 8 16s2.444-.01 3.298-.048c.851-.04 1.434-.174 1.943-.372a3.9 3.9 0 001.416-.923c.445-.445.718-.891.923-1.417.197-.509.332-1.09.372-1.942C15.99 10.445 16 10.173 16 8s-.01-2.445-.048-3.299c-.04-.851-.175-1.433-.372-1.941a3.9 3.9 0 00-.923-1.417A3.9 3.9 0 0013.24.42c-.51-.198-1.092-.333-1.943-.372C10.443.01 10.172 0 7.998 0zm-.717 1.442h.718c2.136 0 2.389.007 3.232.046.78.035 1.204.166 1.486.275.373.145.64.319.92.599s.453.546.598.92c.11.281.24.705.275 1.485.039.843.047 1.096.047 3.231s-.008 2.389-.047 3.232c-.035.78-.166 1.203-.275 1.485a2.5 2.5 0 01-.599.919c-.28.28-.546.453-.92.598-.28.11-.704.24-1.485.276-.843.038-1.096.047-3.232.047s-2.39-.009-3.233-.047c-.78-.036-1.203-.166-1.485-.276a2.5 2.5 0 01-.92-.598 2.5 2.5 0 01-.6-.92c-.109-.281-.24-.705-.275-1.485-.038-.843-.046-1.096-.046-3.233s.008-2.388.046-3.231c.036-.78.166-1.204.276-1.486.145-.373.319-.64.599-.92s.546-.453.92-.598c.282-.11.705-.24 1.485-.276.738-.034 1.024-.044 2.515-.045zm4.988 1.328a.96.96 0 100 1.92.96.96 0 000-1.92m-4.27 1.122a4.109 4.109 0 100 8.217 4.109 4.109 0 000-8.217m0 1.441a2.667 2.667 0 110 5.334 2.667 2.667 0 010-5.334"/></svg></a>
+    <a href="https://venmo.com/u/mclane" target="_blank" rel="noopener noreferrer" style="background:#008FFF"><svg width="24" height="26" viewBox="0 0 26 26" fill="#fff"><path d="M21.428 4.4c.77 1.281 1.119 2.601 1.119 4.27 0 5.32-4.541 12.23-8.227 17.08H6.15L2.776 5.563l7.37-.7 1.792 14.362c1.65-2.67 3.815-6.648 3.815-9.52 0-1.594-.273-2.678-.7-3.57z"/></svg></a>
+  </div>
+
+</div>
+
+<script>
+const R2 = "https://pub-29538ab109e54342b38840217c4fce91.r2.dev";
+const ORIGIN = "https://www.mclaneteitel.com";
+
+// ---- project deck data (exact, from source) ----
+const projects = [
+  {id:"shopapp-header",mediaType:"video",mediaSrc:R2+"/videos/shopapp-header.mp4",color:"#f7f7f7"},
+  {id:"shopapp-fashion",mediaType:"video",mediaSrc:R2+"/videos/shopapp-fashion.mp4",color:"#f7f7f7"},
+  {id:"shopify-design-header",mediaType:"video",mediaSrc:R2+"/videos/shopify-design-header.mp4",color:"#f7f7f7",link:"https://shopify.design"},
+  {id:"shopify-designreel-low",mediaType:"video",mediaSrc:R2+"/videos/shopify-designreel-low.mp4",color:"#f7f7f7"},
+  {id:"shopify-pulse",mediaType:"image",mediaSrc:ORIGIN+"/images/shopify-pulse.jpg",color:"#f7f7f7"},
+  {id:"shopify-sidekick-2",mediaType:"image",mediaSrc:R2+"/images/shopify-sidekick-2.jpg",color:"#f7f7f7"},
+  {id:"instagram-group-mentions",mediaType:"video",mediaSrc:ORIGIN+"/videos/groupmentions-sticker.mp4",color:"#f7f7f7"},
+  {id:"airbnb-photo-tour",mediaType:"video",mediaSrc:R2+"/videos/airbnb-photo-tour.mp4",color:"#f7f7f7"},
+  {id:"airbnb-guest-counter",mediaType:"video",mediaSrc:R2+"/videos/airbnb-guest-counter.mp4",color:"#f7f7f7"},
+  {id:"airbnb-listing-status",mediaType:"video",mediaSrc:R2+"/videos/airbnb-listing-status.mp4",color:"#f7f7f7"},
+  {id:"airbnb-passport",mediaType:"video",mediaSrc:R2+"/videos/airbnb-passport.mp4",color:"#f7f7f7"},
+  {id:"airbnb-today-tab",mediaType:"video",mediaSrc:R2+"/videos/airbnb-today-tab.mp4",color:"#f7f7f7"},
+  {id:"sqsp-000",mediaType:"image",mediaSrc:"https://images.squarespace-cdn.com/content/v1/61c4bf01d41d7f150ba3346d/7f2497a2-eb62-41a2-a17d-ea4fc096a8bc/sqsp-000.jpg?format=1500w",color:"#f0f0f0"},
+  {id:"squarespace-home",mediaType:"image",mediaSrc:R2+"/images/squarespace-home.jpg",color:"#f0f0f0"},
+  {id:"fluid-engine",mediaType:"image",mediaSrc:"https://images.squarespace-cdn.com/content/v1/61c4bf01d41d7f150ba3346d/f0ef0f6f-b978-4760-a08c-02698db2ee87/fluid-engine-01.jpg?format=1500w",color:"#f0f0f0"},
+  {id:"squarespace-mpp",mediaType:"video",mediaSrc:R2+"/videos/squarespace-mpp.mp4",color:"#f0f0f0"},
+];
+
+const timeline = [
+  {icon:R2+"/icons/squarespace.png",name:"Squarespace",role:"Designer, Design Manager",years:"2015–22"},
+  {icon:R2+"/icons/airbnb.png",name:"Airbnb Workshop",role:"Staff Experience Designer",years:"2022–24"},
+  {icon:R2+"/icons/instagram.png",name:"Instagram Friend Sharing",role:"Staff Product Designer",years:"2024–25"},
+  {icon:R2+"/icons/shopify.png",name:"Shopify",role:"Product Design Studio",years:"2025–Present"},
+];
+
+const isMobile = window.innerWidth < 768;
+
+// ---- exact constants from source ----
+const L = isMobile ? 300 : 800;          // dismissDistance / step
+const HFAC = isMobile ? 1.8 : 0.8;       // closing extra
+const TOTAL = projects.length;            // 16
+const UMAX = L + (TOTAL-1)*L + L*HFAC;    // max scroll progress
+const VISIBLE = 3;
+const introYStart = isMobile ? 50 : 72;   // vh
+const cInit = isMobile ? 150 : 300;
+// spring params
+const SPR = isMobile ? {k:120,c:35,m:0.3} : {k:200,c:40,m:0.5};
+
+// ---- motion values ----
+let p = 0;                 // raw scroll target
+let m = 0, mv = 0;         // spring position + velocity
+let cOff = cInit;          // intro offset (animates ->0)
+let dMaster = 0;           // master opacity (animates ->1)
+let ready = false;
+
+const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+const invlerp=(v,a,b)=>clamp((v-a)/(b-a),0,1);
+const lerp=(a,b,t)=>a+(b-a)*t;
+
+// ---- build cards ----
+const deck = document.getElementById('deck');
+const cardEls = [];
+projects.forEach((proj,i)=>{
+  const card = document.createElement('div');
+  card.className='card';
+  const media = document.createElement('div');
+  media.className='media';
+  media.style.backgroundColor = proj.color;
+  if(proj.link){ media.style.cursor='pointer'; media.addEventListener('click',()=>window.open(proj.link,'_blank')); }
+  if(proj.mediaType==='video'){
+    const v=document.createElement('video');
+    v.src=proj.mediaSrc; v.autoplay=true; v.loop=true; v.muted=true;
+    v.playsInline=true; v.preload = i<3?'auto':'metadata';
+    media.appendChild(v);
+  }else{
+    const img=document.createElement('img');
+    img.src=proj.mediaSrc; img.alt=proj.id; img.loading='lazy';
+    media.appendChild(img);
+  }
+  card.appendChild(media);
+  deck.appendChild(card);
+  cardEls.push(card);
+});
+
+// ---- build timeline icons + labels ----
+const iconRow = document.getElementById('icon-row');
+const labelEls = [];
+timeline.forEach((t,i)=>{
+  const label=document.createElement('div');
+  label.className='label';
+  label.innerHTML=`<div class="lab-inner"><span>${t.name}</span><span>${t.role}</span><span class="yr">${t.years}</span></div>`;
+  iconRow.appendChild(label);
+  labelEls.push(label.querySelector('.lab-inner'));
+});
+const iconsWrap=document.createElement('div');
+iconsWrap.className='icons';
+const iconImgs=[];
+timeline.forEach((t,i)=>{
+  const img=document.createElement('img');
+  img.src=t.icon; img.alt=t.name; img.className='icon-wiggle';
+  img.addEventListener('mouseenter',()=>setHovered(i));
+  img.addEventListener('mouseleave',()=>setHovered(null));
+  iconsWrap.appendChild(img);
+  iconImgs.push(img);
+});
+iconRow.appendChild(iconsWrap);
+
+function setHovered(idx){
+  labelEls.forEach((el,i)=>{
+    const on = i===idx;
+    // center label over its icon
+    if(on && iconImgs[i]){
+      const off = iconImgs[i].offsetLeft + 22 - (iconsWrap.offsetWidth/2);
+      el.style.left = off+'px';
+    }
+    el.style.opacity = on?1:0;
+    el.style.transform = on?'translateY(0)':'translateY(3px)';
+  });
+}
+
+// ---- element refs ----
+const headlineWrap=document.getElementById('headline-wrap');
+const stage=document.getElementById('stage');
+const closing=document.getElementById('closing');
+const furEl=document.getElementById('fur');
+const furVideo=furEl.querySelector('video');
+const backdrop=document.getElementById('backdrop');
+const social=document.getElementById('social');
+const mclaneLink=document.getElementById('mclane-link');
+const gitBtn=document.getElementById('git');
+const touchedEl=document.getElementById('touched');
+const copiedEl=document.getElementById('copied');
+
+// ---- input ----
+window.addEventListener('wheel',(e)=>{
+  e.preventDefault();
+  p = clamp(p + 1.5*e.deltaY, 0, UMAX);
+},{passive:false});
+
+let tStartY=0, tStartP=0, tBlocked=false;
+stage.addEventListener('touchstart',(e)=>{
+  const tgt=e.target;
+  tBlocked = !!(tgt.closest('.get-in-touch')||tgt.closest('.icon-wiggle')||tgt.closest('button')||tgt.closest('a'));
+  tStartY=e.touches[0].clientY; tStartP=p;
+},{passive:true});
+stage.addEventListener('touchmove',(e)=>{
+  if(tBlocked) return;
+  e.preventDefault();
+  const dy=tStartY-e.touches[0].clientY;
+  p = clamp(tStartP + 2*dy, 0, UMAX);
+},{passive:false});
+
+// ---- social popup ----
+let socialOpen=false;
+function openSocial(o){ socialOpen=o; }
+mclaneLink.addEventListener('mouseenter',(e)=>{
+  if(!isMobile){
+    social.style.left=(e.clientX+76.8)+'px';
+    social.style.top=e.clientY+'px';
+  }
+  openSocial(true);
+});
+mclaneLink.addEventListener('mouseleave',()=>openSocial(false));
+social.addEventListener('mouseenter',()=>openSocial(true));
+social.addEventListener('mouseleave',()=>openSocial(false));
+if(isMobile){ social.style.left='50%'; social.style.top='50%'; }
+
+// ---- get in touch ----
+let emailCopied=false;
+gitBtn.addEventListener('click',()=>{
+  if(emailCopied) return;
+  const ta=document.createElement('textarea');
+  ta.value='mclane.teitel@gmail.com';
+  ta.style.position='fixed'; ta.style.opacity='0';
+  document.body.appendChild(ta); ta.focus(); ta.select();
+  try{ document.execCommand('copy'); }catch(_){}
+  document.body.removeChild(ta);
+  emailCopied=true;
+  gitBtn.style.opacity='0'; touchedEl.style.opacity='1';
+  furEl.style.opacity='1';
+  furVideo.play().catch(()=>{});
+  setTimeout(()=>{ copiedEl.style.opacity='.65'; copiedEl.style.transform='translateY(0) rotate(0deg)'; },500);
+  setTimeout(()=>{ copiedEl.style.opacity='0'; copiedEl.style.transform='translateY(6px) rotate(-3deg)'; },2500);
+  setTimeout(()=>{ emailCopied=false; gitBtn.style.opacity='1'; touchedEl.style.opacity='0'; furEl.style.opacity='0'; },2500);
+});
+
+// ---- intro tweens (custom-bezier eased) ----
+function cubicBezier(p1x,p1y,p2x,p2y){
+  // sample-based bezier easing
+  function bz(t,a,b){return ((1-t)*(1-t)*(1-t)*0)+3*(1-t)*(1-t)*t*a+3*(1-t)*t*t*b+t*t*t*1;}
+  return function(x){
+    let lo=0,hi=1,t=x;
+    for(let i=0;i<18;i++){ t=(lo+hi)/2; const xx=bz(t,p1x,p2x); if(xx<x)lo=t; else hi=t; }
+    return bz(t,p1y,p2y);
+  };
+}
+const easeIntro=cubicBezier(.22,1,.36,1);
+let introStart=null;
+
+// ---- spring step ----
+function springStep(dt){
+  // substep for stability
+  const steps=Math.max(1,Math.ceil(dt/0.004));
+  const h=dt/steps;
+  for(let i=0;i<steps;i++){
+    const f=(-SPR.k*(m-p)-SPR.c*mv)/SPR.m;
+    mv+=f*h;
+    m+=mv*h;
+  }
+  if(Math.abs(m-p)<0.001 && Math.abs(mv)<0.01){ m=p; mv=0; }
+}
+
+// ---- render ----
+let last=null;
+function frame(ts){
+  if(introStart===null) introStart=ts;
+  if(last===null) last=ts;
+  let dt=(ts-last)/1000; last=ts;
+  dt=Math.min(dt,1/30);
+
+  springStep(dt);
+
+  // intro tweens
+  const tSec=(ts-introStart)/1000;
+  // cOff: cInit -> 0 over 1.4s, delay .3s
+  { const t=invlerp(tSec,0.3,0.3+1.4); cOff=lerp(cInit,0,easeIntro(t)); }
+  // dMaster: 0 -> 1 over 1.6s, delay .1s
+  { const t=invlerp(tSec,0.1,0.1+1.6); dMaster=lerp(0,1,easeIntro(t)); }
+  if(!ready && tSec>0.05) ready=true;
+
+  const f=Math.max(0,m-L);
+
+  // ---- deck container transform ----
+  const introY = lerp(introYStart,0, invlerp(m,0,L));        // vh
+  const rot = lerp(2,0, invlerp(m,0,L)) * (isMobile?0:1);
+  deck.style.transform = `translateY(calc(${introY}vh + ${cOff}px)) rotate(${rot}deg)`;
+  if(isMobile) deck.style.transform += ' scale(0.97)';
+
+  // ---- headline opacity = dMaster * x ----
+  const x = lerp(1,0, invlerp(f,(TOTAL-2)*L,(TOTAL-1)*L));
+  headlineWrap.style.opacity = dMaster * x;
+
+  // ---- cards ----
+  for(let e=0;e<TOTAL;e++){
+    const h = (e*L - f)/L + 1;
+    const y = h<1 ? -(1-h)*L : (h-1)*18;
+    const sc = h<1 ? 1 : 1-(h-1)*0.04;
+    const dSign = (e===TOTAL-1 || e%2===0) ? -1 : 1;
+    const ro = (!isMobile && h>0 && h<1) ? (1-h)*3*dSign
+             : (isMobile && e===0 && h>0) ? 1.5*Math.min(1,h) : 0;
+    const op = (h<-0.5 || h>VISIBLE+1) ? 0 : (h>VISIBLE ? 1-(h-VISIBLE) : 1);
+    const z = Math.round(TOTAL - h + 1);
+    const pe = h<0.1 ? 'none':'auto';
+    const el=cardEls[e];
+    el.style.transform=`translateY(${y}px) scale(${sc}) rotate(${ro}deg)`;
+    el.style.opacity=op;
+    el.style.zIndex=z;
+    el.style.pointerEvents=pe;
+  }
+
+  // ---- closing content ----
+  const b=(TOTAL-1)*L;
+  const T=invlerp(f,b+0.3*L,b+0.7*L);
+  closing.style.opacity = ready ? T : 0;
+  closing.style.zIndex = (T>0.01)?9999:0;
+  closing.style.pointerEvents = T>0.3?'auto':'none';
+
+  // ---- backdrop + social ----
+  backdrop.style.backdropFilter = socialOpen?'blur(8px)':'blur(0px)';
+  backdrop.style.webkitBackdropFilter = socialOpen?'blur(8px)':'blur(0px)';
+  backdrop.style.background = socialOpen?'rgba(0,0,0,0.05)':'transparent';
+  backdrop.style.zIndex = socialOpen?9998:-1;
+  social.style.opacity = socialOpen?1:0;
+  social.style.pointerEvents = socialOpen?'auto':'none';
+  social.style.transform = socialOpen?'translate(-50%,-50%) scale(0.8)':'translate(-50%,-50%) scale(0.55)';
+  social.classList.toggle('open',socialOpen);
+
+  requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>
