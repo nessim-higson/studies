@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-<title>McLane Teitel</title>
-<meta name="description" content="McLane Teitel is a product and visual designer based in Brooklyn, New York. Currently on the Product Design Studio at Shopify." />
+<title>WKNDR</title>
+<meta name="description" content="WKNDR is a weekend companion that reads the weather, learns your taste, and turns free time into plans worth keeping." />
 <meta name="theme-color" content="#f0f4f0" />
 <style>
   @font-face{
@@ -59,8 +59,25 @@
     border:0.5px solid rgba(0,0,0,0.05);
     overflow:hidden;transform-origin:center bottom;will-change:transform;
   }
-  .card>.media{width:100%;height:100%;background-color:#f7f7f7;}
+  .card>.media{width:100%;height:100%;background-color:#f7f7f7;position:relative;}
   .card video,.card img{width:100%;height:100%;object-fit:cover;display:block;}
+  /* editable color-card slot */
+  .card-label{
+    position:absolute;inset:0;display:flex;flex-direction:column;
+    align-items:center;justify-content:center;text-align:center;padding:24px;
+  }
+  .card-label .ct{
+    font-family:'TWKLausannePan',sans-serif;font-weight:300;
+    font-size:clamp(28px,4.2vw,60px);letter-spacing:-0.02em;line-height:1.02;
+  }
+  .card-label .ck{
+    font-family:'TWKLausannePan',sans-serif;font-weight:300;
+    font-size:clamp(13px,1.2vw,17px);margin-top:14px;opacity:0.72;
+  }
+  .card-label .cn{
+    position:absolute;top:18px;left:20px;font-size:13px;opacity:0.55;
+    font-family:'TWKLausannePan',sans-serif;font-weight:300;letter-spacing:0.02em;
+  }
 
   /* closing content (timeline + bio), revealed at the end */
   #closing{
@@ -169,7 +186,7 @@
 <div id="stage">
 
   <div id="headline-wrap">
-    <h1 id="headline">McLane is a product designer whose work is driven by usefulness, simplicity, and visual expression.</h1>
+    <h1 id="headline">WKNDR turns a blank Saturday into a plan worth keeping — built around the weather, your people, and the places nearby.</h1>
   </div>
 
   <div id="deck">
@@ -179,12 +196,12 @@
           <!-- hover labels + icons injected by JS -->
         </div>
         <p class="closing-text">
-          <span class="mclane-link" id="mclane-link">McLane</span> is now on the Product Design Studio at Shopify reimagining how people sell and shop. He previously designed products at Squarespace, Airbnb, and Instagram, and teaches interaction design and senior portfolio at the School of Visual Arts in New York.
+          <span class="mclane-link" id="mclane-link">WKNDR</span> is a weekend companion for people who actually want to go do something. It reads the forecast, learns your taste, and turns free time into plans worth showing up for. Made in Brooklyn, built for wherever your weekend takes you.
           <span style="display:block;margin-top:0.75em"></span>
           <span style="display:block;text-align:center">
             <span style="position:relative;display:inline-block">
-              <button type="button" class="get-in-touch" id="git" aria-label="Copy email address">Get in touch<span class="git-arrow"><span class="git-arrow-out">→</span><span class="git-arrow-in">→</span></span></button>
-              <span class="touched" id="touched">I'm touched</span>
+              <button type="button" class="get-in-touch" id="git" aria-label="Copy email address">Get early access<span class="git-arrow"><span class="git-arrow-out">→</span><span class="git-arrow-in">→</span></span></button>
+              <span class="touched" id="touched">You're on the list</span>
             </span>
           </span>
           <span style="display:block;margin-top:16px;text-align:center">
@@ -194,13 +211,6 @@
       </div>
     </div>
     <!-- cards injected by JS -->
-  </div>
-
-  <div id="fur">
-    <video autoplay loop muted playsinline preload="metadata">
-      <source src="https://pub-29538ab109e54342b38840217c4fce91.r2.dev/videos/mclane-fur.webm" type='video/webm; codecs="vp09.00.10.08.01"'>
-      <source src="https://www.mclaneteitel.com/videos/mclane-fur-desktop.mp4" type="video/mp4">
-    </video>
   </div>
 
   <div id="backdrop"></div>
@@ -215,34 +225,25 @@
 </div>
 
 <script>
-const R2 = "https://pub-29538ab109e54342b38840217c4fce91.r2.dev";
-const ORIGIN = "https://www.mclaneteitel.com";
-
-// ---- project deck data (exact, from source) ----
+// ============================================================
+//  EDIT ME — every card below is just a color + a label.
+//  Swap colors, titles and kickers to retheme the whole deck.
+// ============================================================
 const projects = [
-  {id:"shopapp-header",mediaType:"video",mediaSrc:R2+"/videos/shopapp-header.mp4",color:"#f7f7f7"},
-  {id:"shopapp-fashion",mediaType:"video",mediaSrc:R2+"/videos/shopapp-fashion.mp4",color:"#f7f7f7"},
-  {id:"shopify-design-header",mediaType:"video",mediaSrc:R2+"/videos/shopify-design-header.mp4",color:"#f7f7f7",link:"https://shopify.design"},
-  {id:"shopify-designreel-low",mediaType:"video",mediaSrc:R2+"/videos/shopify-designreel-low.mp4",color:"#f7f7f7"},
-  {id:"shopify-pulse",mediaType:"image",mediaSrc:ORIGIN+"/images/shopify-pulse.jpg",color:"#f7f7f7"},
-  {id:"shopify-sidekick-2",mediaType:"image",mediaSrc:R2+"/images/shopify-sidekick-2.jpg",color:"#f7f7f7"},
-  {id:"instagram-group-mentions",mediaType:"video",mediaSrc:ORIGIN+"/videos/groupmentions-sticker.mp4",color:"#f7f7f7"},
-  {id:"airbnb-photo-tour",mediaType:"video",mediaSrc:R2+"/videos/airbnb-photo-tour.mp4",color:"#f7f7f7"},
-  {id:"airbnb-guest-counter",mediaType:"video",mediaSrc:R2+"/videos/airbnb-guest-counter.mp4",color:"#f7f7f7"},
-  {id:"airbnb-listing-status",mediaType:"video",mediaSrc:R2+"/videos/airbnb-listing-status.mp4",color:"#f7f7f7"},
-  {id:"airbnb-passport",mediaType:"video",mediaSrc:R2+"/videos/airbnb-passport.mp4",color:"#f7f7f7"},
-  {id:"airbnb-today-tab",mediaType:"video",mediaSrc:R2+"/videos/airbnb-today-tab.mp4",color:"#f7f7f7"},
-  {id:"sqsp-000",mediaType:"image",mediaSrc:"https://images.squarespace-cdn.com/content/v1/61c4bf01d41d7f150ba3346d/7f2497a2-eb62-41a2-a17d-ea4fc096a8bc/sqsp-000.jpg?format=1500w",color:"#f0f0f0"},
-  {id:"squarespace-home",mediaType:"image",mediaSrc:R2+"/images/squarespace-home.jpg",color:"#f0f0f0"},
-  {id:"fluid-engine",mediaType:"image",mediaSrc:"https://images.squarespace-cdn.com/content/v1/61c4bf01d41d7f150ba3346d/f0ef0f6f-b978-4760-a08c-02698db2ee87/fluid-engine-01.jpg?format=1500w",color:"#f0f0f0"},
-  {id:"squarespace-mpp",mediaType:"video",mediaSrc:R2+"/videos/squarespace-mpp.mp4",color:"#f0f0f0"},
+  {color:"#F4C95D", text:"#1c1303", kicker:"Drop ideas, lock a plan",     title:"Plan the weekend"},
+  {color:"#7FB7D9", text:"#08222e", kicker:"Weather-aware suggestions",   title:"Read the sky"},
+  {color:"#E98A77", text:"#3a0f0a", kicker:"Invite, match, go",           title:"Gather your people"},
+  {color:"#8FB996", text:"#11261a", kicker:"An outfit for the forecast",  title:"Save your looks"},
+  {color:"#B6A6E0", text:"#1e1340", kicker:"Places that fit the mood",    title:"Find the spot"},
+  {color:"#2E3A59", text:"#dfe7ff", kicker:"Keep the good ones",          title:"Make the recap"},
 ];
 
+// end-card chips = the weather moods WKNDR adapts to. Hover for the label.
 const timeline = [
-  {icon:R2+"/icons/squarespace.png",name:"Squarespace",role:"Designer, Design Manager",years:"2015–22"},
-  {icon:R2+"/icons/airbnb.png",name:"Airbnb Workshop",role:"Staff Experience Designer",years:"2022–24"},
-  {icon:R2+"/icons/instagram.png",name:"Instagram Friend Sharing",role:"Staff Product Designer",years:"2024–25"},
-  {icon:R2+"/icons/shopify.png",name:"Shopify",role:"Product Design Studio",years:"2025–Present"},
+  {color:"#7FB7D9", name:"Rain",     role:"Cozy indoors",    years:"stay-in mode"},
+  {color:"#8FB996", name:"Overcast", role:"Soft and calm",   years:"easy plans"},
+  {color:"#F4C95D", name:"Clear",    role:"Blue-sky energy", years:"get outside"},
+  {color:"#E98A77", name:"Golden",   role:"Late afternoon",  years:"magic hour"},
 ];
 
 const isMobile = window.innerWidth < 768;
@@ -278,17 +279,14 @@ projects.forEach((proj,i)=>{
   const media = document.createElement('div');
   media.className='media';
   media.style.backgroundColor = proj.color;
-  if(proj.link){ media.style.cursor='pointer'; media.addEventListener('click',()=>window.open(proj.link,'_blank')); }
-  if(proj.mediaType==='video'){
-    const v=document.createElement('video');
-    v.src=proj.mediaSrc; v.autoplay=true; v.loop=true; v.muted=true;
-    v.playsInline=true; v.preload = i<3?'auto':'metadata';
-    media.appendChild(v);
-  }else{
-    const img=document.createElement('img');
-    img.src=proj.mediaSrc; img.alt=proj.id; img.loading='lazy';
-    media.appendChild(img);
-  }
+  media.style.color = proj.text || '#000';
+  const lab = document.createElement('div');
+  lab.className='card-label';
+  lab.innerHTML =
+    `<div class="cn">${String(i+1).padStart(2,'0')} / ${projects.length}</div>`+
+    `<div class="ct">${proj.title}</div>`+
+    `<div class="ck">${proj.kicker}</div>`;
+  media.appendChild(lab);
   card.appendChild(media);
   deck.appendChild(card);
   cardEls.push(card);
@@ -308,12 +306,13 @@ const iconsWrap=document.createElement('div');
 iconsWrap.className='icons';
 const iconImgs=[];
 timeline.forEach((t,i)=>{
-  const img=document.createElement('img');
-  img.src=t.icon; img.alt=t.name; img.className='icon-wiggle';
-  img.addEventListener('mouseenter',()=>setHovered(i));
-  img.addEventListener('mouseleave',()=>setHovered(null));
-  iconsWrap.appendChild(img);
-  iconImgs.push(img);
+  const chip=document.createElement('div');
+  chip.className='icon-wiggle';
+  chip.style.backgroundColor=t.color;
+  chip.addEventListener('mouseenter',()=>setHovered(i));
+  chip.addEventListener('mouseleave',()=>setHovered(null));
+  iconsWrap.appendChild(chip);
+  iconImgs.push(chip);
 });
 iconRow.appendChild(iconsWrap);
 
@@ -334,8 +333,6 @@ function setHovered(idx){
 const headlineWrap=document.getElementById('headline-wrap');
 const stage=document.getElementById('stage');
 const closing=document.getElementById('closing');
-const furEl=document.getElementById('fur');
-const furVideo=furEl.querySelector('video');
 const backdrop=document.getElementById('backdrop');
 const social=document.getElementById('social');
 const mclaneLink=document.getElementById('mclane-link');
@@ -382,18 +379,16 @@ let emailCopied=false;
 gitBtn.addEventListener('click',()=>{
   if(emailCopied) return;
   const ta=document.createElement('textarea');
-  ta.value='mclane.teitel@gmail.com';
+  ta.value='hello@wkndr.app';
   ta.style.position='fixed'; ta.style.opacity='0';
   document.body.appendChild(ta); ta.focus(); ta.select();
   try{ document.execCommand('copy'); }catch(_){}
   document.body.removeChild(ta);
   emailCopied=true;
   gitBtn.style.opacity='0'; touchedEl.style.opacity='1';
-  furEl.style.opacity='1';
-  furVideo.play().catch(()=>{});
   setTimeout(()=>{ copiedEl.style.opacity='.65'; copiedEl.style.transform='translateY(0) rotate(0deg)'; },500);
   setTimeout(()=>{ copiedEl.style.opacity='0'; copiedEl.style.transform='translateY(6px) rotate(-3deg)'; },2500);
-  setTimeout(()=>{ emailCopied=false; gitBtn.style.opacity='1'; touchedEl.style.opacity='0'; furEl.style.opacity='0'; },2500);
+  setTimeout(()=>{ emailCopied=false; gitBtn.style.opacity='1'; touchedEl.style.opacity='0'; },2500);
 });
 
 // ---- intro tweens (custom-bezier eased) ----
