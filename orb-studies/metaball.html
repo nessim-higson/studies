@@ -1,0 +1,242 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>orb studies — metaball merge</title>
+<link rel="preconnect" href="https://api.fontshare.com" crossorigin />
+<link href="https://api.fontshare.com/v2/css?f[]=clash-display@500,600&f[]=switzer@400,500&display=swap" rel="stylesheet" />
+<style>
+  :root { --ink: #0a0b0d; --paper: #f4f3ef; }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { height: 100%; background: var(--ink); overflow: hidden; }
+  body { font-family: 'Switzer', system-ui, sans-serif; color: #eaeaea; -webkit-font-smoothing: antialiased; }
+  canvas { position: fixed; inset: 0; width: 100%; height: 100%; display: block; }
+  .layer { position: fixed; inset: 0; z-index: 2; pointer-events: none; }
+
+  .label {
+    position: absolute; transform: translate(-50%, -50%);
+    pointer-events: auto; cursor: pointer; user-select: none;
+    font-family: 'Clash Display', sans-serif; font-weight: 500;
+    color: var(--ink); letter-spacing: -0.01em; white-space: nowrap;
+    transition: opacity 0.5s ease, color 0.5s ease, font-size 0.6s cubic-bezier(0.22,1,0.3,1);
+  }
+  .label.dim { color: rgba(10,11,13,0.0); }
+
+  /* the copy sets directly on the merged blob — no panel, no box */
+  .copy {
+    position: absolute; transform: translate(-50%, -50%);
+    width: min(30ch, 34vw); max-width: 360px; text-align: center;
+    color: var(--ink); opacity: 0; transition: opacity 0.7s ease 0.15s;
+  }
+  .copy.show { opacity: 1; }
+  .copy h2 { font-family: 'Clash Display', sans-serif; font-weight: 600; font-size: clamp(22px, 3.6vw, 38px); line-height: 0.98; letter-spacing: -0.02em; margin-bottom: 0.5em; }
+  .copy p { font-size: clamp(13px, 1.5vw, 15px); line-height: 1.55; color: rgba(10,11,13,0.74); max-width: 26ch; margin: 0 auto; }
+  .copy .tag { font-size: 11px; letter-spacing: 0.22em; text-transform: uppercase; color: rgba(10,11,13,0.5); margin-bottom: 0.9em; }
+
+  .chrome { position: fixed; z-index: 5; pointer-events: none; }
+  .wm { top: 22px; left: 26px; font-family: 'Clash Display'; font-weight: 600; font-size: 13px; letter-spacing: 0.26em; color: rgba(234,234,234,0.85); }
+  .hint { bottom: 22px; left: 26px; font-size: 11px; letter-spacing: 0.04em; color: rgba(234,234,234,0.4); max-width: 30ch; line-height: 1.5; }
+  .back { bottom: 22px; right: 26px; font-size: 11px; letter-spacing: 0.18em; text-transform: uppercase; color: rgba(234,234,234,0.55); }
+  a.nav { position: fixed; z-index: 6; top: 20px; right: 24px; font-size: 11px; letter-spacing: 0.18em; text-transform: uppercase; color: rgba(234,234,234,0.5); text-decoration: none; }
+  a.nav:hover { color: #eaeaea; }
+</style>
+</head>
+<body>
+<canvas id="gl"></canvas>
+<div class="layer" id="labels"></div>
+<div class="chrome wm">NEVVERLAND</div>
+<div class="chrome hint">drifting nav. click a word — it draws its neighbours in and the field fuses into one body that holds the writing. click the void to let it disperse.</div>
+<div class="chrome back" id="back" style="opacity:0;transition:opacity .5s">↑ click anywhere to release</div>
+<a class="nav" href="./index.html">↩ studies</a>
+
+<script>
+const cv = document.getElementById('gl');
+const gl = cv.getContext('webgl', { premultipliedAlpha: false, antialias: true });
+
+const VERT = `attribute vec2 p; void main(){ gl_Position = vec4(p,0.0,1.0); }`;
+const FRAG = `
+precision highp float;
+uniform vec2 u_res;
+uniform float u_time;
+uniform vec3 u_balls[16];   // x, y (px, y-down), radius
+uniform int  u_count;
+uniform float u_settle;     // 0 drifting .. 1 fully merged/calm
+
+float hash(vec2 p){ return fract(sin(dot(p, vec2(41.3,289.1))) * 43758.5453); }
+
+void main(){
+  vec2 frag = vec2(gl_FragCoord.x, u_res.y - gl_FragCoord.y); // y-down to match DOM
+  float field = 0.0;
+  for(int i=0;i<16;i++){
+    if(i>=u_count) break;
+    vec3 b = u_balls[i];
+    vec2 d = frag - b.xy;
+    field += (b.z*b.z) / (dot(d,d) + 1.0);
+  }
+  // iso surface
+  float edge = mix(1.6, 1.2, u_settle);
+  float a = smoothstep(edge*0.78, edge*1.05, field);
+  if(a <= 0.001) discard;
+
+  // luminosity: soft vertical falloff + bright core where field is dense
+  float core = smoothstep(1.0, 6.0, field);
+  vec3 paper = vec3(0.957, 0.953, 0.937);
+  vec3 hi    = vec3(1.0, 0.996, 0.972);
+  vec3 col = mix(paper, hi, core * 0.9);
+  // a faint cool rim
+  float rim = smoothstep(edge*1.05, edge*0.82, field);
+  col = mix(col, vec3(0.80,0.81,0.84), rim*0.25);
+  // grain
+  float g = hash(frag*0.5 + u_time*0.0) - 0.5;
+  col += g * 0.018;
+
+  gl_FragColor = vec4(col, a);
+}`;
+
+function sh(type, src){ const s = gl.createShader(type); gl.shaderSource(s, src); gl.compileShader(s);
+  if(!gl.getShaderParameter(s, gl.COMPILE_STATUS)) console.error(gl.getShaderInfoLog(s)); return s; }
+const prog = gl.createProgram();
+gl.attachShader(prog, sh(gl.VERTEX_SHADER, VERT));
+gl.attachShader(prog, sh(gl.FRAGMENT_SHADER, FRAG));
+gl.linkProgram(prog); gl.useProgram(prog);
+const buf = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1,-1, 3,-1, -1,3]), gl.STATIC_DRAW);
+const pLoc = gl.getAttribLocation(prog, 'p'); gl.enableVertexAttribArray(pLoc);
+gl.vertexAttribPointer(pLoc, 2, gl.FLOAT, false, 0, 0);
+gl.enable(gl.BLEND); gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+const U = {
+  res: gl.getUniformLocation(prog,'u_res'), time: gl.getUniformLocation(prog,'u_time'),
+  balls: gl.getUniformLocation(prog,'u_balls'), count: gl.getUniformLocation(prog,'u_count'),
+  settle: gl.getUniformLocation(prog,'u_settle')
+};
+
+// ── data: a small studio ──────────────────────────────────────────
+const NODES = [
+  { id:'work',    label:'Work',    r: 84, copy:{ tag:'01 — Selected', h:'Work', p:'Motion-led identities for Nike, HBO, Sony and Pepsi. Systems that don’t sit still — built to move, react and rearrange around what they hold.' } },
+  { id:'studio',  label:'Studio',  r: 70, copy:{ tag:'02 — Who', h:'Studio', p:'A small team that treats interface as a material. We design things that behave, not just things that sit. Founded in the space between film and software.' } },
+  { id:'play',    label:'Play',    r: 64, copy:{ tag:'03 — Lab', h:'Play', p:'Experiments with no client and no deadline. Where the next idea is found before anyone asks for it.' } },
+  { id:'words',   label:'Words',   r: 58, copy:{ tag:'04 — Writing', h:'Words', p:'Notes on motion, type and the feel of software. Published when there’s something worth saying.' } },
+  { id:'contact', label:'Contact', r: 56, copy:{ tag:'05 — Say hello', h:'Contact', p:'hello@nevverland.studio — for projects, collaborations, or just to talk shop.' } },
+];
+
+let W = 0, H = 0, DPR = Math.min(devicePixelRatio||1, 2);
+const labelsEl = document.getElementById('labels');
+const backEl = document.getElementById('back');
+
+// orb runtime state
+const orbs = NODES.map((n,i) => ({
+  node:n, x:0,y:0, hx:0,hy:0, r:n.r, baseR:n.r, tr:n.r,
+  vx:0, vy:0, phase: Math.random()*6.28, spd: 0.18+Math.random()*0.16,
+  el: makeLabel(n,i), copyEl: makeCopy(n)
+}));
+
+function makeLabel(n,i){
+  const el = document.createElement('div'); el.className='label'; el.textContent=n.label;
+  el.style.fontSize = (n.r*0.42)+'px';
+  el.addEventListener('click', (e)=>{ e.stopPropagation(); select(i); });
+  el.addEventListener('pointerenter', ()=>{ if(active<0) hover=i; });
+  el.addEventListener('pointerleave', ()=>{ if(hover===i) hover=-1; });
+  labelsEl.appendChild(el); return el;
+}
+function makeCopy(n){
+  const el = document.createElement('div'); el.className='copy';
+  el.innerHTML = `<div class="tag">${n.copy.tag}</div><h2>${n.copy.h}</h2><p>${n.copy.p}</p>`;
+  labelsEl.appendChild(el); return el;
+}
+
+let active = -1, hover = -1, settle = 0;
+function select(i){
+  active = i; backEl.style.opacity = 1;
+  // precompute each orb's merged target: active centred, its two ring-nearest
+  // neighbours widen the body left & right (so the blob stays centred under the
+  // copy), the rest are flung out and shrunk
+  const ring = (j) => Math.min((j-i+orbs.length)%orbs.length, (i-j+orbs.length)%orbs.length);
+  const nb = orbs.map((o,j)=>({j,d:ring(j)})).filter(x=>x.j!==i).sort((a,b)=>a.d-b.d).slice(0,2).map(x=>x.j);
+  orbs.forEach((o,j)=>{
+    if(j===i){ o.aTx=W*0.5; o.aTy=H*0.5; o.aR=o.baseR*2.15; }
+    else if(nb.includes(j)){ const side=(j===nb[0])?-1:1; o.aTx=W*0.5+side*o.baseR*2.0; o.aTy=H*0.5+(side<0?-12:26); o.aR=o.baseR*1.28; }
+    else { const ang=Math.atan2(o.homeY-H/2,o.homeX-W/2); o.aTx=W/2+Math.cos(ang)*Math.max(W,H)*0.62; o.aTy=H/2+Math.sin(ang)*Math.max(W,H)*0.62; o.aR=o.baseR*0.5; }
+  });
+}
+function release(){ active = -1; backEl.style.opacity = 0; }
+document.body.addEventListener('click', release);
+
+function layout(){
+  W = innerWidth; H = innerHeight;
+  cv.width = W*DPR; cv.height = H*DPR; gl.viewport(0,0,cv.width,cv.height);
+  // home positions: a loose ring, scaled to viewport
+  const cx = W*0.5, cy = H*0.5;
+  const rad = Math.min(W,H)*0.30;
+  const mobile = W < 680;
+  orbs.forEach((o,i)=>{
+    const a = -Math.PI/2 + i/orbs.length*Math.PI*2;
+    o.homeX = cx + Math.cos(a)*rad*(mobile?0.92:1.15);
+    o.homeY = cy + Math.sin(a)*rad*(mobile?1.05:0.82);
+    o.baseR = o.node.r * (mobile?0.82:1) * Math.min(1, W/1100);
+    if(o.x===0){ o.x=o.homeX; o.y=o.homeY; o.r=o.baseR; }
+  });
+}
+addEventListener('resize', layout); layout();
+
+let mx = -999, my = -999;
+addEventListener('pointermove', e=>{ mx=e.clientX; my=e.clientY; });
+
+function frame(t){
+  const time = t*0.001;
+  const targetSettle = active>=0 ? 1 : 0;
+  settle += (targetSettle - settle) * 0.06;
+
+  // ── motion model ──
+  orbs.forEach((o,i)=>{
+    let tx, ty, tr;
+    if(active>=0){
+      tx = o.aTx; ty = o.aTy; tr = o.aR;
+    } else {
+      // drifting home
+      o.phase += 0.0009 + o.spd*0.0006;
+      tx = o.homeX + Math.cos(o.phase*1.3+i)*26 + Math.sin(o.phase*0.7)*14;
+      ty = o.homeY + Math.sin(o.phase+i*1.7)*22 + Math.cos(o.phase*0.5)*12;
+      tr = o.baseR + (hover===i? o.baseR*0.12 : 0) + Math.sin(time*0.8+i)*1.5;
+    }
+    const ease = active>=0 ? 0.085 : 0.05;
+    o.x += (tx-o.x)*ease; o.y += (ty-o.y)*ease; o.r += (tr-o.r)*ease;
+  });
+
+  // ── render metaballs ──
+  const data = new Float32Array(16*3);
+  let count = 0;
+  orbs.forEach(o=>{ if(count<15){ data[count*3]=o.x*DPR; data[count*3+1]=o.y*DPR; data[count*3+2]=o.r*DPR; count++; } });
+  // cursor ball keeps the field alive while drifting
+  if(active<0 && mx>0){ data[count*3]=mx*DPR; data[count*3+1]=my*DPR; data[count*3+2]=42*DPR; count++; }
+  gl.uniform2f(U.res, cv.width, cv.height);
+  gl.uniform1f(U.time, time);
+  gl.uniform1f(U.settle, settle);
+  gl.uniform3fv(U.balls, data);
+  gl.uniform1i(U.count, count);
+  gl.drawArrays(gl.TRIANGLES, 0, 3);
+
+  // ── place DOM labels + copy ──
+  orbs.forEach((o,i)=>{
+    o.el.style.left = o.x+'px'; o.el.style.top = o.y+'px';
+    o.el.style.fontSize = Math.max(11, o.r*0.40)+'px';
+    if(active>=0){
+      o.el.style.opacity = (i===active)? 0 : 0;   // labels give way to copy when merged
+    } else {
+      o.el.style.opacity = 1;
+      o.el.classList.toggle('dim', false);
+    }
+    // copy follows the active blob
+    const c = o.copyEl;
+    if(active===i){
+      c.style.left = (W*0.5)+'px'; c.style.top = (H*0.5)+'px';
+      c.classList.add('show');
+    } else { c.classList.remove('show'); }
+  });
+
+  requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>

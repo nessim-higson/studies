@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>orb studies — NEVVERLAND</title>
+<link rel="preconnect" href="https://api.fontshare.com" crossorigin />
+<link href="https://api.fontshare.com/v2/css?f[]=clash-display@500,600&f[]=switzer@400,500&display=swap" rel="stylesheet" />
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  html,body { height:100%; background:#0a0b0d; }
+  body { font-family:'Switzer',system-ui,sans-serif; color:#eaeaea; -webkit-font-smoothing:antialiased;
+    display:flex; flex-direction:column; min-height:100%; padding:clamp(28px,6vw,72px); }
+  header { margin-bottom:clamp(28px,5vw,56px); }
+  .wm { font-family:'Clash Display'; font-weight:600; font-size:13px; letter-spacing:0.26em; color:rgba(234,234,234,0.85); }
+  h1 { font-family:'Clash Display'; font-weight:600; font-size:clamp(30px,6vw,60px); letter-spacing:-0.02em; line-height:1; margin:18px 0 14px; }
+  .sub { font-size:clamp(14px,1.8vw,17px); line-height:1.6; color:rgba(234,234,234,0.55); max-width:54ch; }
+  .grid { display:grid; gap:14px; grid-template-columns:repeat(auto-fit, minmax(240px,1fr)); }
+  a.card { display:block; text-decoration:none; color:#eaeaea; padding:22px 24px 26px;
+    border:1px solid rgba(234,234,234,0.12); border-radius:14px; background:rgba(255,255,255,0.012);
+    transition:border-color .35s, background .35s, transform .35s; }
+  a.card:hover { border-color:rgba(234,234,234,0.4); background:rgba(255,255,255,0.04); transform:translateY(-3px); }
+  .card .no { font-size:11px; letter-spacing:0.22em; color:rgba(234,234,234,0.4); }
+  .card h2 { font-family:'Clash Display'; font-weight:600; font-size:23px; letter-spacing:-0.01em; margin:8px 0 8px; }
+  .card p { font-size:13px; line-height:1.55; color:rgba(234,234,234,0.6); }
+  .card .go { margin-top:16px; font-size:11px; letter-spacing:0.18em; text-transform:uppercase; color:rgba(234,234,234,0.5); }
+  footer { margin-top:auto; padding-top:40px; font-size:11px; letter-spacing:0.04em; color:rgba(234,234,234,0.35); line-height:1.6; }
+  footer a { color:rgba(234,234,234,0.55); }
+</style>
+</head>
+<body>
+<header>
+  <div class="wm">NEVVERLAND</div>
+  <h1>Orb studies</h1>
+  <p class="sub">Three working answers to one question: can an amorphous, drifting orb nav carry copy and imagery effortlessly — and still get out of the content’s way? Click a word in each. Click the void to return.</p>
+</header>
+
+<div class="grid">
+  <a class="card" href="./metaball.html">
+    <div class="no">01 — MERGE</div>
+    <h2>Metaball</h2>
+    <p>Liquid orbs drift and react to the cursor. Pick one and the field fuses — neighbours pulled in, copy set directly on the body. Navigation is the same material as the page.</p>
+    <div class="go">open ↗</div>
+  </a>
+  <a class="card" href="./quiet-well.html">
+    <div class="no">02 — FOCUS PULL</div>
+    <h2>Quiet well</h2>
+    <p>The field stays alive but blurs and dims to the edges; the page rises still and legible in the cleared centre. Motion you feel, words you can read. The recommended spine.</p>
+    <div class="go">open ↗</div>
+  </a>
+  <a class="card" href="./dilation.html">
+    <div class="no">03 — DILATION</div>
+    <h2>Dilation</h2>
+    <p>The blob you choose grows into the reading surface; siblings cool into a constellation + dot-rail you can still reach. Imagery fills a blob mask; click it for full-bleed.</p>
+    <div class="go">open ↗</div>
+  </a>
+</div>
+
+<footer>
+  R&amp;D toward NEVVERLAND’s Orbs mode — these are throwaway probes, not the app. V.1 stays frozen at <a href="https://nessim-higson.github.io/nevverland/">nevverland</a>.
+</footer>
+</body>
+</html>

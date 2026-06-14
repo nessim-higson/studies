@@ -1,0 +1,156 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>orb studies — dilation</title>
+<link rel="preconnect" href="https://api.fontshare.com" crossorigin />
+<link href="https://api.fontshare.com/v2/css?f[]=clash-display@500,600&f[]=switzer@400,500&display=swap" rel="stylesheet" />
+<style>
+  :root { --ink:#0a0b0d; }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  html,body { height:100%; background:var(--ink); overflow:hidden; }
+  body { font-family:'Switzer',system-ui,sans-serif; color:#eaeaea; -webkit-font-smoothing:antialiased; }
+  #stage { position:fixed; inset:0; }
+
+  .orb {
+    position:absolute; transform:translate(-50%,-50%);
+    display:flex; align-items:center; justify-content:center; text-align:center;
+    border:1px solid rgba(234,234,234,0.22);
+    /* organic, never a circle-perfect rectangle — a soft blob */
+    border-radius:48% 52% 50% 50% / 52% 48% 52% 48%;
+    cursor:pointer; overflow:hidden; color:#eaeaea;
+    background:rgba(255,255,255,0.015);
+    transition: border-color .5s ease, background .6s ease, box-shadow .6s ease;
+    will-change: transform, width, height;
+  }
+  .orb:hover { border-color:rgba(234,234,234,0.5); background:rgba(255,255,255,0.04); }
+  .orb .lab { font-family:'Clash Display'; font-weight:500; letter-spacing:-0.01em; transition:opacity .4s, font-size .6s cubic-bezier(.22,1,.3,1); }
+
+  .orb.active { border-color:rgba(234,234,234,0.32); background:rgba(255,255,255,0.022); cursor:default;
+    box-shadow: 0 60px 160px rgba(0,0,0,0.6); }
+  .orb.active:hover { background:rgba(255,255,255,0.022); }
+
+  /* content sets INSIDE the dilated blob, ragged, generous margin */
+  .panel { position:absolute; inset:0; display:flex; flex-direction:column; justify-content:center;
+    padding: clamp(34px, 7%, 84px); opacity:0; transition:opacity .55s ease .12s; pointer-events:none; }
+  .orb.active .panel { opacity:1; pointer-events:auto; }
+  .panel .tag { font-size:11px; letter-spacing:0.22em; text-transform:uppercase; color:rgba(234,234,234,0.45); margin-bottom:1em; }
+  .panel h2 { font-family:'Clash Display'; font-weight:600; font-size:clamp(26px,4vw,46px); line-height:0.98; letter-spacing:-0.02em; margin-bottom:0.5em; }
+  .panel p { font-size:clamp(13px,1.5vw,16px); line-height:1.62; color:rgba(234,234,234,0.66); max-width:34ch; }
+  .panel .hero { width:100%; flex:1; min-height:0; margin-top:18px; border-radius:50% 50% 48% 52% / 50% 52% 48% 50%;
+    background-size:cover; background-position:center; filter:grayscale(1) contrast(1.03); cursor:pointer; }
+
+  .dots { position:fixed; z-index:6; left:50%; bottom:26px; transform:translateX(-50%); display:flex; gap:10px;
+    opacity:0; transition:opacity .5s; pointer-events:none; }
+  .dots.show { opacity:1; pointer-events:auto; }
+  .dots b { width:8px; height:8px; border-radius:50%; background:rgba(234,234,234,0.28); cursor:pointer; transition:all .3s; display:block; }
+  .dots b.on { background:#eaeaea; transform:scale(1.3); }
+
+  .chrome { position:fixed; z-index:5; pointer-events:none; }
+  .wm { top:22px; left:26px; font-family:'Clash Display'; font-weight:600; font-size:13px; letter-spacing:0.26em; color:rgba(234,234,234,0.85); }
+  .hint { bottom:22px; left:26px; font-size:11px; letter-spacing:0.04em; color:rgba(234,234,234,0.4); max-width:30ch; line-height:1.5; transition:opacity .4s; }
+  a.nav { position:fixed; z-index:6; top:20px; right:24px; font-size:11px; letter-spacing:0.18em; text-transform:uppercase; color:rgba(234,234,234,0.5); text-decoration:none; }
+  a.nav:hover { color:#eaeaea; }
+  .full { position:fixed; inset:0; z-index:20; background:#07080a; display:none; align-items:center; justify-content:center; }
+  .full.show { display:flex; }
+  .full img { max-width:100vw; max-height:100vh; object-fit:contain; filter:grayscale(1) contrast(1.03); }
+</style>
+</head>
+<body>
+<div id="stage"></div>
+<div class="dots" id="dots"></div>
+<div class="full" id="full"><img id="fullImg" alt="" /></div>
+<div class="chrome wm">NEVVERLAND</div>
+<div class="chrome hint" id="hint">a drifting cluster. click a blob — it dilates into the page; the others cool into a constellation you can still reach. click an image to go full-bleed; click the void to contract.</div>
+<a class="nav" href="./index.html">↩ studies</a>
+
+<script>
+const stage=document.getElementById('stage');
+const dotsEl=document.getElementById('dots'); const hintEl=document.getElementById('hint');
+const fullEl=document.getElementById('full'); const fullImg=document.getElementById('fullImg');
+
+const NODES=[
+  { id:'nike', label:'Nike', tag:'Work — Motion identity', h:'Nike', p:'Twelve directions in ten days. The brief was speed; the answer was a system that moved — a mark that never holds the same pose twice.', img:'https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=1100&q=70' },
+  { id:'hbo', label:'HBO', tag:'Work — Title sequence', h:'HBO', p:'Eight minutes of type that builds itself, frame by frame, into the world of the film before a single scene plays.', img:'https://images.unsplash.com/photo-1485846234645-a62644f84728?w=1100&q=70' },
+  { id:'sony', label:'Sony', tag:'Work — Launch film', h:'Sony', p:'A product reveal scored to light. Hardware shot like sculpture, cut to the rhythm of its own machinery.', img:'https://images.unsplash.com/photo-1593508512255-86ab42a8e620?w=1100&q=70' },
+  { id:'studio', label:'Studio', tag:'Who we are', h:'Studio', p:'A small team that treats interface as a material. We design things that behave, not just things that sit — founded in the space between film and software.', img:'' },
+  { id:'play', label:'Play', tag:'The lab', h:'Play', p:'Experiments with no client and no deadline. Where the next idea is found before anyone thinks to ask for it.', img:'' },
+];
+
+let W,H,mobile, active=-1;
+const orbs=NODES.map((n,i)=>{
+  const el=document.createElement('div'); el.className='orb';
+  el.innerHTML=`<span class="lab">${n.label}</span>
+    <div class="panel"><div class="tag">${n.tag}</div><h2>${n.h}</h2><p>${n.p}</p>${n.img?`<div class="hero" data-img="${n.img}"></div>`:''}</div>`;
+  stage.appendChild(el);
+  const o={ node:n, el, lab:el.querySelector('.lab'), x:0,y:0, phase:Math.random()*6.28, spd:0.5+Math.random()*0.6, baseR:0 };
+  el.addEventListener('click',(e)=>{
+    const heroHit = e.target.classList.contains('hero');
+    if(active===i && heroHit){ openFull(n.img); return; }
+    if(active===i) return;
+    e.stopPropagation(); select(i);
+  });
+  return o;
+});
+NODES.forEach((n,i)=>{ const d=document.createElement('b'); d.addEventListener('click',e=>{e.stopPropagation(); select(i);}); dotsEl.appendChild(d); });
+
+function layout(){
+  W=innerWidth; H=innerHeight; mobile=W<680;
+  const cx=W*0.5, cy=H*0.5, rad=Math.min(W,H)*(mobile?0.32:0.28);
+  orbs.forEach((o,i)=>{
+    const a=-Math.PI/2 + i/orbs.length*Math.PI*2;
+    o.homeX=cx+Math.cos(a)*rad*(mobile?1.0:1.55);
+    o.homeY=cy+Math.sin(a)*rad*(mobile?1.1:0.95);
+    o.baseR=(mobile?52:74)*Math.min(1.25, W/1100+0.35);
+    if(o.x===0){ o.x=o.homeX; o.y=o.homeY; }
+  });
+}
+addEventListener('resize', layout); layout();
+
+function select(i){
+  active=i;
+  orbs.forEach((o,j)=>o.el.classList.toggle('active', j===i));
+  dotsEl.classList.add('show'); hintEl.style.opacity=0;
+  [...dotsEl.children].forEach((d,j)=>d.classList.toggle('on', j===i));
+}
+function contract(){ active=-1; orbs.forEach(o=>o.el.classList.remove('active')); dotsEl.classList.remove('show'); hintEl.style.opacity=1; }
+document.getElementById('stage').addEventListener('click', ()=>{ if(active>=0) contract(); });
+function openFull(src){ fullImg.src=src; fullEl.classList.add('show'); }
+fullEl.addEventListener('click', ()=>fullEl.classList.remove('show'));
+
+function frame(t){
+  const time=t*0.001;
+  orbs.forEach((o,i)=>{
+    let tx,ty,w,h;
+    if(active>=0){
+      if(i===active){
+        if(mobile){ tx=W*0.5; ty=H*0.46; w=Math.min(W*0.9, 460); h=Math.min(H*0.72, 620); }
+        else { tx=W*0.42; ty=H*0.5; w=Math.min(W*0.62, 760); h=Math.min(H*0.78, 600); }
+      } else {
+        // cool into a constellation along the right / top edge
+        const order=(i<active?i:i-1);
+        if(mobile){ tx=-200; ty=-200; w=10; h=10; }
+        else { tx=W*0.86; ty=H*0.24 + order*Math.min(120, H*0.16); w=o.baseR*0.62; h=o.baseR*0.62; }
+      }
+    } else {
+      o.phase+=0.004+o.spd*0.002;
+      tx=o.homeX+Math.cos(o.phase*1.1+i)*24+Math.sin(o.phase*0.6)*12;
+      ty=o.homeY+Math.sin(o.phase+i*1.3)*20+Math.cos(o.phase*0.4)*10;
+      w=o.baseR*2; h=o.baseR*1.78;
+    }
+    o.x+=(tx-o.x)*(active>=0?0.1:0.05); o.y+=(ty-o.y)*(active>=0?0.1:0.05);
+    const cw=parseFloat(o.el.style.width)||w, ch=parseFloat(o.el.style.height)||h;
+    o.el.style.width=(cw+(w-cw)*0.12)+'px'; o.el.style.height=(ch+(h-ch)*0.12)+'px';
+    o.el.style.left=o.x+'px'; o.el.style.top=o.y+'px';
+    o.el.style.zIndex = (i===active)?10:2;
+    o.lab.style.opacity = (active>=0 && i!==active)?0:(active===i?0:1);
+    o.lab.style.fontSize = Math.max(13, (active<0? o.baseR*0.46 : 12))+'px';
+    o.el.querySelectorAll('.hero').forEach(hb=>{ if(!hb.style.backgroundImage && hb.dataset.img) hb.style.backgroundImage=`url('${hb.dataset.img}')`; });
+  });
+  requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>
