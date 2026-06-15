@@ -592,11 +592,18 @@ nodes.forEach((n, i) => {
   // runtime state for the proximity loop
   btn._inner = btn.querySelector('.node-inner');
   btn._node = n; btn._s = 0.46; btn._o = 0; btn._i = 0;
-  // each image is attached to its own dot in the moving starfield (a 3D point);
-  // the image pops up beside that dot and tracks it as it drifts toward the camera
-  btn._cx = Math.random() * 2 - 1;
-  btn._cy = Math.random() * 2 - 1;
-  btn._cz = Math.random() * 0.7 + 0.22;
+  // each image is attached to its own dot in the moving starfield (a 3D point).
+  // spread the dots EVENLY across the screen (jittered grid) and back-compute the
+  // 3D coords so each is guaranteed on-screen — so moving the cursor reliably
+  // catches a cluster of dots wherever you go.
+  const GX = 7, GY = Math.ceil(nodes.length / GX);
+  const col = i % GX, row = Math.floor(i / GX);
+  const tnx = (col + 0.5 + (Math.random() - 0.5) * 0.8) / GX;   // target screen x (0..1)
+  const tny = (row + 0.5 + (Math.random() - 0.5) * 0.8) / GY;   // target screen y (0..1)
+  const z = Math.random() * 0.5 + 0.4;
+  btn._cz = z;
+  btn._cx = (2 * tnx - 1) * z;          // projects exactly to (tnx,tny) at depth z
+  btn._cy = (2 * tny - 1) * z;
   const ang = Math.random() * Math.PI * 2;
   btn._offx = Math.cos(ang) * 52;       // image sits just beside its dot
   btn._offy = Math.sin(ang) * 52;
@@ -612,7 +619,7 @@ addEventListener('resize', layout);
    it and lerp it toward the "forefront" (larger, brighter, in colour, raised).
    Nearby revealed images also thread to each other, forming a moving web. */
 const REST_S = 0.46, PEAK_S = 1.16;  // images grow from small as they appear
-const R = 200;                       // tight cursor influence — images bloom only near the cursor
+const R = 270;                       // catch radius — reveal a cluster of nearby dots
 const lerp = (a, b, k) => a + (b - a) * k;
 const smooth = t => t * t * (3 - 2 * t);
 
@@ -640,8 +647,10 @@ function weave(ctx, DPR){
   for(const el of nodeList){
     el._cz -= STAR_SPEED;
     let recycled = false;
-    if(el._cz <= 0.14){                       // dot reached the camera → recycle to far plane
-      el._cx = Math.random() * 2 - 1; el._cy = Math.random() * 2 - 1; el._cz = 1;
+    if(el._cz <= 0.14){                       // dot reached the camera → recycle on-screen, far
+      el._cx = Math.random() * 2 - 1;         // at z=1 this projects across the full screen
+      el._cy = Math.random() * 2 - 1;
+      el._cz = 1;
       el._i = 0; el._o = 0; recycled = true;
     }
     const dotX = cx + (el._cx / el._cz) * cx;
