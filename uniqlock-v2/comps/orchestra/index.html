@@ -409,6 +409,9 @@ overlay.addEventListener('click', async () => {
   overlay.classList.add('leaving');
   setTimeout(() => overlay.remove(), 600);
 });
+
+window.__dbg = { doTransition, cells, VSPEC, nextImg, poolLen: () => pool.length,
+  state: (id) => { const el = cells[id]; return { front: el._front, L0: { src: (el._layers[0].src || '').split('/').pop(), op: el._layers[0].style.opacity }, L1: { src: (el._layers[1].src || '').split('/').pop(), op: el._layers[1].style.opacity } }; } };
 </script>
 
 </body>
