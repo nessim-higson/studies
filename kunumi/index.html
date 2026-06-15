@@ -184,38 +184,31 @@
   #constellation{ position: fixed; inset: 0; z-index: 4; pointer-events: none; }
   body.explore #constellation{ pointer-events: none; }
   .node{
-    position: absolute; transform: translate(-50%,-50%);
-    width: var(--sz, 8.4rem); height: var(--sz, 8.4rem);
+    position: absolute;
+    width: var(--sz, 7.6rem); height: var(--sz, 7.6rem);
     padding: 0; border: none; background: none; cursor: pointer;
     pointer-events: auto;
-    opacity: 0; filter: saturate(.85);
-    transition: opacity .9s ease, transform .6s cubic-bezier(.16,1,.3,1),
-                filter .35s ease, width .4s ease, height .4s ease;
+    opacity: 0;                       /* JS proximity loop drives transform/opacity/filter */
+    transition: none;
+    will-change: transform, opacity, filter;
   }
-  body.explore .node{ opacity: 1; }
   .node-inner{
     width: 100%; height: 100%; border-radius: 1.1rem; overflow: hidden;
     box-shadow: 0 0 18px rgba(0,0,0,.06);
     animation: float var(--dur, 9s) ease-in-out infinite;
     animation-delay: var(--del, 0s);
-    transition: box-shadow .35s ease, transform .45s cubic-bezier(.16,1,.3,1);
   }
   .node img{ width: 100%; height: 100%; object-fit: cover; display: block; }
   .node-cap{
-    position: absolute; left: 50%; bottom: -2rem; transform: translateX(-50%);
+    position: absolute; left: 50%; bottom: -1.9rem; transform: translateX(-50%);
     font-family: var(--mono); font-size: 1rem; letter-spacing: .08em;
-    text-transform: uppercase; color: rgba(26,26,26,.55); white-space: nowrap;
+    text-transform: uppercase; color: rgba(26,26,26,.6); white-space: nowrap;
     opacity: 0; transition: opacity .3s ease; pointer-events: none;
   }
-  .node:hover{ --sz: 9.6rem; }
-  .node:hover .node-inner{ box-shadow: 0 10px 36px rgba(0,0,0,.14); }
   .node:hover .node-cap{ opacity: 1; }
-  /* dim/highlight when a topic is focused */
-  body.focus #constellation .node{ opacity: .12; filter: grayscale(1) saturate(.6); }
-  body.focus #constellation .node.on{ opacity: 1; filter: saturate(.9); }
   @keyframes float{
     0%,100%{ transform: translateY(0); }
-    50%{ transform: translateY(-8px); }
+    50%{ transform: translateY(-7px); }
   }
 
   /* ---- detail / lightbox ---- */
@@ -411,6 +404,8 @@ function tick(){
     ctx.fillStyle = `rgba(26,26,26,${alpha})`;
     ctx.fill();
   }
+  // real-time cursor → image string connectors + bring-to-forefront
+  if(typeof weave === 'function') weave(ctx, DPR);
   requestAnimationFrame(tick);
 }
 tick();
@@ -525,24 +520,35 @@ const TITLES = {
   society:['Networks of trust','Cities as data','Belonging','Commons'],
 };
 
-// build node list with clustered, jittered positions (normalised 0..1)
+// build the node list
 const nodes = [];
 Object.entries(TOPICS).forEach(([topic, t]) => {
   for(let i=1; i<=t.items; i++){
-    const ang = (i / t.items) * Math.PI * 2 + topic.length;     // deterministic spread
-    const r = 0.075 + (i % 2) * 0.025;
     nodes.push({
       id: `${topic}-${i}`,
       topic, label: t.label,
       title: (TITLES[topic] || [])[i-1] || t.label,
       src: `img/${topic}-${i}.webp`,
-      nx: Math.min(0.93, Math.max(0.07, t.c[0] + Math.cos(ang) * r * 0.62)),
-      ny: Math.min(0.92, Math.max(0.10, t.c[1] + Math.sin(ang) * r)),
     });
   }
 });
+// mix topics so connectors span subjects, then scatter across the whole field
+nodes.sort((a,b) => ((a.id.charCodeAt(0)*31 + a.id.length) % 97) - ((b.id.charCodeAt(0)*31 + b.id.length) % 97));
+const COLS = 6, ROWS = Math.ceil(nodes.length / COLS);
+nodes.forEach((n, i) => {
+  let nx = ((i % COLS) + 0.5) / COLS + (Math.sin(i * 12.9898) * 0.5) * 0.07;
+  let ny = (Math.floor(i / COLS) + 0.5) / ROWS + (Math.cos(i * 78.233) * 0.5) * 0.07;
+  // push out of the central dynamic-island zone
+  const dx = nx - 0.5, dy = ny - 0.5, ex = 0.21, ey = 0.17;
+  if(Math.abs(dx) < ex && Math.abs(dy) < ey){
+    const s = Math.min(ex / Math.max(Math.abs(dx), 1e-3), ey / Math.max(Math.abs(dy), 1e-3));
+    nx = 0.5 + dx * s * 1.06; ny = 0.5 + dy * s * 1.06;
+  }
+  n.nx = Math.min(0.94, Math.max(0.06, nx));
+  n.ny = Math.min(0.92, Math.max(0.09, ny));
+});
 
-// links: fully connect within each topic, plus a ring of cross-topic bridges
+// logical adjacency (same topic + a ring of cross-topic bridges) — used by the detail strip
 const links = [];
 const byTopic = {};
 nodes.forEach(n => (byTopic[n.topic] ||= []).push(n));
@@ -556,7 +562,6 @@ ring.forEach((tp, i) => {
   const next = ring[(i+1) % ring.length];
   if(byTopic[tp] && byTopic[next]) links.push([byTopic[tp][0].id, byTopic[next][0].id]);
 });
-
 const connectedOf = id => {
   const set = new Set();
   links.forEach(([a,b]) => { if(a===id) set.add(b); if(b===id) set.add(a); });
@@ -565,46 +570,99 @@ const connectedOf = id => {
 
 // render nodes
 const constellation = document.getElementById('constellation');
-const linksSvg = document.getElementById('links');
-const nodeEls = {};
+const nodeList = [];
 nodes.forEach((n, i) => {
   const btn = document.createElement('button');
   btn.className = 'node'; btn.dataset.id = n.id; btn.dataset.topic = n.topic;
-  btn.style.setProperty('--del', (i * 0.12) + 's');
+  btn.style.setProperty('--del', (i * 0.13) + 's');
   btn.style.setProperty('--dur', (8 + (i % 5)) + 's');
-  btn.style.transitionDelay = (0.15 + i * 0.05) + 's, 0s, 0s, 0s, 0s';
   btn.innerHTML = `<span class="node-inner"><img src="${n.src}" alt="${n.title}" loading="lazy"></span>
                    <span class="node-cap">${n.label}</span>`;
   btn.addEventListener('click', e => { e.stopPropagation(); openDetail(n.id); });
   constellation.appendChild(btn);
-  nodeEls[n.id] = btn;
-});
-
-// link <line>s
-const lineEls = [];
-links.forEach(([a,b]) => {
-  const ln = document.createElementNS('http://www.w3.org/2000/svg','line');
-  ln.dataset.a = a; ln.dataset.b = b;
-  linksSvg.appendChild(ln);
-  lineEls.push(ln);
+  // runtime state for the proximity loop
+  btn._inner = btn.querySelector('.node-inner');
+  btn._node = n; btn._s = 0.6; btn._o = 0; btn._g = 1; btn._i = 0;
+  n.el = btn; nodeList.push(btn);
 });
 
 function layout(){
   const w = innerWidth, h = innerHeight;
-  nodes.forEach(n => {
-    const el = nodeEls[n.id];
-    el._x = n.nx * w; el._y = n.ny * h;
+  nodeList.forEach(el => {
+    el._x = el._node.nx * w; el._y = el._node.ny * h;
     el.style.left = el._x + 'px';
     el.style.top  = el._y + 'px';
-  });
-  lineEls.forEach(ln => {
-    const A = nodeEls[ln.dataset.a], B = nodeEls[ln.dataset.b];
-    ln.setAttribute('x1', A._x); ln.setAttribute('y1', A._y);
-    ln.setAttribute('x2', B._x); ln.setAttribute('y2', B._y);
   });
 }
 layout();
 addEventListener('resize', layout);
+
+/* ---- the live, cursor-driven weave ----
+   Each frame: for every image near the cursor, draw a string from the cursor to
+   it and lerp it toward the "forefront" (larger, brighter, in colour, raised).
+   Nearby revealed images also thread to each other, forming a moving web. */
+const REST_S = 0.58, PEAK_S = 1.2, REST_O = 0.14, PEAK_O = 1;
+const R = 360;                       // cursor influence radius (px)
+const lerp = (a, b, k) => a + (b - a) * k;
+const smooth = t => t * t * (3 - 2 * t);
+
+function weave(ctx, DPR){
+  if(!document.body.classList.contains('explore')) return;
+  const px = pointer.x, py = pointer.y;
+  const focusBoost = id => focusedTopic && id.startsWith(focusedTopic) ? 0.45 : 0;
+
+  // 1) compute each node's target intensity from cursor proximity, then ease toward it
+  for(const el of nodeList){
+    const d = Math.hypot(el._x - px, el._y - py);
+    let ti = d < R ? smooth(1 - d / R) : 0;
+    ti = Math.max(ti, focusBoost(el.dataset.id));
+    el._i = lerp(el._i, ti, 0.16);
+    const i = el._i;
+    el._s = lerp(el._s, REST_S + (PEAK_S - REST_S) * i, 0.18);
+    el._o = lerp(el._o, REST_O + (PEAK_O - REST_O) * i, 0.18);
+    el._g = lerp(el._g, 1 - i, 0.18);
+    el.style.opacity = el._o.toFixed(3);
+    el.style.transform = `translate(-50%,-50%) scale(${el._s.toFixed(3)})`;
+    el.style.filter = `grayscale(${el._g.toFixed(2)}) saturate(${(0.6 + 0.5 * i).toFixed(2)}) brightness(${(0.96 + 0.06 * i).toFixed(2)})`;
+    el.style.zIndex = 4 + Math.round(i * 240);
+    el._inner.style.boxShadow = `0 ${(4 + i * 16).toFixed(0)}px ${(16 + i * 34).toFixed(0)}px rgba(0,0,0,${(0.05 + i * 0.13).toFixed(3)})`;
+  }
+
+  // 2) draw strings: cursor → each near image
+  const active = nodeList.filter(el => el._i > 0.05);
+  ctx.lineCap = 'round';
+  for(const el of active){
+    const a = el._i;
+    ctx.beginPath();
+    ctx.moveTo(px * DPR, py * DPR);
+    ctx.lineTo(el._x * DPR, el._y * DPR);
+    ctx.strokeStyle = `rgba(26,26,26,${(a * 0.55).toFixed(3)})`;
+    ctx.lineWidth = (0.5 + a * 1.1) * DPR;
+    ctx.stroke();
+    // a small anchor dot where the string meets the image
+    ctx.beginPath();
+    ctx.arc(el._x * DPR, el._y * DPR, (1.2 + a * 1.6) * DPR, 0, Math.PI * 2);
+    ctx.fillStyle = `rgba(26,26,26,${(a * 0.6).toFixed(3)})`;
+    ctx.fill();
+  }
+  // 3) thread revealed images to each other (the web)
+  for(let a = 0; a < active.length; a++){
+    for(let b = a + 1; b < active.length; b++){
+      const A = active[a], B = active[b];
+      const dd = Math.hypot(A._x - B._x, A._y - B._y);
+      if(dd < 260){
+        const k = Math.min(A._i, B._i) * (1 - dd / 260);
+        if(k < 0.04) continue;
+        ctx.beginPath();
+        ctx.moveTo(A._x * DPR, A._y * DPR);
+        ctx.lineTo(B._x * DPR, B._y * DPR);
+        ctx.strokeStyle = `rgba(26,26,26,${(k * 0.4).toFixed(3)})`;
+        ctx.lineWidth = 0.8 * DPR;
+        ctx.stroke();
+      }
+    }
+  }
+}
 
 // detail / lightbox
 const detail = document.getElementById('detail');
@@ -630,36 +688,16 @@ function openDetail(id){
     dRelated.appendChild(b);
   });
   detail.classList.add('open');
-  // highlight this node's links in the field behind
-  litLinks(id);
 }
-function closeDetail(){ detail.classList.remove('open'); litLinks(null); }
+function closeDetail(){ detail.classList.remove('open'); }
 document.getElementById('detail-close').addEventListener('click', closeDetail);
 detail.addEventListener('click', e => { if(e.target === detail) closeDetail(); });
 addEventListener('keydown', e => { if(e.key === 'Escape') closeDetail(); });
 
-function litLinks(id){
-  lineEls.forEach(ln => {
-    const on = id && (ln.dataset.a === id || ln.dataset.b === id);
-    ln.classList.toggle('lit', !!on);
-  });
-}
-
-// hovering a node lights its connections
-constellation.addEventListener('mouseover', e => {
-  const btn = e.target.closest('.node'); if(!btn) return;
-  litLinks(btn.dataset.id);
-});
-constellation.addEventListener('mouseout', e => {
-  if(e.target.closest('.node') && !detail.classList.contains('open')) litLinks(null);
-});
-
-// focus a topic cluster from the dynamic island
+// focus a topic from the dynamic island — the weave loop gives it a baseline reveal
 let focusedTopic = null;
 function focusTopic(topic){
   focusedTopic = (focusedTopic === topic) ? null : topic;
-  document.body.classList.toggle('focus', !!focusedTopic);
-  nodes.forEach(n => nodeEls[n.id].classList.toggle('on', n.topic === focusedTopic));
 }
 
 /* Everything above set up without throwing → safe to raise the intro overlay
