@@ -28,10 +28,11 @@
      can ease aside into a living miniature when a piece of work takes stage */
   #navwrap{
     position: fixed; inset: 0; z-index: 2;
-    transform-origin: 26% 50%;
-    transition: transform 1s cubic-bezier(.16,1,.3,1), opacity .6s ease;
+    transform-origin: 22% 50%;
+    /* abrupt, near-instant shift aside when a piece of work takes stage */
+    transition: transform .18s cubic-bezier(.2,.9,.1,1), opacity .14s ease;
   }
-  body.staged #navwrap{ transform: scale(.4) translateX(-58%); opacity: .42; pointer-events: none; }
+  body.staged #navwrap{ transform: scale(.32) translateX(-86%); opacity: .3; pointer-events: none; }
 
   #graph{ position:absolute; inset:0; width:100%; height:100%; overflow:visible; }
   #graph line{ vector-effect: non-scaling-stroke; transition: opacity .35s ease, stroke-width .35s ease; }
@@ -64,16 +65,17 @@
 
   /* ---- stage (lightbox the nav shifts aside for) ---- */
   #stage{
-    position: fixed; top:0; right:0; bottom:0; width: 64%; z-index: 15;
+    position: fixed; top:0; right:0; bottom:0; width: 74%; z-index: 15;
     display:flex; flex-direction:column; align-items:center; justify-content:center;
-    gap: 2rem; padding: 5rem 4rem;
+    gap: 2.2rem; padding: 4rem 4rem 3.5rem;
     opacity:0; visibility:hidden; pointer-events:none;
-    transition: opacity .6s ease, visibility .6s;
+    transition: opacity .18s ease, visibility .18s;
   }
   body.staged #stage{ opacity:1; visibility:visible; pointer-events:auto; }
-  #stage-img{ width:min(48rem,62vmin); height:min(48rem,62vmin);
-    border-radius:1.6rem; overflow:hidden; box-shadow:0 30px 80px rgba(0,0,0,.20);
-    transition: opacity .4s ease; }
+  #stage-img{ width:min(66rem,86vmin); height:min(66rem,86vmin);
+    border-radius:1.6rem; overflow:hidden; box-shadow:0 44px 110px rgba(0,0,0,.30);
+    transform: scale(.93); transition: transform .32s cubic-bezier(.16,1,.3,1), opacity .25s ease; }
+  body.staged #stage-img{ transform: scale(1); }
   #stage-img img{ width:100%; height:100%; object-fit:cover; display:block; }
   #stage-meta{ text-align:center; }
   #stage-topic{ font-family:var(--mono); font-size:1.1rem; letter-spacing:.18em;
@@ -105,6 +107,24 @@
     font-family:var(--mono); pointer-events:none; transition:opacity .6s ease; }
   body.staged #hint{ opacity:0; }
 
+  /* live controls panel (press C) */
+  #panel{ position:fixed; bottom:2rem; right:2rem; z-index:30; width:22rem;
+    background:rgba(245,245,245,.9); -webkit-backdrop-filter:blur(14px); backdrop-filter:blur(14px);
+    border:1px solid rgba(20,20,20,.1); border-radius:1rem; padding:1.5rem 1.6rem;
+    font-family:var(--mono); font-size:1.05rem; color:rgba(20,20,20,.7);
+    display:none; }
+  body.controls #panel{ display:block; }
+  #panel h4{ font-size:1rem; letter-spacing:.14em; text-transform:uppercase; margin-bottom:1.1rem;
+    color:rgba(20,20,20,.42); font-weight:400; display:flex; justify-content:space-between; }
+  .ctl{ margin-bottom:.85rem; }
+  .ctl .row{ display:flex; justify-content:space-between; margin-bottom:.3rem; }
+  .ctl .row b{ font-weight:400; color:rgba(20,20,20,.45); }
+  .ctl input[type=range]{ width:100%; accent-color:#1a1a1a; height:2px; }
+  #panel .tip{ margin-top:.6rem; font-size:.92rem; color:rgba(20,20,20,.32); letter-spacing:.02em; }
+  #ctrl-hint{ position:fixed; bottom:2.4rem; right:2.4rem; z-index:5; font-family:var(--mono);
+    font-size:1.05rem; letter-spacing:.06em; color:rgba(20,20,20,.3); pointer-events:none; }
+  body.controls #ctrl-hint, body.staged #ctrl-hint{ opacity:0; }
+
   html{ font-size:62.5%; } body{ font-size:1.6rem; }
 </style>
 </head>
@@ -131,6 +151,8 @@
 
   <div id="brand">Nevverland</div>
   <div id="hint">click to enter · click the focus to step back</div>
+  <div id="ctrl-hint">C — controls</div>
+  <div id="panel"><h4><span>Feel</span><span>press C</span></h4></div>
 
 <script>
 /* ============================================================
@@ -213,8 +235,8 @@ const P = {
   CENTER_ACTIVE:0.2, CENTER_OTHERS:0.014, ACTIVE_Y_BIAS:-30,
   BREADCRUMB_LIFT:188, BREADCRUMB_PULL:0.05,
   COLLIDE_STR:0.9, COLLIDE_PAD:16,
-  DAMP:0.72, DRIFT:0.16, CURSOR:0.34, CURSOR_R:300, SHOCK:7.5,
-  ALPHA_KICK:0.9, IDLE_ALPHA:0.04, ALPHA_DECAY:0.022,
+  DAMP:0.52, DRIFT:0.14, CURSOR:0.34, CURSOR_R:300, SHOCK:3,
+  ALPHA_KICK:0.85, IDLE_ALPHA:0.04, ALPHA_DECAY:0.03,
 };
 
 let activeId='nevverland', roles=computeRoles(activeId), links=[], alpha=P.ALPHA_KICK,
@@ -384,8 +406,9 @@ function renderGraph(){
     el.g.style.opacity = hov?Math.min(1,r.op+0.35):r.op;
     el.text.setAttribute('font-size',r.fs); el.text.setAttribute('font-weight',r.weight); el.text.setAttribute('letter-spacing',r.ls);
     const half=labelHalfW(n.label,r.fs);
+    const showDot = role==='active'||role==='child'||role==='parent';
     el.anchor.setAttribute('cx',0); el.anchor.setAttribute('cy',r.fs*0.62+5);
-    el.anchor.setAttribute('r',role==='active'?2.4:1.8);
+    el.anchor.setAttribute('r', showDot ? (role==='active'?2.4:1.8) : 0);
     el.anchor.setAttribute('fill','rgba(20,20,20,'+(role==='active'?0.85:0.5)+')');
     el.hit.setAttribute('x',-half-16); el.hit.setAttribute('y',-r.fs);
     el.hit.setAttribute('width',half*2+32); el.hit.setAttribute('height',r.fs*2.2);
@@ -408,7 +431,7 @@ function renderGraph(){
 const canvas=document.getElementById('field'), ctx=canvas.getContext('2d'); let DPR=1;
 function resize(){ DPR=Math.min(devicePixelRatio||1,1.5); canvas.width=W()*DPR; canvas.height=H()*DPR; canvas.style.width=W()+'px'; canvas.style.height=H()+'px'; }
 resize(); addEventListener('resize',resize);
-const STAR_N=150, STAR_SPEED=0.0003, stars=[];
+const STAR_N=240, STAR_SPEED=0.0003, stars=[];
 function placeStar(s){ s.x=Math.random()*2-1; s.y=Math.random()*2-1; s.z=Math.random()*0.85+0.15; s.b=Math.random()*0.5+0.4; s.sx=-9; s.sy=-9; }
 for(let i=0;i<STAR_N;i++){ const s={}; placeStar(s); stars.push(s); }
 function drawField(){
@@ -418,9 +441,9 @@ function drawField(){
     s.z-=STAR_SPEED; if(s.z<=0.12){ placeStar(s); s.z=1; continue; }
     const sx=cx+(s.x/s.z)*cx, sy=cy+(s.y/s.z)*cy; s.sx=sx; s.sy=sy;
     if(sx<-8||sx>W()+8||sy<-8||sy>H()+8) continue;
-    const near=1-s.z, rad=s.b*(near*2.0)+0.4;
+    const near=1-s.z, rad=s.b*(near*2.5)+0.55;
     ctx.beginPath(); ctx.arc(sx*DPR,sy*DPR,rad*DPR,0,Math.PI*2);
-    ctx.fillStyle=`rgba(20,20,20,${(0.16+near*0.4).toFixed(2)})`; ctx.fill();
+    ctx.fillStyle=`rgba(18,18,18,${(0.3+near*0.5).toFixed(2)})`; ctx.fill();
   }
   // the nav reaches into the field: thread the active node (+ children) to nearby dots
   if(!staged){
@@ -473,6 +496,38 @@ document.getElementById('stage-close').addEventListener('click',e=>{ e.stopPropa
 document.getElementById('mini-catch').addEventListener('click',exitStage);
 document.getElementById('stage').addEventListener('click',e=>{ if(e.target.id==='stage') exitStage(); });
 addEventListener('keydown',e=>{ if(e.key==='Escape') exitStage(); });
+
+/* ---------------- live controls ---------------- */
+const CONTROLS = [
+  {k:'DAMP',          label:'Settle (← springier)', min:0.3, max:0.85, step:0.01},
+  {k:'CHARGE',        label:'Repulsion',            min:200, max:1000, step:10, neg:true},
+  {k:'LINK_STR',      label:'Thread tension',       min:0.05,max:1,    step:0.01},
+  {k:'CHILD_RING',    label:'Bloom radius',         min:120, max:340,  step:5},
+  {k:'CHILD_RING_STR',label:'Bloom strength',       min:0.05,max:0.6,  step:0.01},
+  {k:'DRIFT',         label:'Idle drift',           min:0,   max:0.5,  step:0.01},
+  {k:'CURSOR',        label:'Cursor gravity',       min:0,   max:1,    step:0.01},
+  {k:'SHOCK',         label:'Click shock',          min:0,   max:15,   step:0.5},
+  {k:'ALPHA_KICK',    label:'Move energy',          min:0.2, max:1,    step:0.05},
+];
+const panel = document.getElementById('panel');
+for(const c of CONTROLS){
+  const wrap=document.createElement('div'); wrap.className='ctl';
+  const cur = c.neg ? -P[c.k] : P[c.k];
+  wrap.innerHTML = `<div class="row"><span>${c.label}</span><b data-v="${c.k}">${cur}</b></div>
+                    <input type="range" min="${c.min}" max="${c.max}" step="${c.step}" value="${cur}">`;
+  const input = wrap.querySelector('input'), out = wrap.querySelector('b');
+  input.addEventListener('input', () => {
+    const v = parseFloat(input.value);
+    P[c.k] = c.neg ? -v : v;
+    out.textContent = v;
+    alpha = Math.max(alpha, 0.2);   // nudge so a change is felt immediately
+  });
+  panel.appendChild(wrap);
+}
+const tip=document.createElement('div'); tip.className='tip';
+tip.textContent='lower Settle = bouncier · adjust live';
+panel.appendChild(tip);
+addEventListener('keydown', e => { if(e.key==='c'||e.key==='C') document.body.classList.toggle('controls'); });
 
 /* ---------------- loop ---------------- */
 function loop(){ drawField(); tick(); requestAnimationFrame(loop); }
