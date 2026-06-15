@@ -1,0 +1,403 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<meta name="theme-color" content="#F5F5F5" />
+<title>Kunumi Institute</title>
+<meta name="description" content="A research collective from the Global South to the world. To expand the boundaries of intelligence, culture, and meaning." />
+<style>
+  /* ---- type: ABC Monument Grotesk is proprietary; Space Grotesk is the closest free grotesk ---- */
+  @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500&family=Space+Mono:wght@400&display=swap');
+
+  :root{
+    --bg: #F5F5F5;
+    --ink: #1a1a1a;
+    --card: #1a1a1a;          /* dynamic island fill */
+    --gray: #6b6b6b;
+    --accent: #FF4900;
+    --font: 'Space Grotesk', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    --mono: 'Space Mono', ui-monospace, monospace;
+  }
+
+  *{ margin:0; padding:0; box-sizing:border-box; }
+  html,body{ height:100%; }
+  body{
+    background: var(--bg);
+    color: var(--ink);
+    font-family: var(--font);
+    -webkit-font-smoothing: antialiased;
+    overflow: hidden;
+    /* custom dot cursor, matches the original */
+    cursor: url("data:image/svg+xml,%3Csvg width='8' height='8' viewBox='0 0 8 8' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Ccircle cx='4' cy='4' r='4' fill='%231C1C1C'/%3E%3C/svg%3E") 4 4, auto;
+  }
+
+  /* particle field sits behind everything */
+  #field{
+    position: fixed; inset: 0;
+    width: 100%; height: 100%;
+    z-index: 1;
+    display: block;
+  }
+
+  /* ---- intro overlay ----
+     Hidden by default (progressive enhancement): the overlay only covers the
+     screen once JS has fully initialised and adds .intro-on to <body>.
+     If JS never runs / errors, the island + field stay visible — never blank. */
+  #intro{
+    position: fixed; inset: 0; z-index: 20;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    text-align: center; gap: 1.6rem;
+    background: var(--bg);
+    opacity: 0; visibility: hidden; pointer-events: none;
+    transition: opacity .9s ease, visibility .9s;
+  }
+  body.intro-on #intro{ opacity: 1; visibility: visible; pointer-events: auto; }
+  body.intro-on #intro.gone{ opacity: 0; visibility: hidden; pointer-events: none; }
+  .intro-line{
+    position: absolute;
+    font-size: clamp(13px, 1.6vw, 16px);
+    letter-spacing: -0.01em;
+    color: var(--ink);
+    opacity: 0; transform: translateY(15px);
+    transition: opacity .8s ease, transform .8s ease;
+    padding: 0 24px; max-width: 40ch;
+  }
+  .intro-line.show{ opacity: 1; transform: translateY(0); }
+
+  /* ---- dynamic island ---- */
+  #island-root{ position: fixed; inset: 0; z-index: 10; pointer-events: none; }
+  #island{
+    position: absolute;
+    left: 0; right: 0; top: 50%; margin: 0 auto;
+    transform: translateY(-50%);
+    width: 42rem; max-width: calc(100vw - 5.2rem);
+    pointer-events: auto;
+  }
+  .island-pill{
+    position: relative;
+    height: 5.2rem;
+    padding: 0 1.8rem;
+    background: rgba(26,26,26,.375);
+    -webkit-backdrop-filter: blur(20px);
+    backdrop-filter: blur(20px);
+    border-radius: 1.8rem;
+    display: flex; align-items: center;
+    overflow: hidden;
+    transition: background .3s ease;
+  }
+  .island-row{
+    display: flex; align-items: center; justify-content: space-between;
+    width: 100%; gap: .4rem;
+  }
+  .island-prompt{
+    display: flex; gap: .5rem; align-items: baseline;
+    white-space: nowrap; overflow: hidden; min-width: 0;
+    font-size: 1.4rem; cursor: text;
+  }
+  .island-prompt .muted{ color: rgba(255,255,255,.4); flex-shrink: 0; }
+  .island-prompt .topic{ color: rgba(255,255,255,.78); position: relative; }
+  .island-prompt .topic::after{
+    content:''; display:inline-block; width:2px; height:1.1em;
+    background: rgba(255,255,255,.6); margin-left:2px; transform: translateY(2px);
+    animation: blink 1s steps(1) infinite;
+  }
+  @keyframes blink{ 50%{ opacity:0; } }
+
+  .island-actions{ display:flex; gap:.6rem; flex-shrink:0; }
+  .ibtn{
+    width: 2.2rem; height: 2.2rem; border-radius: 999px;
+    background: var(--gray); color:#fff; border:none;
+    display:flex; align-items:center; justify-content:center;
+    cursor:pointer; padding:.5rem; transition: background .2s ease;
+  }
+  .ibtn:hover{ background:#a3a3a3; }
+  .ibtn svg{ width:100%; height:auto; }
+
+  /* expandable menu under the pill */
+  #island-menu{
+    position: absolute; left:0; right:0; top: calc(100% + .6rem);
+    background: rgba(26,26,26,.42);
+    -webkit-backdrop-filter: blur(20px);
+    backdrop-filter: blur(20px);
+    border-radius: 1.6rem;
+    overflow: hidden;
+    max-height: 0; opacity: 0;
+    transition: max-height .45s cubic-bezier(.16,1,.3,1), opacity .35s ease;
+  }
+  #island.open #island-menu{ max-height: 32rem; opacity: 1; }
+  .menu-section{ padding: 1.2rem 1.8rem; }
+  .menu-label{
+    font-family: var(--mono); font-size: 1.05rem; text-transform: uppercase;
+    letter-spacing: .12em; color: rgba(255,255,255,.35); margin-bottom: .8rem;
+  }
+  .menu-item{
+    display:flex; justify-content:space-between; align-items:center;
+    padding: .85rem 0; color: rgba(255,255,255,.85);
+    font-size: 1.5rem; cursor:pointer;
+    border-bottom: 1px solid rgba(255,255,255,.07);
+    transition: padding-left .25s ease, color .2s ease;
+  }
+  .menu-item:last-child{ border-bottom:none; }
+  .menu-item:hover{ padding-left:.6rem; color:#fff; }
+  .menu-item .arrow{ color: rgba(255,255,255,.4); }
+
+  /* ---- top + bottom chrome ---- */
+  #brand{
+    position: fixed; top: 2.4rem; left: 2.4rem; z-index: 11;
+    font-size: 1.4rem; letter-spacing:-.01em; color: var(--ink);
+    mix-blend-mode: difference; color:#fff;
+  }
+  #lang{
+    position: fixed; top: 2.4rem; right: 2.4rem; z-index: 11;
+    display:flex; gap:.4rem; font-size:1.4rem;
+    font-family: var(--mono);
+  }
+  #lang a{ color: rgba(0,0,0,.35); text-decoration:none; transition:color .2s; }
+  #lang a.active{ color: var(--ink); }
+  #lang a:hover{ color: var(--ink); }
+
+  #mode{
+    position: fixed; left:0; right:0; bottom: 2.4rem; margin:0 auto; z-index:11;
+    display:flex; justify-content:center; pointer-events:none;
+  }
+  #mode button{
+    pointer-events:auto;
+    height:3.8rem; padding:0 1.8rem;
+    background: rgba(26,26,26,.3);
+    -webkit-backdrop-filter: blur(20px); backdrop-filter: blur(20px);
+    border:none; border-radius:1.8rem; cursor:pointer;
+    font-size:1.4rem; color: rgba(255,255,255,.72);
+    transition: background .3s ease;
+  }
+  #mode button:hover{ background: rgba(0,0,0,.5); }
+
+  /* rem scaling like the original (10px root) */
+  html{ font-size: 62.5%; }
+  body{ font-size: 1.6rem; }
+
+  @media (max-width: 640px){
+    #field{ display:block; }
+    #island{ top: auto; bottom: 8rem; transform:none; }
+    #mode{ display:none; }
+    body{ cursor:auto; }
+  }
+</style>
+</head>
+<body>
+  <canvas id="field"></canvas>
+
+  <!-- top chrome -->
+  <div id="brand">Kunumi Institute</div>
+  <nav id="lang">
+    <a href="#" data-l="pt">PT</a><span style="color:rgba(0,0,0,.2)">/</span><a href="#" data-l="en" class="active">EN</a>
+  </nav>
+
+  <!-- intro -->
+  <div id="intro">
+    <div class="intro-line">Kunumi is a research collective from the Global South to the world.</div>
+    <div class="intro-line">Expanding the frontiers of intelligence, culture, and meaning.</div>
+    <div class="intro-line">Click anywhere or search for content.</div>
+  </div>
+
+  <!-- dynamic island -->
+  <div id="island-root">
+    <div id="island">
+      <div class="island-pill" id="island-pill">
+        <div class="island-row">
+          <div class="island-prompt" id="prompt">
+            <span class="muted">I want to learn about</span><span class="topic" id="topic">Science</span>
+          </div>
+          <div class="island-actions">
+            <button class="ibtn" id="search-btn" aria-label="Search">
+              <svg viewBox="0 0 18 18" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M15.787 9.33c0 .228-.094.43-.283.605l-4.746 4.737c-.176.176-.374.263-.596.263-.228 0-.42-.075-.576-.224-.15-.15-.225-.339-.225-.567 0-.11.02-.215.059-.312.045-.105.104-.196.176-.274l1.318-1.338 2.988-2.705.235.45-2.549.175H3.033c-.247 0-.449-.075-.605-.224-.15-.157-.225-.352-.225-.586 0-.241.075-.437.225-.586.156-.157.358-.235.605-.235h8.555l2.549.176-.235.459-2.988-2.715L9.596 5.09a1.04 1.04 0 0 1-.176-.264 1.02 1.02 0 0 1-.059-.322c0-.228.075-.417.225-.566.156-.15.348-.225.576-.225.221 0 .42.088.596.264l4.746 4.736c.189.176.283.381.283.617Z" fill="currentColor"/></svg>
+            </button>
+            <button class="ibtn" id="menu-btn" aria-label="Menu">
+              <svg viewBox="0 0 17 4" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M1.71 3.398c-.319 0-.605-.075-.86-.224a1.66 1.66 0 0 1-.614-.606A1.7 1.7 0 0 1 0 1.7c0-.313.078-.596.235-.85C.392.59.597.384.85.234 1.105.078 1.39 0 1.71 0c.306 0 .59.078.85.234.26.15.465.355.615.615.156.254.234.537.234.85 0 .319-.078.609-.234.869a1.61 1.61 0 0 1-.616.605 1.7 1.7 0 0 1-.849.225Zm6.748 0c-.319 0-.609-.075-.869-.224a1.66 1.66 0 0 1-.615-.606 1.7 1.7 0 0 1-.225-.869c0-.313.075-.596.225-.85.156-.26.361-.465.615-.615C7.85.078 8.139 0 8.458 0c.306 0 .59.078.85.234.26.15.465.355.615.615.156.254.234.537.234.85 0 .319-.078.609-.234.869a1.61 1.61 0 0 1-.615.605 1.7 1.7 0 0 1-.85.225Zm6.748 0c-.319 0-.609-.075-.869-.224a1.66 1.66 0 0 1-.615-.606 1.7 1.7 0 0 1-.225-.869c0-.313.075-.596.225-.85.156-.26.361-.465.615-.615C14.597.078 14.887 0 15.206 0c.306 0 .59.078.85.234.26.15.465.355.615.615.156.254.234.537.234.85 0 .319-.078.609-.234.869a1.61 1.61 0 0 1-.615.605 1.7 1.7 0 0 1-.85.225Z" fill="currentColor"/></svg>
+            </button>
+          </div>
+        </div>
+
+        <div id="island-menu">
+          <div class="menu-section">
+            <div class="menu-label">Navigate</div>
+            <div class="menu-item">Colabs <span class="arrow">→</span></div>
+            <div class="menu-item">Careers <span class="arrow">→</span></div>
+            <div class="menu-item">About <span class="arrow">→</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- bottom mode toggle -->
+  <div id="mode"><button id="mode-btn">Linear</button></div>
+
+<script>
+/* ============================================================
+   Kunumi Institute — faithful replica
+   particle cursor field + intro sequence + dynamic island
+   ============================================================ */
+
+/* ---------------- particle field ---------------- */
+const canvas = document.getElementById('field');
+const ctx = canvas.getContext('2d');
+let W, H, DPR;
+function resize(){
+  DPR = Math.min(window.devicePixelRatio || 1, 2);
+  W = canvas.width  = innerWidth  * DPR;
+  H = canvas.height = innerHeight * DPR;
+  canvas.style.width = innerWidth + 'px';
+  canvas.style.height = innerHeight + 'px';
+}
+resize();
+addEventListener('resize', resize);
+
+const pointer = { x: innerWidth/2, y: innerHeight/2, px: innerWidth/2, py: innerHeight/2, active:false };
+const particles = [];
+const MAX = 900;
+
+function emit(x, y, vx, vy){
+  // speed of cursor seeds emission strength
+  const speed = Math.min(Math.hypot(vx, vy), 60);
+  const count = 1 + (speed * 0.12 | 0);
+  for(let i=0; i<count; i++){
+    const a = Math.random() * Math.PI * 2;
+    const sp = Math.random() * 0.4 + 0.05;
+    particles.push({
+      x: x + (Math.random()-.5)*6,
+      y: y + (Math.random()-.5)*6,
+      vx: Math.cos(a)*sp + vx*0.02,
+      vy: Math.sin(a)*sp + vy*0.02,
+      life: 1,
+      decay: Math.random()*0.012 + 0.006,
+      r: Math.random()*1.6 + 0.4,
+    });
+  }
+  if(particles.length > MAX) particles.splice(0, particles.length - MAX);
+}
+
+function onMove(x, y){
+  pointer.px = pointer.x; pointer.py = pointer.y;
+  pointer.x = x; pointer.y = y;
+  pointer.active = true;
+  emit(x, y, pointer.x - pointer.px, pointer.y - pointer.py);
+}
+addEventListener('mousemove', e => onMove(e.clientX, e.clientY));
+addEventListener('touchmove', e => { const t=e.touches[0]; if(t) onMove(t.clientX, t.clientY); }, {passive:true});
+
+function tick(){
+  ctx.clearRect(0,0,W,H);
+  for(let i=particles.length-1; i>=0; i--){
+    const p = particles[i];
+    p.x += p.vx; p.y += p.vy;
+    p.vx *= 0.96; p.vy *= 0.96;
+    p.vy += 0.008;            // faint drift downward
+    p.life -= p.decay;
+    if(p.life <= 0){ particles.splice(i,1); continue; }
+    const alpha = p.life * 0.55;
+    ctx.beginPath();
+    ctx.arc(p.x*DPR, p.y*DPR, p.r*DPR, 0, Math.PI*2);
+    ctx.fillStyle = `rgba(26,26,26,${alpha})`;
+    ctx.fill();
+  }
+  requestAnimationFrame(tick);
+}
+tick();
+
+/* ---------------- intro sequence ---------------- */
+const intro = document.getElementById('intro');
+const lines = [...document.querySelectorAll('.intro-line')];
+let introDone = false;
+
+function runIntro(){
+  const hold = 2000, fade = 850;
+  lines.forEach((line, i) => {
+    const t0 = i * (hold + fade);
+    setTimeout(() => line.classList.add('show'), t0 + 100);
+    // keep the last line until user clicks / auto-dismiss
+    if(i < lines.length - 1){
+      setTimeout(() => line.classList.remove('show'), t0 + hold);
+    }
+  });
+  // auto-dismiss after the sequence finishes — no click required
+  const total = lines.length * (hold + fade) + 1800;
+  setTimeout(dismissIntro, total);
+}
+
+function dismissIntro(){
+  if(introDone) return;
+  introDone = true;
+  intro.classList.add('gone');
+}
+// click anywhere also dismisses immediately
+addEventListener('click', () => { if(!introDone) dismissIntro(); });
+// hard safety net: never let the overlay trap the page
+setTimeout(dismissIntro, 12000);
+
+/* ---------------- dynamic island ---------------- */
+const island = document.getElementById('island');
+const islandPill = document.getElementById('island-pill');
+const topicEl = document.getElementById('topic');
+const menuBtn = document.getElementById('menu-btn');
+const searchBtn = document.getElementById('search-btn');
+
+const topics = ['Science', 'Culture', 'Intelligence', 'Meaning', 'Language', 'Society'];
+let ti = 0, typing = null;
+
+function typeTopic(word){
+  clearInterval(typing);
+  let cur = topicEl.textContent;
+  // delete then type
+  const del = setInterval(() => {
+    cur = cur.slice(0, -1);
+    topicEl.textContent = cur;
+    if(cur.length === 0){
+      clearInterval(del);
+      let n = 0;
+      typing = setInterval(() => {
+        n++; topicEl.textContent = word.slice(0, n);
+        if(n >= word.length) clearInterval(typing);
+      }, 70);
+    }
+  }, 45);
+}
+setInterval(() => {
+  ti = (ti + 1) % topics.length;
+  typeTopic(topics[ti]);
+}, 3200);
+
+menuBtn.addEventListener('click', e => { e.stopPropagation(); island.classList.toggle('open'); });
+searchBtn.addEventListener('click', e => { e.stopPropagation(); island.classList.toggle('open'); });
+document.addEventListener('click', e => {
+  if(introDone && !island.contains(e.target)) island.classList.remove('open');
+});
+
+/* mode toggle (Linear ↔ Grid — purely cosmetic label, like the original) */
+const modeBtn = document.getElementById('mode-btn');
+const modes = ['Linear', 'Grid', 'Stream'];
+let mi = 0;
+modeBtn.addEventListener('click', e => {
+  e.stopPropagation();
+  mi = (mi + 1) % modes.length;
+  modeBtn.textContent = modes[mi];
+});
+
+/* language toggle (visual) */
+document.querySelectorAll('#lang a').forEach(a => {
+  a.addEventListener('click', e => {
+    e.preventDefault();
+    document.querySelectorAll('#lang a').forEach(x => x.classList.remove('active'));
+    a.classList.add('active');
+  });
+});
+
+/* Everything above set up without throwing → safe to raise the intro overlay
+   and play it. If any line above had errored, the overlay stays hidden and the
+   island + field remain visible — the page can never render fully blank. */
+document.body.classList.add('intro-on');
+runIntro();
+</script>
+</body>
+</html>
