@@ -1,0 +1,763 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<meta name="theme-color" content="#F5F5F5" />
+<title>Kunumi Institute</title>
+<meta name="description" content="A research collective from the Global South to the world. To expand the boundaries of intelligence, culture, and meaning." />
+<style>
+  /* ---- type: ABC Monument Grotesk is proprietary; Space Grotesk is the closest free grotesk ---- */
+  @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500&family=Space+Mono:wght@400&display=swap');
+
+  :root{
+    --bg: #F5F5F5;
+    --ink: #1a1a1a;
+    --card: #1a1a1a;          /* dynamic island fill */
+    --gray: #6b6b6b;
+    --accent: #FF4900;
+    --font: 'Space Grotesk', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    --mono: 'Space Mono', ui-monospace, monospace;
+  }
+
+  *{ margin:0; padding:0; box-sizing:border-box; }
+  html,body{ height:100%; }
+  body{
+    background: var(--bg);
+    color: var(--ink);
+    font-family: var(--font);
+    -webkit-font-smoothing: antialiased;
+    overflow: hidden;
+    /* custom dot cursor, matches the original */
+    cursor: url("data:image/svg+xml,%3Csvg width='8' height='8' viewBox='0 0 8 8' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Ccircle cx='4' cy='4' r='4' fill='%231C1C1C'/%3E%3C/svg%3E") 4 4, auto;
+  }
+
+  /* particle field sits behind everything */
+  #field{
+    position: fixed; inset: 0;
+    width: 100%; height: 100%;
+    z-index: 1;
+    display: block;
+  }
+
+  /* ---- intro overlay ----
+     Hidden by default (progressive enhancement): the overlay only covers the
+     screen once JS has fully initialised and adds .intro-on to <body>.
+     If JS never runs / errors, the island + field stay visible — never blank. */
+  #intro{
+    position: fixed; inset: 0; z-index: 20;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    text-align: center; gap: 1.6rem;
+    background: var(--bg);
+    opacity: 0; visibility: hidden; pointer-events: none;
+    transition: opacity .9s ease, visibility .9s;
+  }
+  body.intro-on #intro{ opacity: 1; visibility: visible; pointer-events: auto; }
+  body.intro-on #intro.gone{ opacity: 0; visibility: hidden; pointer-events: none; }
+  .intro-line{
+    position: absolute;
+    font-size: clamp(13px, 1.6vw, 16px);
+    letter-spacing: -0.01em;
+    color: var(--ink);
+    opacity: 0; transform: translateY(15px);
+    transition: opacity .8s ease, transform .8s ease;
+    padding: 0 24px; max-width: 40ch;
+  }
+  .intro-line.show{ opacity: 1; transform: translateY(0); }
+
+  /* ---- dynamic island ---- */
+  #island-root{ position: fixed; inset: 0; z-index: 10; pointer-events: none; }
+  #island{
+    position: absolute;
+    left: 0; right: 0; top: 50%; margin: 0 auto;
+    transform: translateY(-50%);
+    width: 42rem; max-width: calc(100vw - 5.2rem);
+    pointer-events: auto;
+  }
+  .island-pill{
+    position: relative;
+    height: 5.2rem;
+    padding: 0 1.8rem;
+    background: rgba(26,26,26,.375);
+    -webkit-backdrop-filter: blur(20px);
+    backdrop-filter: blur(20px);
+    border-radius: 1.8rem;
+    display: flex; align-items: center;
+    overflow: hidden;
+    transition: background .3s ease;
+  }
+  .island-row{
+    display: flex; align-items: center; justify-content: space-between;
+    width: 100%; gap: .4rem;
+  }
+  .island-prompt{
+    display: flex; gap: .5rem; align-items: baseline;
+    white-space: nowrap; overflow: hidden; min-width: 0;
+    font-size: 1.4rem; cursor: text;
+  }
+  .island-prompt .muted{ color: rgba(255,255,255,.4); flex-shrink: 0; }
+  .island-prompt .topic{ color: rgba(255,255,255,.78); position: relative; }
+  .island-prompt .topic::after{
+    content:''; display:inline-block; width:2px; height:1.1em;
+    background: rgba(255,255,255,.6); margin-left:2px; transform: translateY(2px);
+    animation: blink 1s steps(1) infinite;
+  }
+  @keyframes blink{ 50%{ opacity:0; } }
+
+  .island-actions{ display:flex; gap:.6rem; flex-shrink:0; }
+  .ibtn{
+    width: 2.2rem; height: 2.2rem; border-radius: 999px;
+    background: var(--gray); color:#fff; border:none;
+    display:flex; align-items:center; justify-content:center;
+    cursor:pointer; padding:.5rem; transition: background .2s ease;
+  }
+  .ibtn:hover{ background:#a3a3a3; }
+  .ibtn svg{ width:100%; height:auto; }
+
+  /* expandable menu under the pill */
+  #island-menu{
+    position: absolute; left:0; right:0; top: calc(100% + .6rem);
+    background: rgba(26,26,26,.42);
+    -webkit-backdrop-filter: blur(20px);
+    backdrop-filter: blur(20px);
+    border-radius: 1.6rem;
+    overflow: hidden;
+    max-height: 0; opacity: 0;
+    transition: max-height .45s cubic-bezier(.16,1,.3,1), opacity .35s ease;
+  }
+  #island.open #island-menu{ max-height: 32rem; opacity: 1; }
+  .menu-section{ padding: 1.2rem 1.8rem; }
+  .menu-label{
+    font-family: var(--mono); font-size: 1.05rem; text-transform: uppercase;
+    letter-spacing: .12em; color: rgba(255,255,255,.35); margin-bottom: .8rem;
+  }
+  .menu-item{
+    display:flex; justify-content:space-between; align-items:center;
+    padding: .85rem 0; color: rgba(255,255,255,.85);
+    font-size: 1.5rem; cursor:pointer;
+    border-bottom: 1px solid rgba(255,255,255,.07);
+    transition: padding-left .25s ease, color .2s ease;
+  }
+  .menu-item:last-child{ border-bottom:none; }
+  .menu-item:hover{ padding-left:.6rem; color:#fff; }
+  .menu-item .arrow{ color: rgba(255,255,255,.4); }
+
+  /* ---- top + bottom chrome ---- */
+  #brand{
+    position: fixed; top: 2.4rem; left: 2.4rem; z-index: 11;
+    font-size: 1.4rem; letter-spacing:-.01em; color: var(--ink);
+    mix-blend-mode: difference; color:#fff;
+  }
+  #lang{
+    position: fixed; top: 2.4rem; right: 2.4rem; z-index: 11;
+    display:flex; gap:.4rem; font-size:1.4rem;
+    font-family: var(--mono);
+  }
+  #lang a{ color: rgba(0,0,0,.35); text-decoration:none; transition:color .2s; }
+  #lang a.active{ color: var(--ink); }
+  #lang a:hover{ color: var(--ink); }
+
+  #mode{
+    position: fixed; left:0; right:0; bottom: 2.4rem; margin:0 auto; z-index:11;
+    display:flex; justify-content:center; pointer-events:none;
+  }
+  #mode button{
+    pointer-events:auto;
+    height:3.8rem; padding:0 1.8rem;
+    background: rgba(26,26,26,.3);
+    -webkit-backdrop-filter: blur(20px); backdrop-filter: blur(20px);
+    border:none; border-radius:1.8rem; cursor:pointer;
+    font-size:1.4rem; color: rgba(255,255,255,.72);
+    transition: background .3s ease;
+  }
+  #mode button:hover{ background: rgba(0,0,0,.5); }
+
+  /* ---- constellation of image nodes ---- */
+  #links{ position: fixed; inset: 0; z-index: 3; pointer-events: none; }
+  #links line{
+    stroke: rgba(26,26,26,.22); stroke-width: 1;
+    transition: stroke .35s ease, stroke-width .35s ease;
+  }
+  #links line.lit{ stroke: rgba(26,26,26,.5); stroke-width: 1.4; }
+
+  #constellation{ position: fixed; inset: 0; z-index: 4; pointer-events: none; }
+  body.explore #constellation{ pointer-events: none; }
+  .node{
+    position: absolute;
+    width: var(--sz, 6.6rem); height: var(--sz, 6.6rem);
+    padding: 0; border: none; background: none; cursor: pointer;
+    pointer-events: none;             /* absent at rest; only revealed (.lit) images are interactive */
+    opacity: 0;                       /* JS loop drives transform + opacity (compositor-cheap) */
+  }
+  /* only revealed tiles get a GPU layer (will-change) — idle tiles stay un-layered */
+  .node.lit{ pointer-events: auto; z-index: 60; will-change: transform, opacity; }
+  .node-inner{
+    width: 100%; height: 100%; border-radius: 1.1rem; overflow: hidden;
+    box-shadow: 0 0 16px rgba(0,0,0,.05);
+    animation: float var(--dur, 9s) ease-in-out infinite;
+    animation-delay: var(--del, 0s);
+    transition: box-shadow .35s ease;
+  }
+  .node.lit .node-inner{ box-shadow: 0 14px 40px rgba(0,0,0,.16); }
+  .node img{ width: 100%; height: 100%; object-fit: cover; display: block; }
+  .node-cap{
+    position: absolute; left: 50%; bottom: -1.9rem; transform: translateX(-50%);
+    font-family: var(--mono); font-size: 1rem; letter-spacing: .08em;
+    text-transform: uppercase; color: rgba(26,26,26,.6); white-space: nowrap;
+    opacity: 0; transition: opacity .3s ease; pointer-events: none;
+  }
+  .node:hover .node-cap{ opacity: 1; }
+  @keyframes float{
+    0%,100%{ transform: translateY(0); }
+    50%{ transform: translateY(-7px); }
+  }
+
+  /* ---- detail / lightbox ---- */
+  #detail{
+    position: fixed; inset: 0; z-index: 15;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 2rem; padding: 4rem;
+    background: rgba(245,245,245,.72);
+    -webkit-backdrop-filter: blur(24px); backdrop-filter: blur(24px);
+    opacity: 0; visibility: hidden; pointer-events: none;
+    transition: opacity .5s ease, visibility .5s;
+  }
+  #detail.open{ opacity: 1; visibility: visible; pointer-events: auto; }
+  #detail-img{
+    width: min(46rem, 70vmin); height: min(46rem, 70vmin);
+    border-radius: 1.6rem; overflow: hidden; box-shadow: 0 24px 70px rgba(0,0,0,.18);
+    transition: transform .5s cubic-bezier(.16,1,.3,1);
+  }
+  #detail-img img{ width:100%; height:100%; object-fit: cover; display:block; }
+  #detail-meta{ text-align: center; }
+  #detail-topic{
+    font-family: var(--mono); font-size: 1.1rem; letter-spacing: .18em;
+    text-transform: uppercase; color: rgba(26,26,26,.45); margin-bottom: .6rem;
+  }
+  #detail-title{ font-size: clamp(18px, 2.4vw, 26px); letter-spacing: -.02em; }
+  #detail-related{
+    display: flex; gap: 1rem; align-items: center; margin-top: .6rem;
+  }
+  #detail-related .rel-label{
+    font-family: var(--mono); font-size: 1rem; letter-spacing: .1em;
+    text-transform: uppercase; color: rgba(26,26,26,.4); margin-right: .4rem;
+  }
+  .rel{
+    width: 5.6rem; height: 5.6rem; border-radius: .9rem; overflow: hidden;
+    cursor: pointer; border: none; padding: 0; background: none;
+    box-shadow: 0 0 0 1px rgba(0,0,0,.06);
+    transition: transform .3s cubic-bezier(.16,1,.3,1), box-shadow .3s ease;
+  }
+  .rel img{ width:100%; height:100%; object-fit: cover; display:block; }
+  .rel:hover{ transform: translateY(-4px) scale(1.06); box-shadow: 0 10px 24px rgba(0,0,0,.16); }
+  #detail-close{
+    position: absolute; top: 2.4rem; right: 2.4rem;
+    width: 4rem; height: 4rem; border-radius: 999px; border: none; cursor: pointer;
+    background: rgba(26,26,26,.08); color: var(--ink); font-size: 1.8rem;
+    display: flex; align-items: center; justify-content: center;
+    transition: background .2s ease;
+  }
+  #detail-close:hover{ background: rgba(26,26,26,.16); }
+
+  /* rem scaling like the original (10px root) */
+  html{ font-size: 62.5%; }
+  body{ font-size: 1.6rem; }
+
+  @media (max-width: 640px){
+    #field{ display:block; }
+    #island{ top: auto; bottom: 8rem; transform:none; }
+    #mode{ display:none; }
+    body{ cursor:auto; }
+    .node{ --sz: 6.2rem; }
+    #detail{ padding: 2rem; }
+    /* lighter compositing on touch devices: cheaper backdrop blur */
+    .island-pill{ -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px); background: rgba(26,26,26,.55); }
+    #detail{ -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px); }
+  }
+</style>
+</head>
+<body>
+  <canvas id="field"></canvas>
+
+  <!-- top chrome -->
+  <div id="brand">Kunumi Institute</div>
+  <nav id="lang">
+    <a href="#" data-l="pt">PT</a><span style="color:rgba(0,0,0,.2)">/</span><a href="#" data-l="en" class="active">EN</a>
+  </nav>
+
+  <!-- constellation: connecting lines + image nodes -->
+  <svg id="links" aria-hidden="true"></svg>
+  <div id="constellation"></div>
+
+  <!-- detail / lightbox -->
+  <div id="detail">
+    <button id="detail-close" aria-label="Close">&times;</button>
+    <div id="detail-img"></div>
+    <div id="detail-meta">
+      <div id="detail-topic"></div>
+      <div id="detail-title"></div>
+    </div>
+    <div id="detail-related"><span class="rel-label">Connected</span></div>
+  </div>
+
+  <!-- intro -->
+  <div id="intro">
+    <div class="intro-line">Kunumi is a research collective from the Global South to the world.</div>
+    <div class="intro-line">Expanding the frontiers of intelligence, culture, and meaning.</div>
+    <div class="intro-line">Click anywhere or search for content.</div>
+  </div>
+
+  <!-- dynamic island -->
+  <div id="island-root">
+    <div id="island">
+      <div class="island-pill" id="island-pill">
+        <div class="island-row">
+          <div class="island-prompt" id="prompt">
+            <span class="muted">I want to learn about</span><span class="topic" id="topic">Science</span>
+          </div>
+          <div class="island-actions">
+            <button class="ibtn" id="search-btn" aria-label="Search">
+              <svg viewBox="0 0 18 18" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M15.787 9.33c0 .228-.094.43-.283.605l-4.746 4.737c-.176.176-.374.263-.596.263-.228 0-.42-.075-.576-.224-.15-.15-.225-.339-.225-.567 0-.11.02-.215.059-.312.045-.105.104-.196.176-.274l1.318-1.338 2.988-2.705.235.45-2.549.175H3.033c-.247 0-.449-.075-.605-.224-.15-.157-.225-.352-.225-.586 0-.241.075-.437.225-.586.156-.157.358-.235.605-.235h8.555l2.549.176-.235.459-2.988-2.715L9.596 5.09a1.04 1.04 0 0 1-.176-.264 1.02 1.02 0 0 1-.059-.322c0-.228.075-.417.225-.566.156-.15.348-.225.576-.225.221 0 .42.088.596.264l4.746 4.736c.189.176.283.381.283.617Z" fill="currentColor"/></svg>
+            </button>
+            <button class="ibtn" id="menu-btn" aria-label="Menu">
+              <svg viewBox="0 0 17 4" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M1.71 3.398c-.319 0-.605-.075-.86-.224a1.66 1.66 0 0 1-.614-.606A1.7 1.7 0 0 1 0 1.7c0-.313.078-.596.235-.85C.392.59.597.384.85.234 1.105.078 1.39 0 1.71 0c.306 0 .59.078.85.234.26.15.465.355.615.615.156.254.234.537.234.85 0 .319-.078.609-.234.869a1.61 1.61 0 0 1-.616.605 1.7 1.7 0 0 1-.849.225Zm6.748 0c-.319 0-.609-.075-.869-.224a1.66 1.66 0 0 1-.615-.606 1.7 1.7 0 0 1-.225-.869c0-.313.075-.596.225-.85.156-.26.361-.465.615-.615C7.85.078 8.139 0 8.458 0c.306 0 .59.078.85.234.26.15.465.355.615.615.156.254.234.537.234.85 0 .319-.078.609-.234.869a1.61 1.61 0 0 1-.615.605 1.7 1.7 0 0 1-.85.225Zm6.748 0c-.319 0-.609-.075-.869-.224a1.66 1.66 0 0 1-.615-.606 1.7 1.7 0 0 1-.225-.869c0-.313.075-.596.225-.85.156-.26.361-.465.615-.615C14.597.078 14.887 0 15.206 0c.306 0 .59.078.85.234.26.15.465.355.615.615.156.254.234.537.234.85 0 .319-.078.609-.234.869a1.61 1.61 0 0 1-.615.605 1.7 1.7 0 0 1-.85.225Z" fill="currentColor"/></svg>
+            </button>
+          </div>
+        </div>
+
+        <div id="island-menu">
+          <div class="menu-section">
+            <div class="menu-label">Navigate</div>
+            <div class="menu-item">Colabs <span class="arrow">→</span></div>
+            <div class="menu-item">Careers <span class="arrow">→</span></div>
+            <div class="menu-item">About <span class="arrow">→</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- bottom mode toggle -->
+  <div id="mode"><button id="mode-btn">Linear</button></div>
+
+<script>
+/* ============================================================
+   Kunumi Institute — faithful replica
+   particle cursor field + intro sequence + dynamic island
+   ============================================================ */
+
+/* ---------------- particle field ---------------- */
+const canvas = document.getElementById('field');
+const ctx = canvas.getContext('2d');
+let W, H, DPR;
+// touch / no-hover devices get a lighter render and an ambient auto-drift
+const TOUCH = matchMedia('(hover: none), (pointer: coarse)').matches || innerWidth < 760;
+function resize(){
+  DPR = Math.min(window.devicePixelRatio || 1, TOUCH ? 1.25 : 1.5);
+  W = canvas.width  = innerWidth  * DPR;
+  H = canvas.height = innerHeight * DPR;
+  canvas.style.width = innerWidth + 'px';
+  canvas.style.height = innerHeight + 'px';
+}
+resize();
+addEventListener('resize', resize);
+
+const pointer = { x: innerWidth/2, y: innerHeight/2, px: innerWidth/2, py: innerHeight/2, active:false };
+let idleFrames = 9999, ambPhase = 0;   // ambient drift kicks in after a spell of no input
+
+/* ---- starfield: a field of dots ALWAYS visible, drifting toward the camera ----
+   each dot has a 3D position; every frame z shrinks (moves closer), the dot is
+   perspective-projected to 2D, grows + brightens as it nears, then recycles to
+   the far plane. This is the persistent dotted background of the real site. */
+const STAR_N = TOUCH ? 160 : 340;
+const STAR_SPEED = 0.00025;          // very slow, glacial drift toward the camera
+const stars = [];
+function placeStar(s, far){
+  s.x = Math.random() * 2 - 1;
+  s.y = Math.random() * 2 - 1;
+  s.z = far ? 1 : (Math.random() * 0.85 + 0.15);
+  s.b = Math.random() * 0.55 + 0.45;   // per-dot size/brightness
+  s.sx = -999; s.sy = -999;            // last projected screen pos (for image links)
+}
+for(let i = 0; i < STAR_N; i++){ const s = {}; placeStar(s, false); stars.push(s); }
+
+function drawStars(ctx, DPR){
+  const cx = innerWidth / 2, cy = innerHeight / 2;
+  for(const s of stars){
+    s.z -= STAR_SPEED;
+    if(s.z <= 0.12){ placeStar(s, true); continue; }   // recycle to far plane
+    const sx = cx + (s.x / s.z) * cx;
+    const sy = cy + (s.y / s.z) * cy;
+    s.sx = sx; s.sy = sy;
+    if(sx < -8 || sx > innerWidth + 8 || sy < -8 || sy > innerHeight + 8) continue;
+    const near = 1 - s.z;                                // 0 (far) … ~0.88 (close)
+    const rad = s.b * (near * 2.6) + 0.6;               // grows toward camera
+    ctx.beginPath();
+    ctx.arc(sx * DPR, sy * DPR, rad * DPR, 0, Math.PI * 2);
+    ctx.fillStyle = `rgba(16,16,16,${(0.42 + near * 0.55).toFixed(2)})`;
+    ctx.fill();
+  }
+}
+
+function onMove(x, y){
+  pointer.px = pointer.x; pointer.py = pointer.y;
+  pointer.x = x; pointer.y = y;
+  pointer.active = true;
+  idleFrames = 0;                       // real input takes over from the ambient drift
+}
+addEventListener('mousemove', e => onMove(e.clientX, e.clientY));
+addEventListener('touchstart', e => { const t=e.touches[0]; if(t) onMove(t.clientX, t.clientY); }, {passive:true});
+addEventListener('touchmove', e => { const t=e.touches[0]; if(t) onMove(t.clientX, t.clientY); }, {passive:true});
+
+function tick(){
+  ctx.clearRect(0,0,W,H);
+  drawStars(ctx, DPR);                  // the always-on moving dot field
+  // real-time cursor → image string connectors + bring-to-forefront
+  if(typeof weave === 'function') weave(ctx, DPR);
+  requestAnimationFrame(tick);
+}
+tick();
+
+/* ---------------- intro sequence ---------------- */
+const intro = document.getElementById('intro');
+const lines = [...document.querySelectorAll('.intro-line')];
+let introDone = false;
+
+function runIntro(){
+  const hold = 2000, fade = 850;
+  lines.forEach((line, i) => {
+    const t0 = i * (hold + fade);
+    setTimeout(() => line.classList.add('show'), t0 + 100);
+    // keep the last line until user clicks / auto-dismiss
+    if(i < lines.length - 1){
+      setTimeout(() => line.classList.remove('show'), t0 + hold);
+    }
+  });
+  // auto-dismiss after the sequence finishes — no click required
+  const total = lines.length * (hold + fade) + 1800;
+  setTimeout(dismissIntro, total);
+}
+
+function dismissIntro(){
+  if(introDone) return;
+  introDone = true;
+  intro.classList.add('gone');
+  document.body.classList.add('explore');   // fade the image constellation in
+}
+// click anywhere also dismisses immediately
+addEventListener('click', () => { if(!introDone) dismissIntro(); });
+// hard safety net: never let the overlay trap the page
+setTimeout(dismissIntro, 12000);
+
+/* ---------------- dynamic island ---------------- */
+const island = document.getElementById('island');
+const islandPill = document.getElementById('island-pill');
+const topicEl = document.getElementById('topic');
+const menuBtn = document.getElementById('menu-btn');
+const searchBtn = document.getElementById('search-btn');
+
+const topics = ['Science', 'Culture', 'Intelligence', 'Meaning', 'Language', 'Society'];
+let ti = 0, typing = null;
+
+function typeTopic(word){
+  clearInterval(typing);
+  let cur = topicEl.textContent;
+  // delete then type
+  const del = setInterval(() => {
+    cur = cur.slice(0, -1);
+    topicEl.textContent = cur;
+    if(cur.length === 0){
+      clearInterval(del);
+      let n = 0;
+      typing = setInterval(() => {
+        n++; topicEl.textContent = word.slice(0, n);
+        if(n >= word.length) clearInterval(typing);
+      }, 70);
+    }
+  }, 45);
+}
+setInterval(() => {
+  ti = (ti + 1) % topics.length;
+  typeTopic(topics[ti]);
+}, 3200);
+
+menuBtn.addEventListener('click', e => { e.stopPropagation(); island.classList.toggle('open'); });
+// the search button focuses the constellation cluster for the current topic
+searchBtn.addEventListener('click', e => {
+  e.stopPropagation();
+  if(typeof focusTopic === 'function') focusTopic(topics[ti].toLowerCase());
+});
+document.addEventListener('click', e => {
+  if(introDone && !island.contains(e.target)) island.classList.remove('open');
+});
+
+/* mode toggle (Linear ↔ Grid — purely cosmetic label, like the original) */
+const modeBtn = document.getElementById('mode-btn');
+const modes = ['Linear', 'Grid', 'Stream'];
+let mi = 0;
+modeBtn.addEventListener('click', e => {
+  e.stopPropagation();
+  mi = (mi + 1) % modes.length;
+  modeBtn.textContent = modes[mi];
+});
+
+/* language toggle (visual) */
+document.querySelectorAll('#lang a').forEach(a => {
+  a.addEventListener('click', e => {
+    e.preventDefault();
+    document.querySelectorAll('#lang a').forEach(x => x.classList.remove('active'));
+    a.classList.add('active');
+  });
+});
+
+/* ---------------- constellation of image nodes ---------------- */
+const TOPICS = {
+  science:      { label:'Science',      items:7 },
+  culture:      { label:'Culture',      items:6 },
+  intelligence: { label:'Intelligence', items:7 },
+  meaning:      { label:'Meaning',      items:5 },
+  language:     { label:'Language',     items:6 },
+  society:      { label:'Society',      items:6 },
+};
+const TITLES = {
+  science:['Quantum materials','Open-science protocols','Computation at the edge','Foundations','Field instruments','Material proofs','Edge sensing'],
+  culture:['Textile epistemologies','Oral archives','Craft as knowledge','Global South futures','Pattern languages','Ancestral form'],
+  intelligence:['Emergent reasoning','Synthetic cognition','Learning systems','Collective minds','Latent space','Reasoning traces','Distributed thought'],
+  meaning:['Sense-making','Signal & silence','Interpretation','The luminous form','Thresholds'],
+  language:['Scripts in motion','Low-resource NLP','Translation as care','Living grammars','Phoneme drift','Written worlds'],
+  society:['Networks of trust','Cities as data','Belonging','Commons','Civic fabric','Shared ground'],
+};
+
+// build the node list
+const nodes = [];
+Object.entries(TOPICS).forEach(([topic, t]) => {
+  for(let i=1; i<=t.items; i++){
+    nodes.push({
+      id: `${topic}-${i}`,
+      topic, label: t.label,
+      title: (TITLES[topic] || [])[i-1] || t.label,
+      src: `img/${topic}-${i}.webp`,
+    });
+  }
+});
+// mix topics so connectors span subjects, then scatter across the whole field
+nodes.sort((a,b) => ((a.id.charCodeAt(0)*31 + a.id.length) % 97) - ((b.id.charCodeAt(0)*31 + b.id.length) % 97));
+const COLS = 8, ROWS = Math.ceil(nodes.length / COLS);
+nodes.forEach((n, i) => {
+  let nx = ((i % COLS) + 0.5) / COLS + (Math.sin(i * 12.9898) * 0.5) * 0.07;
+  let ny = (Math.floor(i / COLS) + 0.5) / ROWS + (Math.cos(i * 78.233) * 0.5) * 0.07;
+  // push out of the central dynamic-island zone
+  const dx = nx - 0.5, dy = ny - 0.5, ex = 0.21, ey = 0.17;
+  if(Math.abs(dx) < ex && Math.abs(dy) < ey){
+    const s = Math.min(ex / Math.max(Math.abs(dx), 1e-3), ey / Math.max(Math.abs(dy), 1e-3));
+    nx = 0.5 + dx * s * 1.06; ny = 0.5 + dy * s * 1.06;
+  }
+  n.nx = Math.min(0.94, Math.max(0.06, nx));
+  n.ny = Math.min(0.92, Math.max(0.09, ny));
+});
+
+// logical adjacency (same topic + a ring of cross-topic bridges) — used by the detail strip
+const links = [];
+const byTopic = {};
+nodes.forEach(n => (byTopic[n.topic] ||= []).push(n));
+Object.values(byTopic).forEach(group => {
+  for(let a=0; a<group.length; a++)
+    for(let b=a+1; b<group.length; b++)
+      links.push([group[a].id, group[b].id]);
+});
+const ring = ['science','intelligence','meaning','language','culture','society'];
+ring.forEach((tp, i) => {
+  const next = ring[(i+1) % ring.length];
+  if(byTopic[tp] && byTopic[next]) links.push([byTopic[tp][0].id, byTopic[next][0].id]);
+});
+const connectedOf = id => {
+  const set = new Set();
+  links.forEach(([a,b]) => { if(a===id) set.add(b); if(b===id) set.add(a); });
+  return [...set];
+};
+
+// render nodes
+const constellation = document.getElementById('constellation');
+const nodeList = [];
+nodes.forEach((n, i) => {
+  const btn = document.createElement('button');
+  btn.className = 'node'; btn.dataset.id = n.id; btn.dataset.topic = n.topic;
+  btn.style.setProperty('--del', (i * 0.13) + 's');
+  btn.style.setProperty('--dur', (8 + (i % 5)) + 's');
+  btn.innerHTML = `<span class="node-inner"><img src="${n.src}" alt="${n.title}" loading="lazy"></span>
+                   <span class="node-cap">${n.label}</span>`;
+  btn.addEventListener('click', e => { e.stopPropagation(); openDetail(n.id); });
+  constellation.appendChild(btn);
+  // runtime state for the proximity loop
+  btn._inner = btn.querySelector('.node-inner');
+  btn._node = n; btn._s = 0.46; btn._o = 0; btn._i = 0;
+  // each image is attached to its own dot in the moving starfield (a 3D point).
+  // spread the dots EVENLY across the screen (jittered grid) and back-compute the
+  // 3D coords so each is guaranteed on-screen — so moving the cursor reliably
+  // catches a cluster of dots wherever you go.
+  const GX = 7, GY = Math.ceil(nodes.length / GX);
+  const col = i % GX, row = Math.floor(i / GX);
+  const tnx = (col + 0.5 + (Math.random() - 0.5) * 0.8) / GX;   // target screen x (0..1)
+  const tny = (row + 0.5 + (Math.random() - 0.5) * 0.8) / GY;   // target screen y (0..1)
+  const z = Math.random() * 0.5 + 0.4;
+  btn._cz = z;
+  btn._cx = (2 * tnx - 1) * z;          // projects exactly to (tnx,tny) at depth z
+  btn._cy = (2 * tny - 1) * z;
+  const ang = Math.random() * Math.PI * 2;
+  btn._offx = Math.cos(ang) * 52;       // image sits just beside its dot
+  btn._offy = Math.sin(ang) * 52;
+  n.el = btn; nodeList.push(btn);
+});
+
+// positions are computed per-frame from the moving content dots (see weave)
+function layout(){}
+addEventListener('resize', layout);
+
+/* ---- the live, cursor-driven weave ----
+   Each frame: for every image near the cursor, draw a string from the cursor to
+   it and lerp it toward the "forefront" (larger, brighter, in colour, raised).
+   Nearby revealed images also thread to each other, forming a moving web. */
+const REST_S = 0.46, PEAK_S = 1.16;  // images grow from small as they appear
+const R = 270;                       // catch radius — reveal a cluster of nearby dots
+const lerp = (a, b, k) => a + (b - a) * k;
+const smooth = t => t * t * (3 - 2 * t);
+
+function weave(ctx, DPR){
+  if(!document.body.classList.contains('explore')) return;
+
+  // ambient auto-drift: after a spell of no input (always, on touch), a virtual
+  // cursor wanders the field on a slow Lissajous so the weave stays alive sans hover
+  idleFrames++;
+  if(idleFrames > 130){
+    ambPhase += 0.0055;
+    const ax = (0.5 + 0.40 * Math.sin(ambPhase))            * innerWidth;
+    const ay = (0.5 + 0.34 * Math.sin(ambPhase * 1.27 + 1.1)) * innerHeight;
+    pointer.x += (ax - pointer.x) * 0.045;
+    pointer.y += (ay - pointer.y) * 0.045;
+  }
+  const px = pointer.x, py = pointer.y;
+  const focusBoost = id => focusedTopic && id.startsWith(focusedTopic) ? 0.45 : 0;
+
+  // 1) each image is bound to its own dot drifting toward the camera. Drift +
+  //    project the dot, draw it (always visible), position the image beside it,
+  //    and reveal the image when the cursor reaches the DOT.
+  const cx = innerWidth / 2, cy = innerHeight / 2;
+  const R2 = R * R;
+  for(const el of nodeList){
+    el._cz -= STAR_SPEED;
+    let recycled = false;
+    if(el._cz <= 0.14){                       // dot reached the camera → recycle on-screen, far
+      el._cx = Math.random() * 2 - 1;         // at z=1 this projects across the full screen
+      el._cy = Math.random() * 2 - 1;
+      el._cz = 1;
+      el._i = 0; el._o = 0; recycled = true;
+    }
+    const dotX = cx + (el._cx / el._cz) * cx;
+    const dotY = cy + (el._cy / el._cz) * cy;
+    el._dotx = dotX; el._doty = dotY;
+    const imgX = dotX + el._offx, imgY = dotY + el._offy;
+    el._x = imgX; el._y = imgY;
+
+    // draw the content dot itself (part of the always-on field)
+    const near = 1 - el._cz;
+    const drad = 0.6 + near * 2.4;
+    ctx.beginPath();
+    ctx.arc(dotX * DPR, dotY * DPR, drad * DPR, 0, Math.PI * 2);
+    ctx.fillStyle = `rgba(16,16,16,${(0.42 + near * 0.55).toFixed(2)})`;
+    ctx.fill();
+
+    // reveal driven by cursor proximity to the DOT
+    const dx = dotX - px, dy = dotY - py, d2 = dx*dx + dy*dy;
+    let target = (!recycled && d2 < R2) ? smooth(1 - Math.sqrt(d2) / R) : 0;
+    if(!recycled) target = Math.max(target, focusBoost(el.dataset.id));
+    el._i += (target - el._i) * (target > el._i ? 0.5 : 0.2);
+    const i = el._i;
+    if(i > 0.003){
+      el._o = Math.min(1, i * 1.4);
+      el._s = REST_S + (PEAK_S - REST_S) * i;
+      el.style.left = imgX + 'px'; el.style.top = imgY + 'px';   // track the moving dot
+      el.style.opacity = el._o.toFixed(3);
+      el.style.transform = `translate(-50%,-50%) scale(${el._s.toFixed(3)})`;
+      if(i > 0.45 && !el._lit){ el._lit = true; el.classList.add('lit'); }
+      else if(i < 0.26 && el._lit){ el._lit = false; el.classList.remove('lit'); }
+    } else if(el._o !== 0){
+      el._o = 0; el.style.opacity = '0';
+    }
+  }
+
+  // 2) the context lines: cursor → each connected dot
+  const active = nodeList.filter(el => el._i > 0.05);
+  ctx.lineCap = 'round';
+  for(const el of active){
+    const a = el._i;
+    ctx.beginPath();
+    ctx.moveTo(px * DPR, py * DPR);
+    ctx.lineTo(el._dotx * DPR, el._doty * DPR);
+    ctx.strokeStyle = `rgba(26,26,26,${(a * 0.5).toFixed(3)})`;
+    ctx.lineWidth = (0.5 + a * 0.9) * DPR;
+    ctx.stroke();
+  }
+  // 3) thread connected dots to each other (the web of context)
+  for(let a = 0; a < active.length; a++){
+    for(let b = a + 1; b < active.length; b++){
+      const A = active[a], B = active[b];
+      const dd = Math.hypot(A._dotx - B._dotx, A._doty - B._doty);
+      if(dd < 300){
+        const k = Math.min(A._i, B._i) * (1 - dd / 300);
+        if(k < 0.04) continue;
+        ctx.beginPath();
+        ctx.moveTo(A._dotx * DPR, A._doty * DPR);
+        ctx.lineTo(B._dotx * DPR, B._doty * DPR);
+        ctx.strokeStyle = `rgba(26,26,26,${(k * 0.4).toFixed(3)})`;
+        ctx.lineWidth = 0.7 * DPR;
+        ctx.stroke();
+      }
+    }
+  }
+}
+
+// detail / lightbox
+const detail = document.getElementById('detail');
+const dImg = document.getElementById('detail-img');
+const dTopic = document.getElementById('detail-topic');
+const dTitle = document.getElementById('detail-title');
+const dRelated = document.getElementById('detail-related');
+
+function openDetail(id){
+  const n = nodes.find(x => x.id === id);
+  if(!n) return;
+  dImg.innerHTML = `<img src="${n.src}" alt="${n.title}">`;
+  dTopic.textContent = n.label;
+  dTitle.textContent = n.title;
+  // related = connected nodes, lets you travel between images
+  dRelated.querySelectorAll('.rel').forEach(r => r.remove());
+  connectedOf(id).forEach(rid => {
+    const rn = nodes.find(x => x.id === rid);
+    const b = document.createElement('button');
+    b.className = 'rel'; b.title = `${rn.label} — ${rn.title}`;
+    b.innerHTML = `<img src="${rn.src}" alt="${rn.title}">`;
+    b.addEventListener('click', e => { e.stopPropagation(); openDetail(rid); });
+    dRelated.appendChild(b);
+  });
+  detail.classList.add('open');
+}
+function closeDetail(){ detail.classList.remove('open'); }
+document.getElementById('detail-close').addEventListener('click', closeDetail);
+detail.addEventListener('click', e => { if(e.target === detail) closeDetail(); });
+addEventListener('keydown', e => { if(e.key === 'Escape') closeDetail(); });
+
+// focus a topic from the dynamic island — the weave loop gives it a baseline reveal
+let focusedTopic = null;
+function focusTopic(topic){
+  focusedTopic = (focusedTopic === topic) ? null : topic;
+}
+
+/* Everything above set up without throwing → safe to raise the intro overlay
+   and play it. If any line above had errored, the overlay stays hidden and the
+   island + field remain visible — the page can never render fully blank. */
+document.body.classList.add('intro-on');
+runIntro();
+</script>
+</body>
+</html>

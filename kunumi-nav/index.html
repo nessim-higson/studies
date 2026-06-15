@@ -1,0 +1,417 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<meta name="theme-color" content="#F5F5F5" />
+<title>Nevverland — organic nav (Kunumi finish)</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;700&family=Space+Mono:wght@400&display=swap');
+
+  :root{
+    --bg: #F5F5F5;
+    --ink: #141414;
+    --font: 'Space Grotesk', -apple-system, BlinkMacSystemFont, sans-serif;
+    --mono: 'Space Mono', ui-monospace, monospace;
+  }
+  *{ margin:0; padding:0; box-sizing:border-box; }
+  html,body{ height:100%; }
+  body{
+    background: var(--bg);
+    color: var(--ink);
+    font-family: var(--font);
+    -webkit-font-smoothing: antialiased;
+    overflow: hidden;
+    cursor: url("data:image/svg+xml,%3Csvg width='8' height='8' viewBox='0 0 8 8' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Ccircle cx='4' cy='4' r='4' fill='%231C1C1C'/%3E%3C/svg%3E") 4 4, auto;
+    user-select: none;
+  }
+  #field{ position: fixed; inset: 0; z-index: 1; display:block; }
+  #graph{ position: fixed; inset: 0; z-index: 2; width:100%; height:100%; overflow: visible; }
+
+  /* threads */
+  #graph line{ vector-effect: non-scaling-stroke; transition: opacity .35s ease, stroke-width .35s ease; }
+
+  /* type nodes */
+  .node{ cursor: pointer; }
+  .node text{
+    transition: font-size .55s cubic-bezier(0.34,1.56,0.64,1), fill-opacity .4s ease, fill .4s ease;
+    paint-order: stroke;
+  }
+  .node .hit{ fill: transparent; }
+  .node .anchor{ transition: r .5s ease, fill-opacity .4s ease; }
+
+  /* chrome */
+  #brand{
+    position: fixed; top: 2.4rem; left: 2.4rem; z-index: 5;
+    font-size: 1.3rem; letter-spacing:.01em; color: rgba(20,20,20,.5);
+    font-family: var(--mono); text-transform: uppercase;
+  }
+  #hint{
+    position: fixed; bottom: 2.4rem; left:0; right:0; z-index: 5; text-align:center;
+    font-size: 1.15rem; letter-spacing:.04em; color: rgba(20,20,20,.32);
+    font-family: var(--mono); pointer-events:none;
+    transition: opacity .6s ease;
+  }
+  html{ font-size: 62.5%; }
+  body{ font-size: 1.6rem; }
+</style>
+</head>
+<body>
+  <canvas id="field"></canvas>
+  <svg id="graph" xmlns="http://www.w3.org/2000/svg"></svg>
+  <div id="brand">Nevverland</div>
+  <div id="hint">click to enter · click the focus to step back</div>
+
+<script>
+/* ============================================================
+   Nevverland organic navigation, finished in the Kunumi visual
+   language. Hand-rolled force model (ported from the d3 version):
+   role-aware centering, child-ring bloom, charge repulsion, link
+   springs, cursor gravity, idle drift, click shockwave — rendered
+   as a centered cascade of type + dark gossamer threads on light.
+   ============================================================ */
+
+/* ---------------- nav content ---------------- */
+const NAV = {
+  id:'nevverland', label:'Nevverland', children:[
+    { id:'work', label:'Work', children:[
+      { id:'nike', label:'Nike' }, { id:'hbo', label:'HBO' },
+      { id:'sony', label:'Sony' }, { id:'pepsi', label:'Pepsi' },
+      { id:'experimental', label:'Experimental' },
+    ]},
+    { id:'about', label:'About', children:[
+      { id:'studio', label:'Studio' }, { id:'people', label:'People' },
+      { id:'process', label:'Process' },
+    ]},
+    { id:'info', label:'Info', children:[
+      { id:'notes', label:'Notes' }, { id:'colophon', label:'Colophon' },
+      { id:'archive', label:'Archive' },
+    ]},
+    { id:'contact', label:'Contact', children:[
+      { id:'newyork', label:'New York' }, { id:'losangeles', label:'Los Angeles' },
+      { id:'email', label:'Email' },
+    ]},
+  ],
+};
+
+/* ---------------- flatten tree ---------------- */
+const nodes = [];
+const byId = new Map();
+(function walk(item, parentId, depth){
+  const n = { id:item.id, label:item.label, parentId, depth,
+              childIds:(item.children||[]).map(c=>c.id),
+              x:0, y:0, vx:0, vy:0,
+              phase: Math.random()*Math.PI*2, drift: 0.5+Math.random(), shown:false };
+  nodes.push(n); byId.set(n.id, n);
+  (item.children||[]).forEach(c => walk(c, item.id, depth+1));
+})(NAV, null, 0);
+
+const ancestorsOf = id => { const out=[]; let c=byId.get(id); while(c&&c.parentId){ out.push(c.parentId); c=byId.get(c.parentId); } return out; };
+
+/* ---------------- roles ---------------- */
+function computeRoles(activeId){
+  const roles = new Map();
+  const active = byId.get(activeId);
+  roles.set(activeId, 'active');
+  for(const a of ancestorsOf(activeId)) roles.set(a, 'parent');
+  for(const c of active.childIds) roles.set(c, 'child');
+  if(active.parentId) for(const s of byId.get(active.parentId).childIds) if(!roles.has(s)) roles.set(s,'sibling');
+  for(const a of ancestorsOf(activeId)){
+    const anc = byId.get(a); if(!anc.parentId) continue;
+    for(const s of byId.get(anc.parentId).childIds) if(!roles.has(s)) roles.set(s,'distant');
+  }
+  return roles;
+}
+
+/* ---------------- role styling (dark-on-light) ---------------- */
+const ROLE = {
+  active:  { fs:46, weight:700, op:1.0,  ls:'-0.02em', scale:2.1 },
+  child:   { fs:22, weight:500, op:0.95, ls:'0',       scale:1.15 },
+  parent:  { fs:15, weight:400, op:0.55, ls:'0.02em',  scale:0.9 },
+  sibling: { fs:12, weight:400, op:0.4,  ls:'0.03em',  scale:0.7 },
+  distant: { fs:10, weight:400, op:0.25, ls:'0.04em',  scale:0.5 },
+};
+const labelHalfW = (label, fs) => label.length * fs * 0.29;
+
+/* ---------------- physics constants (ported from config.js) ---------------- */
+const P = {
+  CHARGE: -520, CHARGE_MAX: 440,
+  LINK: { activeChild:160, breadcrumb:128, sibling:118, distant:135 },
+  LINK_STR: 0.4,
+  CHILD_RING: 230, CHILD_RING_STR: 0.30,
+  CENTER_ACTIVE: 0.13, CENTER_OTHERS: 0.014,
+  BREADCRUMB_LIFT: 188, BREADCRUMB_PULL: 0.05,
+  COLLIDE_STR: 0.9, COLLIDE_PAD: 16,
+  DAMP: 0.72,                 // velocity retained per tick
+  DRIFT: 0.16, CURSOR: 0.34, CURSOR_R: 300, SHOCK: 7.5,
+  ALPHA_KICK: 0.9, IDLE_ALPHA: 0.04, ALPHA_DECAY: 0.022,
+};
+
+/* ---------------- simulation state ---------------- */
+let activeId = 'nevverland';
+let roles = computeRoles(activeId);
+let links = [];
+let alpha = P.ALPHA_KICK;
+let prevFocus = null;
+let driftT = 0;
+const pointer = { x:null, y:null };
+let hoverId = null;
+
+const W = () => innerWidth, H = () => innerHeight;
+// seed everyone near center so the first state blooms outward
+nodes.forEach(n => { n.x = W()/2 + (Math.random()-0.5)*60; n.y = H()/2 + (Math.random()-0.5)*60; });
+
+function rebuild(){
+  roles = computeRoles(activeId);
+  const visible = nodes.filter(n => roles.has(n.id));
+  // newborn children bloom from their parent's position
+  for(const n of visible){
+    if(!n.shown){
+      const p = n.parentId ? byId.get(n.parentId) : null;
+      if(p && p.shown){ n.x = p.x + (Math.random()-0.5)*40; n.y = p.y + (Math.random()-0.5)*40; }
+      n.shown = true;
+    }
+  }
+  // links (visible parent→child), tagged by relationship
+  links = [];
+  for(const n of visible){
+    if(!n.parentId || !roles.has(n.parentId)) continue;
+    const r = roles.get(n.id);
+    const kind = r==='child' ? 'activeChild'
+               : (r==='active'||r==='parent') ? 'breadcrumb'
+               : r==='sibling' ? 'sibling' : 'distant';
+    links.push({ s:n.parentId, t:n.id, kind });
+  }
+  // click shockwave
+  const f = byId.get(activeId);
+  if(prevFocus && prevFocus !== activeId && f.x != null){
+    for(const n of visible){
+      if(n === f) continue;
+      const dx=n.x-f.x, dy=n.y-f.y, d=Math.hypot(dx,dy)||1;
+      const imp = P.SHOCK * Math.min(1, 220/d);
+      n.vx += dx/d*imp; n.vy += dy/d*imp;
+    }
+  }
+  prevFocus = activeId;
+  alpha = P.ALPHA_KICK;
+  buildSVG();
+}
+
+/* ---------------- force tick ---------------- */
+function tick(){
+  alpha += (P.IDLE_ALPHA - alpha) * P.ALPHA_DECAY;
+  const a = alpha;
+  const cx = W()/2, cy = H()/2;
+  const visible = nodes.filter(n => roles.has(n.id));
+  const active = byId.get(activeId);
+
+  // centering (role-aware)
+  for(const n of visible){
+    const r = roles.get(n.id);
+    const cxs = r==='active' ? P.CENTER_ACTIVE : P.CENTER_OTHERS;
+    n.vx += (cx - n.x) * cxs * a;
+    const ty = r==='parent' ? cy - P.BREADCRUMB_LIFT : cy;
+    const cys = r==='active' ? P.CENTER_ACTIVE : r==='parent' ? P.BREADCRUMB_PULL : P.CENTER_OTHERS;
+    n.vy += (ty - n.y) * cys * a;
+  }
+
+  // charge repulsion (naive pairwise — small N)
+  for(let i=0;i<visible.length;i++){
+    for(let j=i+1;j<visible.length;j++){
+      const A=visible[i], B=visible[j];
+      let dx=B.x-A.x, dy=B.y-A.y, d2=dx*dx+dy*dy;
+      if(d2<1){ dx=Math.cos(A.phase); dy=Math.sin(A.phase); d2=1; }
+      const d=Math.sqrt(d2);
+      if(d > P.CHARGE_MAX) continue;
+      const sc = (ROLE[roles.get(A.id)].scale + ROLE[roles.get(B.id)].scale) * 0.5;
+      const w = P.CHARGE * a * sc / d2;        // CHARGE negative → repel
+      A.vx += dx/d * w; A.vy += dy/d * w;
+      B.vx -= dx/d * w; B.vy -= dy/d * w;
+    }
+  }
+
+  // link springs
+  for(const l of links){
+    const s=byId.get(l.s), t=byId.get(l.t);
+    let dx=t.x-s.x, dy=t.y-s.y, d=Math.hypot(dx,dy)||1;
+    const rest = P.LINK[l.kind];
+    const k = (d - rest)/d * a * P.LINK_STR;
+    s.vx += dx*k*0.5; s.vy += dy*k*0.5;
+    t.vx -= dx*k*0.5; t.vy -= dy*k*0.5;
+  }
+
+  // child ring bloom around the (moving) active node
+  for(const n of visible){
+    if(roles.get(n.id) !== 'child') continue;
+    let dx=n.x-active.x, dy=n.y-active.y, d=Math.hypot(dx,dy);
+    if(d<1){ dx=Math.cos(n.phase); dy=Math.sin(n.phase); d=1; }
+    const k = (P.CHILD_RING - d)/d * P.CHILD_RING_STR * a;
+    n.vx += dx*k; n.vy += dy*k;
+  }
+
+  // collide (label-aware separation)
+  for(let i=0;i<visible.length;i++){
+    for(let j=i+1;j<visible.length;j++){
+      const A=visible[i], B=visible[j];
+      const fa=ROLE[roles.get(A.id)], fb=ROLE[roles.get(B.id)];
+      const ra=Math.max(labelHalfW(A.label,fa.fs), fa.fs*0.7)+P.COLLIDE_PAD*0.5;
+      const rb=Math.max(labelHalfW(B.label,fb.fs), fb.fs*0.7)+P.COLLIDE_PAD*0.5;
+      let dx=B.x-A.x, dy=B.y-A.y, d=Math.hypot(dx,dy)||1;
+      const min=ra+rb;
+      if(d<min){
+        const push=(min-d)/d*P.COLLIDE_STR*0.5;
+        A.vx-=dx*push; A.vy-=dy*push; B.vx+=dx*push; B.vy+=dy*push;
+      }
+    }
+  }
+
+  // idle drift (keeps it breathing)
+  driftT += 0.006;
+  for(const n of visible){
+    n.vx += Math.cos(driftT*n.drift + n.phase) * P.DRIFT * 0.1;
+    n.vy += Math.sin(driftT*n.drift*1.37 + n.phase) * P.DRIFT * 0.1;
+  }
+
+  // cursor gravity
+  if(pointer.x != null){
+    for(const n of visible){
+      const dx=pointer.x-n.x, dy=pointer.y-n.y, d=Math.hypot(dx,dy);
+      if(d>P.CURSOR_R || d<2) continue;
+      const k = P.CURSOR*(1-d/P.CURSOR_R)*0.18;
+      n.vx += dx/d*k; n.vy += dy/d*k;
+    }
+  }
+
+  // soft walls
+  const m = 90;
+  for(const n of visible){
+    if(n.x<m) n.vx += (m-n.x)*0.4*a;
+    if(n.x>W()-m) n.vx -= (n.x-(W()-m))*0.4*a;
+    if(n.y<m) n.vy += (m-n.y)*0.4*a;
+    if(n.y>H()-m) n.vy -= (n.y-(H()-m))*0.4*a;
+  }
+
+  // integrate
+  for(const n of visible){ n.vx*=P.DAMP; n.vy*=P.DAMP; n.x+=n.vx; n.y+=n.vy; }
+
+  renderGraph();
+}
+
+/* ---------------- SVG build / render ---------------- */
+const svg = document.getElementById('graph');
+const NS = 'http://www.w3.org/2000/svg';
+let lineEls = [];      // rebuilt per focus
+const nodeEls = {};    // persistent per node
+
+function makeNodeEl(n){
+  const g = document.createElementNS(NS,'g');
+  g.setAttribute('class','node'); g.dataset.id = n.id;
+  const hit = document.createElementNS(NS,'rect'); hit.setAttribute('class','hit');
+  const anchor = document.createElementNS(NS,'circle'); anchor.setAttribute('class','anchor');
+  const text = document.createElementNS(NS,'text');
+  text.setAttribute('text-anchor','middle'); text.setAttribute('dominant-baseline','central');
+  text.textContent = n.label;
+  g.append(hit, anchor, text);
+  g.addEventListener('mouseenter', ()=>{ hoverId=n.id; });
+  g.addEventListener('mouseleave', ()=>{ hoverId=null; });
+  g.addEventListener('click', e=>{ e.stopPropagation(); navigate(n); });
+  svg.appendChild(g);
+  return { g, hit, anchor, text };
+}
+nodes.forEach(n => nodeEls[n.id] = makeNodeEl(n));
+
+function buildSVG(){
+  // links: remove old, add fresh (under the nodes)
+  lineEls.forEach(l => l.remove());
+  lineEls = links.map(l => {
+    const ln = document.createElementNS(NS,'line');
+    ln.dataset.s=l.s; ln.dataset.t=l.t;
+    svg.insertBefore(ln, svg.firstChild);   // keep lines beneath text
+    return ln;
+  });
+}
+
+const trailSet = () => new Set([activeId, ...ancestorsOf(activeId)]);
+
+function renderGraph(){
+  const trail = trailSet();
+  // lines
+  for(const ln of lineEls){
+    const s=byId.get(ln.dataset.s), t=byId.get(ln.dataset.t);
+    // attach at each label's centre
+    ln.setAttribute('x1', s.x); ln.setAttribute('y1', s.y);
+    ln.setAttribute('x2', t.x); ln.setAttribute('y2', t.y);
+    const onTrail = trail.has(s.id) && trail.has(t.id);
+    const lit = hoverId===s.id || hoverId===t.id;
+    ln.setAttribute('stroke', 'rgba(20,20,20,1)');
+    ln.setAttribute('stroke-width', lit ? 1.1 : 0.6);
+    ln.setAttribute('opacity', lit ? 0.5 : onTrail ? 0.26 : 0.10);
+  }
+  // nodes
+  for(const n of nodes){
+    const el = nodeEls[n.id];
+    const role = roles.get(n.id);
+    if(!role){ el.g.style.display='none'; continue; }
+    el.g.style.display='';
+    const r = ROLE[role];
+    const hov = hoverId===n.id;
+    el.g.setAttribute('transform', `translate(${n.x.toFixed(1)},${n.y.toFixed(1)})`);
+    el.g.style.opacity = hov ? Math.min(1, r.op+0.35) : r.op;
+    const t = el.text;
+    t.setAttribute('font-size', r.fs);
+    t.setAttribute('font-weight', r.weight);
+    t.setAttribute('letter-spacing', r.ls);
+    t.setAttribute('fill', '#141414');
+    // anchor dot just under the label baseline (the point a thread meets)
+    const half = labelHalfW(n.label, r.fs);
+    el.anchor.setAttribute('cx', 0); el.anchor.setAttribute('cy', r.fs*0.62 + 5);
+    el.anchor.setAttribute('r', role==='active' ? 2.4 : 1.8);
+    el.anchor.setAttribute('fill', 'rgba(20,20,20,'+(role==='active'?0.85:0.5)+')');
+    // hit area (centred)
+    el.hit.setAttribute('x', -half-16); el.hit.setAttribute('y', -r.fs);
+    el.hit.setAttribute('width', half*2+32); el.hit.setAttribute('height', r.fs*2.2);
+  }
+}
+
+/* ---------------- interaction ---------------- */
+function navigate(n){
+  const next = n.id===activeId ? n.parentId : n.id;
+  if(!next) return;
+  activeId = next;
+  document.getElementById('hint').style.opacity = '0';
+  rebuild();
+}
+addEventListener('mousemove', e => { pointer.x=e.clientX; pointer.y=e.clientY; });
+addEventListener('mouseleave', () => { pointer.x=null; pointer.y=null; });
+addEventListener('resize', () => {});
+
+/* ---------------- faint starfield (Kunumi world) ---------------- */
+const canvas = document.getElementById('field');
+const ctx = canvas.getContext('2d');
+let DPR=1;
+function resize(){ DPR=Math.min(devicePixelRatio||1,1.5); canvas.width=W()*DPR; canvas.height=H()*DPR; canvas.style.width=W()+'px'; canvas.style.height=H()+'px'; }
+resize(); addEventListener('resize', resize);
+const STAR_N = 150, STAR_SPEED = 0.0003;
+const stars = [];
+function placeStar(s){ s.x=Math.random()*2-1; s.y=Math.random()*2-1; s.z=Math.random()*0.85+0.15; s.b=Math.random()*0.5+0.4; }
+for(let i=0;i<STAR_N;i++){ const s={}; placeStar(s); stars.push(s); }
+function drawStars(){
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  const cx=W()/2, cy=H()/2;
+  for(const s of stars){
+    s.z -= STAR_SPEED; if(s.z<=0.12){ placeStar(s); s.z=1; continue; }
+    const sx=cx+(s.x/s.z)*cx, sy=cy+(s.y/s.z)*cy;
+    if(sx<-8||sx>W()+8||sy<-8||sy>H()+8) continue;
+    const near=1-s.z, rad=s.b*(near*2.0)+0.4;
+    ctx.beginPath(); ctx.arc(sx*DPR, sy*DPR, rad*DPR, 0, Math.PI*2);
+    ctx.fillStyle=`rgba(20,20,20,${(0.16+near*0.4).toFixed(2)})`; ctx.fill();
+  }
+}
+
+/* ---------------- main loop ---------------- */
+function loop(){ drawStars(); tick(); requestAnimationFrame(loop); }
+rebuild();
+loop();
+</script>
+</body>
+</html>
