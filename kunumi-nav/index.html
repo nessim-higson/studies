@@ -31,6 +31,7 @@
     cursor:pointer; opacity:0; pointer-events:auto; }   /* positioned via transform; layer only when revealed (JS) */
   .tile .ti{ width:100%; height:100%; border-radius:1rem; overflow:hidden; box-shadow:0 8px 26px rgba(0,0,0,.10); }
   .tile img{ width:100%; height:100%; object-fit:cover; display:block; }
+  .tile.preview{ width:5.8rem; height:5.8rem; }   /* landing hover-peek tiles */
   .tile .cap{ position:absolute; left:50%; bottom:-1.9rem; transform:translateX(-50%); font-family:var(--mono);
     font-size:1rem; letter-spacing:.08em; text-transform:uppercase; color:rgba(20,20,20,.6); white-space:nowrap; opacity:0; transition:opacity .3s; }
   .tile:hover .cap{ opacity:1; }
@@ -165,7 +166,7 @@ const FIELD={ R:240, REST_S:0.5, PEAK_S:1.12, TYPE_SCALE:0.74, CLEAR_IN:150, CLE
 
 let activeId='nevverland', roles=computeRoles(activeId), links=[], alpha=P.ALPHA_KICK, prevFocus=null, driftT=0, hoverId=null,
     fieldNodes=[], inField=false, fkind=null, staged=false, stageProject=null, stageSrc=null,
-    idleFrames=0, gT=0, navDX=0, navDY=0;
+    idleFrames=0, gT=0, navDX=0, navDY=0, previewOn=true, preview=null;
 const pointer={x:null,y:null};
 const W=()=>innerWidth, H=()=>innerHeight;
 nodes.forEach(n=>{ n.x=W()/2+(Math.random()-0.5)*60; n.y=H()/2+(Math.random()-0.5)*60; });
@@ -186,6 +187,7 @@ function scatterField(imgs){
 }
 
 function rebuild(){
+  clearPreview();
   roles=computeRoles(activeId);
   const active=byId.get(activeId);
   fkind=fieldKind(active); inField=!!fkind;
@@ -298,6 +300,42 @@ function buildTiles(){
     b.addEventListener('click',e=>{ e.stopPropagation(); fieldClick(fn); });
     tilesEl.appendChild(b); tileEls.push({el:b, ti:b.querySelector('.ti'), node:fn, mounted:false}); }
 }
+/* ---- landing hover-preview: roll over a category → its images spring open ---- */
+const PREVIEW_N=4, PREVIEW_RAD=104;
+function buildPreview(node){
+  clearPreview();
+  const imgs = fieldImagesFor(node).slice(0, PREVIEW_N);
+  const items = imgs.map((im,i)=>{
+    const t=(i+0.5)/imgs.length, ang=-Math.PI*0.92 + t*Math.PI*0.84;   // fan across the top
+    const b=document.createElement('button'); b.className='tile preview';
+    b.innerHTML=`<span class="ti"></span>`;
+    b.addEventListener('click',e=>{ e.stopPropagation(); navigate(node); });
+    tilesEl.appendChild(b);
+    return { src:im.src, ang, rad:PREVIEW_RAD+(i%2)*18, el:b, ti:b.querySelector('.ti'), _s:0, _sv:0, mounted:false };
+  });
+  preview={ nodeId:node.id, items };
+}
+function clearPreview(){ if(preview){ preview.items.forEach(it=>it.el.remove()); preview=null; } }
+function updatePreview(){
+  const hov = hoverId && byId.get(hoverId);
+  const wantId = (previewOn && !inField && !staged && hov && fieldKind(hov)) ? hoverId : null;
+  if(wantId && (!preview || preview.nodeId!==wantId)) buildPreview(byId.get(wantId));
+  if(!preview) return;
+  const active = preview.nodeId===wantId, node=byId.get(preview.nodeId);
+  let alive=false;
+  for(const it of preview.items){
+    const target=active?1:0;
+    it._sv += (target-it._s)*0.2; it._sv*=0.7; it._s+=it._sv;   // damped spring → springs open
+    if(it._s>0.01) alive=true;
+    if(active && !it.mounted){ const img=new Image(); img.decoding='async'; img.src=it.src; it.ti.appendChild(img); it.mounted=true; }
+    const tx=node.x+Math.cos(it.ang)*it.rad, ty=node.y+Math.sin(it.ang)*it.rad;
+    it.el.style.opacity=Math.min(1,it._s).toFixed(2);
+    it.el.style.transform=`translate(${tx.toFixed(1)}px,${ty.toFixed(1)}px) translate(-50%,-50%) scale(${Math.max(0,it._s).toFixed(3)})`;
+    it.el.style.zIndex=6;
+  }
+  if(!active && !alive) clearPreview();
+}
+
 const trailSet=()=>new Set([activeId,...ancestorsOf(activeId)]);
 function renderGraph(){
   const trail=trailSet();
@@ -337,6 +375,7 @@ function renderGraph(){
   if(active.copy&&active.x!=null){ const afs=ROLE.active.fs*(inField?FIELD.TYPE_SCALE:1);
     copyEl.textContent=active.copy; copyEl.style.left=active.x+'px'; copyEl.style.top=(active.y+afs*0.62+18)+'px'; copyEl.style.opacity=staged?0:0.9; }
   else copyEl.style.opacity=0;
+  updatePreview();
 }
 
 /* ---- starfield + threads ---- */
@@ -373,7 +412,7 @@ function drawField(){
 
 /* ---- interaction ---- */
 function navigate(n){ if(staged){ exitStage(); return; } const next=n.id===activeId?n.parentId:n.id; if(!next) return;
-  activeId=next; document.getElementById('hint').style.opacity='0'; rebuild(); }
+  activeId=next; document.getElementById('hint').style.opacity='0'; clearPreview(); rebuild(); }
 function fieldClick(fn){
   if(fkind==='category'){ activeId=fn.leafId; document.getElementById('hint').style.opacity='0'; rebuild(); }   // the work item comes forward
   else enterStage(fn.src);                                                                                       // a leaf image → zoom to stage
@@ -404,8 +443,15 @@ for(const c of CONTROLS){ const w=document.createElement('div'); w.className='ct
   w.innerHTML=`<div class="row"><span>${c.label}</span><b>${cur}</b></div><input type="range" min="${c.min}" max="${c.max}" step="${c.step}" value="${cur}">`;
   const inp=w.querySelector('input'),out=w.querySelector('b');
   inp.addEventListener('input',()=>{ const v=parseFloat(inp.value); P[c.k]=c.neg?-v:v; out.textContent=v; alpha=Math.max(alpha,0.2); }); panel.appendChild(w); }
+// landing hover-preview toggle
+const tog=document.createElement('div'); tog.className='ctl'; tog.style.cursor='pointer';
+const renderTog=()=>{ tog.innerHTML=`<div class="row"><span>Hover previews (P)</span><b>${previewOn?'on':'off'}</b></div>`; };
+renderTog(); tog.addEventListener('click',()=>{ previewOn=!previewOn; if(!previewOn) clearPreview(); renderTog(); }); panel.appendChild(tog);
 const tip=document.createElement('div'); tip.className='tip'; tip.textContent='lower Settle = bouncier · adjust live'; panel.appendChild(tip);
-addEventListener('keydown',e=>{ if(e.key==='c'||e.key==='C') document.body.classList.toggle('controls'); });
+addEventListener('keydown',e=>{
+  if(e.key==='c'||e.key==='C') document.body.classList.toggle('controls');
+  if(e.key==='p'||e.key==='P'){ previewOn=!previewOn; if(!previewOn) clearPreview(); renderTog(); }
+});
 
 /* ---- loop ---- */
 function loop(){ drawField(); tick(); requestAnimationFrame(loop); }
