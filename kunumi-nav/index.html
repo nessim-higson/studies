@@ -27,8 +27,8 @@
 
   /* image field tiles (Kunumi rollover) */
   #tiles{ position:absolute; inset:0; pointer-events:none; }
-  .tile{ position:absolute; width:7rem; height:7rem; transform:translate(-50%,-50%); padding:0; border:none; background:none;
-    cursor:pointer; opacity:0; pointer-events:auto; will-change:transform,opacity; }
+  .tile{ position:absolute; left:0; top:0; width:7rem; height:7rem; transform:translate(-50%,-50%); padding:0; border:none; background:none;
+    cursor:pointer; opacity:0; pointer-events:auto; }   /* positioned via transform; layer only when revealed (JS) */
   .tile .ti{ width:100%; height:100%; border-radius:1rem; overflow:hidden; box-shadow:0 8px 26px rgba(0,0,0,.10); }
   .tile img{ width:100%; height:100%; object-fit:cover; display:block; }
   .tile .cap{ position:absolute; left:50%; bottom:-1.9rem; transform:translateX(-50%); font-family:var(--mono);
@@ -310,9 +310,19 @@ function renderGraph(){
     el.anchor.setAttribute('cx',0); el.anchor.setAttribute('cy',r.fs*0.62+5); el.anchor.setAttribute('r',showDot?(role==='active'?2.4:1.8):0);
     el.anchor.setAttribute('fill','rgba(20,20,20,'+(role==='active'?0.85:0.5)+')');
     el.hit.setAttribute('x',-half-16); el.hit.setAttribute('y',-r.fs); el.hit.setAttribute('width',half*2+32); el.hit.setAttribute('height',r.fs*2.2); }
-  for(const {el,node} of tileEls){ el.style.left=node.x+'px'; el.style.top=node.y+'px'; el.style.opacity=node._o.toFixed(2);
-    el.style.transform=`translate(-50%,-50%) scale(${(FIELD.REST_S+(FIELD.PEAK_S-FIELD.REST_S)*node._i).toFixed(3)})`;
-    el.style.zIndex = node._i>0.4 ? 5 : 1; }
+  for(const {el,node} of tileEls){
+    // invisible tile → write nothing (skip the ~34 dormant ones every frame)
+    if(node._o < 0.006){
+      if(node._vis){ node._vis=false; el.style.opacity='0'; el.style.willChange='auto'; }
+      continue;
+    }
+    if(!node._vis){ node._vis=true; el.style.willChange='transform,opacity'; }
+    const s=(FIELD.REST_S+(FIELD.PEAK_S-FIELD.REST_S)*node._i).toFixed(3);
+    // transform-only positioning — no layout thrash
+    el.style.transform=`translate(${node.x.toFixed(1)}px,${node.y.toFixed(1)}px) translate(-50%,-50%) scale(${s})`;
+    el.style.opacity=node._o.toFixed(2);
+    el.style.zIndex = node._i>0.4 ? 5 : 1;
+  }
   const active=byId.get(activeId);
   if(active.copy&&active.x!=null){ copyEl.textContent=active.copy; copyEl.style.left=active.x+'px'; copyEl.style.top=(active.y+ROLE.active.fs*0.62+18)+'px'; copyEl.style.opacity=staged?0:0.9; }
   else copyEl.style.opacity=0;
