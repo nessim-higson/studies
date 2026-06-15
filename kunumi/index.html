@@ -187,14 +187,12 @@
     position: absolute;
     width: var(--sz, 6.6rem); height: var(--sz, 6.6rem);
     padding: 0; border: none; background: none; cursor: pointer;
-    pointer-events: auto;
+    pointer-events: none;             /* absent at rest; only revealed (.lit) images are interactive */
     opacity: 0;                       /* JS loop drives transform + opacity (compositor-cheap) */
-    filter: grayscale(1) saturate(.6) brightness(.97);
-    transition: filter .35s ease;     /* only filter eases; transform/opacity stay JS-instant */
     will-change: transform, opacity;
   }
-  /* expensive paint props toggle on a threshold, NOT every frame → no per-frame repaints */
-  .node.lit{ filter: grayscale(0) saturate(1) brightness(1.03); z-index: 60; }
+  /* z-index + interactivity toggle on a threshold, NOT every frame → no per-frame repaints */
+  .node.lit{ pointer-events: auto; z-index: 60; }
   .node-inner{
     width: 100%; height: 100%; border-radius: 1.1rem; overflow: hidden;
     box-shadow: 0 0 16px rgba(0,0,0,.05);
@@ -614,8 +612,8 @@ addEventListener('resize', layout);
    Each frame: for every image near the cursor, draw a string from the cursor to
    it and lerp it toward the "forefront" (larger, brighter, in colour, raised).
    Nearby revealed images also thread to each other, forming a moving web. */
-const REST_S = 0.58, PEAK_S = 1.2, REST_O = 0.14, PEAK_O = 1;
-const R = 360;                       // cursor influence radius (px)
+const REST_S = 0.46, PEAK_S = 1.16;  // images grow from small as they appear
+const R = 320;                       // cursor influence radius (px)
 const lerp = (a, b, k) => a + (b - a) * k;
 const smooth = t => t * t * (3 - 2 * t);
 
@@ -641,14 +639,15 @@ function weave(ctx, DPR){
     const d = Math.hypot(el._x - px, el._y - py);
     let target = d < R ? smooth(1 - d / R) : 0;
     target = Math.max(target, focusBoost(el.dataset.id));
-    el._i += (target - el._i) * 0.16;
+    // quick fade-UP on rollover, gentler fade-out; absent (opacity 0) until reached
+    el._i += (target - el._i) * (target > el._i ? 0.32 : 0.14);
     const i = el._i;
-    el._s += ((REST_S + (PEAK_S - REST_S) * i) - el._s) * 0.18;
-    el._o += ((REST_O + (PEAK_O - REST_O) * i) - el._o) * 0.18;
+    el._o = Math.min(1, i * 1.35);                       // snappy fade-in
+    el._s = REST_S + (PEAK_S - REST_S) * i;              // grows as it appears
     el.style.opacity = el._o.toFixed(3);
     el.style.transform = `translate(-50%,-50%) scale(${el._s.toFixed(3)})`;
-    if(i > 0.5 && !el._lit){ el._lit = true; el.classList.add('lit'); }
-    else if(i < 0.3 && el._lit){ el._lit = false; el.classList.remove('lit'); }
+    if(i > 0.45 && !el._lit){ el._lit = true; el.classList.add('lit'); }
+    else if(i < 0.26 && el._lit){ el._lit = false; el.classList.remove('lit'); }
   }
 
   // 2) draw strings: cursor → each near image
