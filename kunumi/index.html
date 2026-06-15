@@ -371,7 +371,7 @@ let idleFrames = 9999, ambPhase = 0;   // ambient drift kicks in after a spell o
    perspective-projected to 2D, grows + brightens as it nears, then recycles to
    the far plane. This is the persistent dotted background of the real site. */
 const STAR_N = TOUCH ? 160 : 340;
-const STAR_SPEED = 0.001;            // very slow drift toward the camera
+const STAR_SPEED = 0.00025;          // very slow, glacial drift toward the camera
 const stars = [];
 function placeStar(s, far){
   s.x = Math.random() * 2 - 1;
