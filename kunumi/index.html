@@ -173,6 +173,98 @@
   }
   #mode button:hover{ background: rgba(0,0,0,.5); }
 
+  /* ---- constellation of image nodes ---- */
+  #links{ position: fixed; inset: 0; z-index: 3; pointer-events: none; }
+  #links line{
+    stroke: rgba(26,26,26,.22); stroke-width: 1;
+    transition: stroke .35s ease, stroke-width .35s ease;
+  }
+  #links line.lit{ stroke: rgba(26,26,26,.5); stroke-width: 1.4; }
+
+  #constellation{ position: fixed; inset: 0; z-index: 4; pointer-events: none; }
+  body.explore #constellation{ pointer-events: none; }
+  .node{
+    position: absolute; transform: translate(-50%,-50%);
+    width: var(--sz, 8.4rem); height: var(--sz, 8.4rem);
+    padding: 0; border: none; background: none; cursor: pointer;
+    pointer-events: auto;
+    opacity: 0; filter: saturate(.85);
+    transition: opacity .9s ease, transform .6s cubic-bezier(.16,1,.3,1),
+                filter .35s ease, width .4s ease, height .4s ease;
+  }
+  body.explore .node{ opacity: 1; }
+  .node-inner{
+    width: 100%; height: 100%; border-radius: 1.1rem; overflow: hidden;
+    box-shadow: 0 0 18px rgba(0,0,0,.06);
+    animation: float var(--dur, 9s) ease-in-out infinite;
+    animation-delay: var(--del, 0s);
+    transition: box-shadow .35s ease, transform .45s cubic-bezier(.16,1,.3,1);
+  }
+  .node img{ width: 100%; height: 100%; object-fit: cover; display: block; }
+  .node-cap{
+    position: absolute; left: 50%; bottom: -2rem; transform: translateX(-50%);
+    font-family: var(--mono); font-size: 1rem; letter-spacing: .08em;
+    text-transform: uppercase; color: rgba(26,26,26,.55); white-space: nowrap;
+    opacity: 0; transition: opacity .3s ease; pointer-events: none;
+  }
+  .node:hover{ --sz: 9.6rem; }
+  .node:hover .node-inner{ box-shadow: 0 10px 36px rgba(0,0,0,.14); }
+  .node:hover .node-cap{ opacity: 1; }
+  /* dim/highlight when a topic is focused */
+  body.focus #constellation .node{ opacity: .12; filter: grayscale(1) saturate(.6); }
+  body.focus #constellation .node.on{ opacity: 1; filter: saturate(.9); }
+  @keyframes float{
+    0%,100%{ transform: translateY(0); }
+    50%{ transform: translateY(-8px); }
+  }
+
+  /* ---- detail / lightbox ---- */
+  #detail{
+    position: fixed; inset: 0; z-index: 15;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 2rem; padding: 4rem;
+    background: rgba(245,245,245,.72);
+    -webkit-backdrop-filter: blur(24px); backdrop-filter: blur(24px);
+    opacity: 0; visibility: hidden; pointer-events: none;
+    transition: opacity .5s ease, visibility .5s;
+  }
+  #detail.open{ opacity: 1; visibility: visible; pointer-events: auto; }
+  #detail-img{
+    width: min(46rem, 70vmin); height: min(46rem, 70vmin);
+    border-radius: 1.6rem; overflow: hidden; box-shadow: 0 24px 70px rgba(0,0,0,.18);
+    transition: transform .5s cubic-bezier(.16,1,.3,1);
+  }
+  #detail-img img{ width:100%; height:100%; object-fit: cover; display:block; }
+  #detail-meta{ text-align: center; }
+  #detail-topic{
+    font-family: var(--mono); font-size: 1.1rem; letter-spacing: .18em;
+    text-transform: uppercase; color: rgba(26,26,26,.45); margin-bottom: .6rem;
+  }
+  #detail-title{ font-size: clamp(18px, 2.4vw, 26px); letter-spacing: -.02em; }
+  #detail-related{
+    display: flex; gap: 1rem; align-items: center; margin-top: .6rem;
+  }
+  #detail-related .rel-label{
+    font-family: var(--mono); font-size: 1rem; letter-spacing: .1em;
+    text-transform: uppercase; color: rgba(26,26,26,.4); margin-right: .4rem;
+  }
+  .rel{
+    width: 5.6rem; height: 5.6rem; border-radius: .9rem; overflow: hidden;
+    cursor: pointer; border: none; padding: 0; background: none;
+    box-shadow: 0 0 0 1px rgba(0,0,0,.06);
+    transition: transform .3s cubic-bezier(.16,1,.3,1), box-shadow .3s ease;
+  }
+  .rel img{ width:100%; height:100%; object-fit: cover; display:block; }
+  .rel:hover{ transform: translateY(-4px) scale(1.06); box-shadow: 0 10px 24px rgba(0,0,0,.16); }
+  #detail-close{
+    position: absolute; top: 2.4rem; right: 2.4rem;
+    width: 4rem; height: 4rem; border-radius: 999px; border: none; cursor: pointer;
+    background: rgba(26,26,26,.08); color: var(--ink); font-size: 1.8rem;
+    display: flex; align-items: center; justify-content: center;
+    transition: background .2s ease;
+  }
+  #detail-close:hover{ background: rgba(26,26,26,.16); }
+
   /* rem scaling like the original (10px root) */
   html{ font-size: 62.5%; }
   body{ font-size: 1.6rem; }
@@ -182,6 +274,8 @@
     #island{ top: auto; bottom: 8rem; transform:none; }
     #mode{ display:none; }
     body{ cursor:auto; }
+    .node{ --sz: 6.2rem; }
+    #detail{ padding: 2rem; }
   }
 </style>
 </head>
@@ -193,6 +287,21 @@
   <nav id="lang">
     <a href="#" data-l="pt">PT</a><span style="color:rgba(0,0,0,.2)">/</span><a href="#" data-l="en" class="active">EN</a>
   </nav>
+
+  <!-- constellation: connecting lines + image nodes -->
+  <svg id="links" aria-hidden="true"></svg>
+  <div id="constellation"></div>
+
+  <!-- detail / lightbox -->
+  <div id="detail">
+    <button id="detail-close" aria-label="Close">&times;</button>
+    <div id="detail-img"></div>
+    <div id="detail-meta">
+      <div id="detail-topic"></div>
+      <div id="detail-title"></div>
+    </div>
+    <div id="detail-related"><span class="rel-label">Connected</span></div>
+  </div>
 
   <!-- intro -->
   <div id="intro">
@@ -330,6 +439,7 @@ function dismissIntro(){
   if(introDone) return;
   introDone = true;
   intro.classList.add('gone');
+  document.body.classList.add('explore');   // fade the image constellation in
 }
 // click anywhere also dismisses immediately
 addEventListener('click', () => { if(!introDone) dismissIntro(); });
@@ -369,7 +479,11 @@ setInterval(() => {
 }, 3200);
 
 menuBtn.addEventListener('click', e => { e.stopPropagation(); island.classList.toggle('open'); });
-searchBtn.addEventListener('click', e => { e.stopPropagation(); island.classList.toggle('open'); });
+// the search button focuses the constellation cluster for the current topic
+searchBtn.addEventListener('click', e => {
+  e.stopPropagation();
+  if(typeof focusTopic === 'function') focusTopic(topics[ti].toLowerCase());
+});
 document.addEventListener('click', e => {
   if(introDone && !island.contains(e.target)) island.classList.remove('open');
 });
@@ -392,6 +506,161 @@ document.querySelectorAll('#lang a').forEach(a => {
     a.classList.add('active');
   });
 });
+
+/* ---------------- constellation of image nodes ---------------- */
+const TOPICS = {
+  science:      { label:'Science',      c:[0.18,0.30], items:3 },
+  culture:      { label:'Culture',      c:[0.50,0.17], items:4 },
+  intelligence: { label:'Intelligence', c:[0.83,0.30], items:4 },
+  meaning:      { label:'Meaning',      c:[0.85,0.72], items:4 },
+  language:     { label:'Language',     c:[0.50,0.85], items:4 },
+  society:      { label:'Society',      c:[0.15,0.72], items:4 },
+};
+const TITLES = {
+  science:['Quantum materials','Open-science protocols','Computation at the edge','Foundations'],
+  culture:['Textile epistemologies','Oral archives','Craft as knowledge','Global South futures'],
+  intelligence:['Emergent reasoning','Synthetic cognition','Learning systems','Collective minds'],
+  meaning:['Sense-making','Signal & silence','Interpretation','The luminous form'],
+  language:['Scripts in motion','Low-resource NLP','Translation as care','Living grammars'],
+  society:['Networks of trust','Cities as data','Belonging','Commons'],
+};
+
+// build node list with clustered, jittered positions (normalised 0..1)
+const nodes = [];
+Object.entries(TOPICS).forEach(([topic, t]) => {
+  for(let i=1; i<=t.items; i++){
+    const ang = (i / t.items) * Math.PI * 2 + topic.length;     // deterministic spread
+    const r = 0.075 + (i % 2) * 0.025;
+    nodes.push({
+      id: `${topic}-${i}`,
+      topic, label: t.label,
+      title: (TITLES[topic] || [])[i-1] || t.label,
+      src: `img/${topic}-${i}.webp`,
+      nx: Math.min(0.93, Math.max(0.07, t.c[0] + Math.cos(ang) * r * 0.62)),
+      ny: Math.min(0.92, Math.max(0.10, t.c[1] + Math.sin(ang) * r)),
+    });
+  }
+});
+
+// links: fully connect within each topic, plus a ring of cross-topic bridges
+const links = [];
+const byTopic = {};
+nodes.forEach(n => (byTopic[n.topic] ||= []).push(n));
+Object.values(byTopic).forEach(group => {
+  for(let a=0; a<group.length; a++)
+    for(let b=a+1; b<group.length; b++)
+      links.push([group[a].id, group[b].id]);
+});
+const ring = ['science','intelligence','meaning','language','culture','society'];
+ring.forEach((tp, i) => {
+  const next = ring[(i+1) % ring.length];
+  if(byTopic[tp] && byTopic[next]) links.push([byTopic[tp][0].id, byTopic[next][0].id]);
+});
+
+const connectedOf = id => {
+  const set = new Set();
+  links.forEach(([a,b]) => { if(a===id) set.add(b); if(b===id) set.add(a); });
+  return [...set];
+};
+
+// render nodes
+const constellation = document.getElementById('constellation');
+const linksSvg = document.getElementById('links');
+const nodeEls = {};
+nodes.forEach((n, i) => {
+  const btn = document.createElement('button');
+  btn.className = 'node'; btn.dataset.id = n.id; btn.dataset.topic = n.topic;
+  btn.style.setProperty('--del', (i * 0.12) + 's');
+  btn.style.setProperty('--dur', (8 + (i % 5)) + 's');
+  btn.style.transitionDelay = (0.15 + i * 0.05) + 's, 0s, 0s, 0s, 0s';
+  btn.innerHTML = `<span class="node-inner"><img src="${n.src}" alt="${n.title}" loading="lazy"></span>
+                   <span class="node-cap">${n.label}</span>`;
+  btn.addEventListener('click', e => { e.stopPropagation(); openDetail(n.id); });
+  constellation.appendChild(btn);
+  nodeEls[n.id] = btn;
+});
+
+// link <line>s
+const lineEls = [];
+links.forEach(([a,b]) => {
+  const ln = document.createElementNS('http://www.w3.org/2000/svg','line');
+  ln.dataset.a = a; ln.dataset.b = b;
+  linksSvg.appendChild(ln);
+  lineEls.push(ln);
+});
+
+function layout(){
+  const w = innerWidth, h = innerHeight;
+  nodes.forEach(n => {
+    const el = nodeEls[n.id];
+    el._x = n.nx * w; el._y = n.ny * h;
+    el.style.left = el._x + 'px';
+    el.style.top  = el._y + 'px';
+  });
+  lineEls.forEach(ln => {
+    const A = nodeEls[ln.dataset.a], B = nodeEls[ln.dataset.b];
+    ln.setAttribute('x1', A._x); ln.setAttribute('y1', A._y);
+    ln.setAttribute('x2', B._x); ln.setAttribute('y2', B._y);
+  });
+}
+layout();
+addEventListener('resize', layout);
+
+// detail / lightbox
+const detail = document.getElementById('detail');
+const dImg = document.getElementById('detail-img');
+const dTopic = document.getElementById('detail-topic');
+const dTitle = document.getElementById('detail-title');
+const dRelated = document.getElementById('detail-related');
+
+function openDetail(id){
+  const n = nodes.find(x => x.id === id);
+  if(!n) return;
+  dImg.innerHTML = `<img src="${n.src}" alt="${n.title}">`;
+  dTopic.textContent = n.label;
+  dTitle.textContent = n.title;
+  // related = connected nodes, lets you travel between images
+  dRelated.querySelectorAll('.rel').forEach(r => r.remove());
+  connectedOf(id).forEach(rid => {
+    const rn = nodes.find(x => x.id === rid);
+    const b = document.createElement('button');
+    b.className = 'rel'; b.title = `${rn.label} — ${rn.title}`;
+    b.innerHTML = `<img src="${rn.src}" alt="${rn.title}">`;
+    b.addEventListener('click', e => { e.stopPropagation(); openDetail(rid); });
+    dRelated.appendChild(b);
+  });
+  detail.classList.add('open');
+  // highlight this node's links in the field behind
+  litLinks(id);
+}
+function closeDetail(){ detail.classList.remove('open'); litLinks(null); }
+document.getElementById('detail-close').addEventListener('click', closeDetail);
+detail.addEventListener('click', e => { if(e.target === detail) closeDetail(); });
+addEventListener('keydown', e => { if(e.key === 'Escape') closeDetail(); });
+
+function litLinks(id){
+  lineEls.forEach(ln => {
+    const on = id && (ln.dataset.a === id || ln.dataset.b === id);
+    ln.classList.toggle('lit', !!on);
+  });
+}
+
+// hovering a node lights its connections
+constellation.addEventListener('mouseover', e => {
+  const btn = e.target.closest('.node'); if(!btn) return;
+  litLinks(btn.dataset.id);
+});
+constellation.addEventListener('mouseout', e => {
+  if(e.target.closest('.node') && !detail.classList.contains('open')) litLinks(null);
+});
+
+// focus a topic cluster from the dynamic island
+let focusedTopic = null;
+function focusTopic(topic){
+  focusedTopic = (focusedTopic === topic) ? null : topic;
+  document.body.classList.toggle('focus', !!focusedTopic);
+  nodes.forEach(n => nodeEls[n.id].classList.toggle('on', n.topic === focusedTopic));
+}
 
 /* Everything above set up without throwing → safe to raise the intro overlay
    and play it. If any line above had errored, the overlay stays hidden and the
