@@ -365,35 +365,13 @@ addEventListener('resize', resize);
 
 const pointer = { x: innerWidth/2, y: innerHeight/2, px: innerWidth/2, py: innerHeight/2, active:false };
 let idleFrames = 9999, ambPhase = 0;   // ambient drift kicks in after a spell of no input
-const particles = [];
-const MAX = TOUCH ? 12 : 32;         // minimal grain trail — perf-first, very few live dots
-
-function emit(x, y, vx, vy){
-  // emit only on real movement; nothing on slow drift (count can be 0)
-  const speed = Math.min(Math.hypot(vx, vy), 60);
-  const count = (speed * (TOUCH ? 0.018 : 0.04)) | 0;
-  for(let i=0; i<count; i++){
-    const a = Math.random() * Math.PI * 2;
-    const sp = Math.random() * 0.4 + 0.05;
-    particles.push({
-      x: x + (Math.random()-.5)*6,
-      y: y + (Math.random()-.5)*6,
-      vx: Math.cos(a)*sp + vx*0.02,
-      vy: Math.sin(a)*sp + vy*0.02,
-      life: 1,
-      decay: Math.random()*0.022 + 0.014,   // clear quickly so the live pool stays tiny
-      r: Math.random()*1.5 + 0.4,
-    });
-  }
-  if(particles.length > MAX) particles.splice(0, particles.length - MAX);
-}
+// no particle/grain trail — the canvas draws only the connector strings
 
 function onMove(x, y){
   pointer.px = pointer.x; pointer.py = pointer.y;
   pointer.x = x; pointer.y = y;
   pointer.active = true;
   idleFrames = 0;                       // real input takes over from the ambient drift
-  emit(x, y, pointer.x - pointer.px, pointer.y - pointer.py);
 }
 addEventListener('mousemove', e => onMove(e.clientX, e.clientY));
 addEventListener('touchstart', e => { const t=e.touches[0]; if(t) onMove(t.clientX, t.clientY); }, {passive:true});
@@ -401,19 +379,6 @@ addEventListener('touchmove', e => { const t=e.touches[0]; if(t) onMove(t.client
 
 function tick(){
   ctx.clearRect(0,0,W,H);
-  for(let i=particles.length-1; i>=0; i--){
-    const p = particles[i];
-    p.x += p.vx; p.y += p.vy;
-    p.vx *= 0.96; p.vy *= 0.96;
-    p.vy += 0.008;            // faint drift downward
-    p.life -= p.decay;
-    if(p.life <= 0){ particles.splice(i,1); continue; }
-    const alpha = p.life * 0.55;
-    ctx.beginPath();
-    ctx.arc(p.x*DPR, p.y*DPR, p.r*DPR, 0, Math.PI*2);
-    ctx.fillStyle = `rgba(26,26,26,${alpha})`;
-    ctx.fill();
-  }
   // real-time cursor → image string connectors + bring-to-forefront
   if(typeof weave === 'function') weave(ctx, DPR);
   requestAnimationFrame(tick);
@@ -612,7 +577,7 @@ addEventListener('resize', layout);
    it and lerp it toward the "forefront" (larger, brighter, in colour, raised).
    Nearby revealed images also thread to each other, forming a moving web. */
 const REST_S = 0.46, PEAK_S = 1.16;  // images grow from small as they appear
-const R = 320;                       // cursor influence radius (px)
+const R = 200;                       // tight cursor influence — images bloom only near the cursor
 const lerp = (a, b, k) => a + (b - a) * k;
 const smooth = t => t * t * (3 - 2 * t);
 
