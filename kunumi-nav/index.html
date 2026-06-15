@@ -134,7 +134,7 @@ function fieldKind(node){
   if(kids.length && kids.every(k=>k.isLeaf && k.images)) return 'category';
   return null;
 }
-const LEAF_FIELD_N=11, CAT_PER_CHILD=8;   // more imagery, duped from each item's set
+const LEAF_FIELD_N=9, CAT_PER_CHILD=6;   // imagery, duped from each item's set
 function fieldImagesFor(node){
   const k=fieldKind(node); if(!k) return [];
   const dup=(imgs,id,label,n)=>Array.from({length:n},(_,i)=>({src:imgs[i%imgs.length],leafId:id,leafLabel:label}));
@@ -287,9 +287,11 @@ function buildSVG(){ lineEls.forEach(l=>l.remove()); lineEls=links.map(l=>{ cons
 function buildTiles(){
   tileEls.forEach(t=>t.el.remove()); tileEls=[];
   for(const fn of fieldNodes){ const b=document.createElement('button'); b.className='tile';
-    b.innerHTML=`<span class="ti"><img src="${fn.src}" alt="" loading="lazy"></span><span class="cap">${fn.leafLabel}</span>`;
+    // image is mounted lazily, only when the tile is revealed (see render loop) —
+    // keeps at most a handful of 1024px bitmaps decoded at once
+    b.innerHTML=`<span class="ti"></span><span class="cap">${fn.leafLabel}</span>`;
     b.addEventListener('click',e=>{ e.stopPropagation(); fieldClick(fn); });
-    tilesEl.appendChild(b); tileEls.push({el:b,node:fn}); }
+    tilesEl.appendChild(b); tileEls.push({el:b, ti:b.querySelector('.ti'), node:fn, mounted:false}); }
 }
 const trailSet=()=>new Set([activeId,...ancestorsOf(activeId)]);
 function renderGraph(){
@@ -310,18 +312,20 @@ function renderGraph(){
     el.anchor.setAttribute('cx',0); el.anchor.setAttribute('cy',r.fs*0.62+5); el.anchor.setAttribute('r',showDot?(role==='active'?2.4:1.8):0);
     el.anchor.setAttribute('fill','rgba(20,20,20,'+(role==='active'?0.85:0.5)+')');
     el.hit.setAttribute('x',-half-16); el.hit.setAttribute('y',-r.fs); el.hit.setAttribute('width',half*2+32); el.hit.setAttribute('height',r.fs*2.2); }
-  for(const {el,node} of tileEls){
-    // invisible tile → write nothing (skip the ~34 dormant ones every frame)
+  for(const t of tileEls){
+    const node=t.node;
+    // invisible tile → write nothing, and free its image so few bitmaps stay decoded
     if(node._o < 0.006){
-      if(node._vis){ node._vis=false; el.style.opacity='0'; el.style.willChange='auto'; }
+      if(node._vis){ node._vis=false; t.el.style.opacity='0'; t.el.style.willChange='auto';
+        if(t.mounted){ t.ti.textContent=''; t.mounted=false; } }
       continue;
     }
-    if(!node._vis){ node._vis=true; el.style.willChange='transform,opacity'; }
+    if(!node._vis){ node._vis=true; t.el.style.willChange='transform,opacity'; }
+    if(!t.mounted){ const img=new Image(); img.decoding='async'; img.alt=''; img.src=node.src; t.ti.appendChild(img); t.mounted=true; }
     const s=(FIELD.REST_S+(FIELD.PEAK_S-FIELD.REST_S)*node._i).toFixed(3);
-    // transform-only positioning — no layout thrash
-    el.style.transform=`translate(${node.x.toFixed(1)}px,${node.y.toFixed(1)}px) translate(-50%,-50%) scale(${s})`;
-    el.style.opacity=node._o.toFixed(2);
-    el.style.zIndex = node._i>0.4 ? 5 : 1;
+    t.el.style.transform=`translate(${node.x.toFixed(1)}px,${node.y.toFixed(1)}px) translate(-50%,-50%) scale(${s})`;
+    t.el.style.opacity=node._o.toFixed(2);
+    t.el.style.zIndex = node._i>0.4 ? 5 : 1;
   }
   const active=byId.get(activeId);
   if(active.copy&&active.x!=null){ copyEl.textContent=active.copy; copyEl.style.left=active.x+'px'; copyEl.style.top=(active.y+ROLE.active.fs*0.62+18)+'px'; copyEl.style.opacity=staged?0:0.9; }
