@@ -365,7 +365,40 @@ addEventListener('resize', resize);
 
 const pointer = { x: innerWidth/2, y: innerHeight/2, px: innerWidth/2, py: innerHeight/2, active:false };
 let idleFrames = 9999, ambPhase = 0;   // ambient drift kicks in after a spell of no input
-// no particle/grain trail — the canvas draws only the connector strings
+
+/* ---- starfield: a field of dots ALWAYS visible, drifting toward the camera ----
+   each dot has a 3D position; every frame z shrinks (moves closer), the dot is
+   perspective-projected to 2D, grows + brightens as it nears, then recycles to
+   the far plane. This is the persistent dotted background of the real site. */
+const STAR_N = TOUCH ? 160 : 340;
+const STAR_SPEED = 0.0019;
+const stars = [];
+function placeStar(s, far){
+  s.x = Math.random() * 2 - 1;
+  s.y = Math.random() * 2 - 1;
+  s.z = far ? 1 : (Math.random() * 0.85 + 0.15);
+  s.b = Math.random() * 0.55 + 0.45;   // per-dot size/brightness
+  s.sx = -999; s.sy = -999;            // last projected screen pos (for image links)
+}
+for(let i = 0; i < STAR_N; i++){ const s = {}; placeStar(s, false); stars.push(s); }
+
+function drawStars(ctx, DPR){
+  const cx = innerWidth / 2, cy = innerHeight / 2;
+  for(const s of stars){
+    s.z -= STAR_SPEED;
+    if(s.z <= 0.12){ placeStar(s, true); continue; }   // recycle to far plane
+    const sx = cx + (s.x / s.z) * cx;
+    const sy = cy + (s.y / s.z) * cy;
+    s.sx = sx; s.sy = sy;
+    if(sx < -8 || sx > innerWidth + 8 || sy < -8 || sy > innerHeight + 8) continue;
+    const near = 1 - s.z;                                // 0 (far) … ~0.88 (close)
+    const rad = s.b * (near * 2.6) + 0.6;               // grows toward camera
+    ctx.beginPath();
+    ctx.arc(sx * DPR, sy * DPR, rad * DPR, 0, Math.PI * 2);
+    ctx.fillStyle = `rgba(16,16,16,${(0.42 + near * 0.55).toFixed(2)})`;
+    ctx.fill();
+  }
+}
 
 function onMove(x, y){
   pointer.px = pointer.x; pointer.py = pointer.y;
@@ -379,6 +412,7 @@ addEventListener('touchmove', e => { const t=e.touches[0]; if(t) onMove(t.client
 
 function tick(){
   ctx.clearRect(0,0,W,H);
+  drawStars(ctx, DPR);                  // the always-on moving dot field
   // real-time cursor → image string connectors + bring-to-forefront
   if(typeof weave === 'function') weave(ctx, DPR);
   requestAnimationFrame(tick);
@@ -651,6 +685,23 @@ function weave(ctx, DPR){
         ctx.strokeStyle = `rgba(26,26,26,${(k * 0.4).toFixed(3)})`;
         ctx.lineWidth = 0.8 * DPR;
         ctx.stroke();
+      }
+    }
+  }
+  // 4) link each revealed image to a few nearby starfield dots
+  for(const el of active){
+    let drawn = 0;
+    for(const s of stars){
+      if(s.sx < 0) continue;
+      const dist = Math.hypot(s.sx - el._x, s.sy - el._y);
+      if(dist < 140){
+        ctx.beginPath();
+        ctx.moveTo(el._x * DPR, el._y * DPR);
+        ctx.lineTo(s.sx * DPR, s.sy * DPR);
+        ctx.strokeStyle = `rgba(26,26,26,${(el._i * 0.3 * (1 - dist / 140)).toFixed(3)})`;
+        ctx.lineWidth = 0.6 * DPR;
+        ctx.stroke();
+        if(++drawn >= 3) break;
       }
     }
   }
