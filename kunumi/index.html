@@ -185,7 +185,7 @@
   body.explore #constellation{ pointer-events: none; }
   .node{
     position: absolute;
-    width: var(--sz, 7.6rem); height: var(--sz, 7.6rem);
+    width: var(--sz, 6.6rem); height: var(--sz, 6.6rem);
     padding: 0; border: none; background: none; cursor: pointer;
     pointer-events: auto;
     opacity: 0;                       /* JS proximity loop drives transform/opacity/filter */
@@ -504,20 +504,20 @@ document.querySelectorAll('#lang a').forEach(a => {
 
 /* ---------------- constellation of image nodes ---------------- */
 const TOPICS = {
-  science:      { label:'Science',      c:[0.18,0.30], items:3 },
-  culture:      { label:'Culture',      c:[0.50,0.17], items:4 },
-  intelligence: { label:'Intelligence', c:[0.83,0.30], items:4 },
-  meaning:      { label:'Meaning',      c:[0.85,0.72], items:4 },
-  language:     { label:'Language',     c:[0.50,0.85], items:4 },
-  society:      { label:'Society',      c:[0.15,0.72], items:4 },
+  science:      { label:'Science',      items:7 },
+  culture:      { label:'Culture',      items:6 },
+  intelligence: { label:'Intelligence', items:7 },
+  meaning:      { label:'Meaning',      items:5 },
+  language:     { label:'Language',     items:6 },
+  society:      { label:'Society',      items:6 },
 };
 const TITLES = {
-  science:['Quantum materials','Open-science protocols','Computation at the edge','Foundations'],
-  culture:['Textile epistemologies','Oral archives','Craft as knowledge','Global South futures'],
-  intelligence:['Emergent reasoning','Synthetic cognition','Learning systems','Collective minds'],
-  meaning:['Sense-making','Signal & silence','Interpretation','The luminous form'],
-  language:['Scripts in motion','Low-resource NLP','Translation as care','Living grammars'],
-  society:['Networks of trust','Cities as data','Belonging','Commons'],
+  science:['Quantum materials','Open-science protocols','Computation at the edge','Foundations','Field instruments','Material proofs','Edge sensing'],
+  culture:['Textile epistemologies','Oral archives','Craft as knowledge','Global South futures','Pattern languages','Ancestral form'],
+  intelligence:['Emergent reasoning','Synthetic cognition','Learning systems','Collective minds','Latent space','Reasoning traces','Distributed thought'],
+  meaning:['Sense-making','Signal & silence','Interpretation','The luminous form','Thresholds'],
+  language:['Scripts in motion','Low-resource NLP','Translation as care','Living grammars','Phoneme drift','Written worlds'],
+  society:['Networks of trust','Cities as data','Belonging','Commons','Civic fabric','Shared ground'],
 };
 
 // build the node list
@@ -534,7 +534,7 @@ Object.entries(TOPICS).forEach(([topic, t]) => {
 });
 // mix topics so connectors span subjects, then scatter across the whole field
 nodes.sort((a,b) => ((a.id.charCodeAt(0)*31 + a.id.length) % 97) - ((b.id.charCodeAt(0)*31 + b.id.length) % 97));
-const COLS = 6, ROWS = Math.ceil(nodes.length / COLS);
+const COLS = 8, ROWS = Math.ceil(nodes.length / COLS);
 nodes.forEach((n, i) => {
   let nx = ((i % COLS) + 0.5) / COLS + (Math.sin(i * 12.9898) * 0.5) * 0.07;
   let ny = (Math.floor(i / COLS) + 0.5) / ROWS + (Math.cos(i * 78.233) * 0.5) * 0.07;
