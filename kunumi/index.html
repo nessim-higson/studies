@@ -371,7 +371,7 @@ let idleFrames = 9999, ambPhase = 0;   // ambient drift kicks in after a spell o
    perspective-projected to 2D, grows + brightens as it nears, then recycles to
    the far plane. This is the persistent dotted background of the real site. */
 const STAR_N = TOUCH ? 160 : 340;
-const STAR_SPEED = 0.0019;
+const STAR_SPEED = 0.001;            // very slow drift toward the camera
 const stars = [];
 function placeStar(s, far){
   s.x = Math.random() * 2 - 1;
@@ -591,19 +591,20 @@ nodes.forEach((n, i) => {
   constellation.appendChild(btn);
   // runtime state for the proximity loop
   btn._inner = btn.querySelector('.node-inner');
-  btn._node = n; btn._s = 0.6; btn._o = 0; btn._g = 1; btn._i = 0;
+  btn._node = n; btn._s = 0.46; btn._o = 0; btn._i = 0;
+  // each image is attached to its own dot in the moving starfield (a 3D point);
+  // the image pops up beside that dot and tracks it as it drifts toward the camera
+  btn._cx = Math.random() * 2 - 1;
+  btn._cy = Math.random() * 2 - 1;
+  btn._cz = Math.random() * 0.7 + 0.22;
+  const ang = Math.random() * Math.PI * 2;
+  btn._offx = Math.cos(ang) * 52;       // image sits just beside its dot
+  btn._offy = Math.sin(ang) * 52;
   n.el = btn; nodeList.push(btn);
 });
 
-function layout(){
-  const w = innerWidth, h = innerHeight;
-  nodeList.forEach(el => {
-    el._x = el._node.nx * w; el._y = el._node.ny * h;
-    el.style.left = el._x + 'px';
-    el.style.top  = el._y + 'px';
-  });
-}
-layout();
+// positions are computed per-frame from the moving content dots (see weave)
+function layout(){}
 addEventListener('resize', layout);
 
 /* ---- the live, cursor-driven weave ----
@@ -631,77 +632,77 @@ function weave(ctx, DPR){
   const px = pointer.x, py = pointer.y;
   const focusBoost = id => focusedTopic && id.startsWith(focusedTopic) ? 0.45 : 0;
 
-  // 1) ease each node toward its proximity target; write ONLY transform + opacity
-  //    per frame (compositor-cheap). colour/shadow/z toggle via .lit on a threshold.
+  // 1) each image is bound to its own dot drifting toward the camera. Drift +
+  //    project the dot, draw it (always visible), position the image beside it,
+  //    and reveal the image when the cursor reaches the DOT.
+  const cx = innerWidth / 2, cy = innerHeight / 2;
   const R2 = R * R;
   for(const el of nodeList){
-    const dx = el._x - px, dy = el._y - py, d2 = dx*dx + dy*dy;
-    let target = d2 < R2 ? smooth(1 - Math.sqrt(d2) / R) : 0;
-    // dormant tile far from the cursor → skip ALL work (no style writes, no recalc)
-    if(target === 0 && el._i < 0.004){
-      if(el._o !== 0){ el._o = 0; el._i = 0; el.style.opacity = '0'; }
-      continue;
+    el._cz -= STAR_SPEED;
+    let recycled = false;
+    if(el._cz <= 0.14){                       // dot reached the camera → recycle to far plane
+      el._cx = Math.random() * 2 - 1; el._cy = Math.random() * 2 - 1; el._cz = 1;
+      el._i = 0; el._o = 0; recycled = true;
     }
-    target = Math.max(target, focusBoost(el.dataset.id));
-    // snappy fade-UP on rollover (keeps up with a fast cursor), gentle fade-out
+    const dotX = cx + (el._cx / el._cz) * cx;
+    const dotY = cy + (el._cy / el._cz) * cy;
+    el._dotx = dotX; el._doty = dotY;
+    const imgX = dotX + el._offx, imgY = dotY + el._offy;
+    el._x = imgX; el._y = imgY;
+
+    // draw the content dot itself (part of the always-on field)
+    const near = 1 - el._cz;
+    const drad = 0.6 + near * 2.4;
+    ctx.beginPath();
+    ctx.arc(dotX * DPR, dotY * DPR, drad * DPR, 0, Math.PI * 2);
+    ctx.fillStyle = `rgba(16,16,16,${(0.42 + near * 0.55).toFixed(2)})`;
+    ctx.fill();
+
+    // reveal driven by cursor proximity to the DOT
+    const dx = dotX - px, dy = dotY - py, d2 = dx*dx + dy*dy;
+    let target = (!recycled && d2 < R2) ? smooth(1 - Math.sqrt(d2) / R) : 0;
+    if(!recycled) target = Math.max(target, focusBoost(el.dataset.id));
     el._i += (target - el._i) * (target > el._i ? 0.5 : 0.2);
     const i = el._i;
-    el._o = Math.min(1, i * 1.4);
-    el._s = REST_S + (PEAK_S - REST_S) * i;              // grows as it appears
-    el.style.opacity = el._o.toFixed(3);
-    el.style.transform = `translate(-50%,-50%) scale(${el._s.toFixed(3)})`;
-    if(i > 0.45 && !el._lit){ el._lit = true; el.classList.add('lit'); }
-    else if(i < 0.26 && el._lit){ el._lit = false; el.classList.remove('lit'); }
+    if(i > 0.003){
+      el._o = Math.min(1, i * 1.4);
+      el._s = REST_S + (PEAK_S - REST_S) * i;
+      el.style.left = imgX + 'px'; el.style.top = imgY + 'px';   // track the moving dot
+      el.style.opacity = el._o.toFixed(3);
+      el.style.transform = `translate(-50%,-50%) scale(${el._s.toFixed(3)})`;
+      if(i > 0.45 && !el._lit){ el._lit = true; el.classList.add('lit'); }
+      else if(i < 0.26 && el._lit){ el._lit = false; el.classList.remove('lit'); }
+    } else if(el._o !== 0){
+      el._o = 0; el.style.opacity = '0';
+    }
   }
 
-  // 2) draw strings: cursor → each near image
+  // 2) the context lines: cursor → each connected dot
   const active = nodeList.filter(el => el._i > 0.05);
   ctx.lineCap = 'round';
   for(const el of active){
     const a = el._i;
     ctx.beginPath();
     ctx.moveTo(px * DPR, py * DPR);
-    ctx.lineTo(el._x * DPR, el._y * DPR);
-    ctx.strokeStyle = `rgba(26,26,26,${(a * 0.55).toFixed(3)})`;
-    ctx.lineWidth = (0.5 + a * 1.1) * DPR;
+    ctx.lineTo(el._dotx * DPR, el._doty * DPR);
+    ctx.strokeStyle = `rgba(26,26,26,${(a * 0.5).toFixed(3)})`;
+    ctx.lineWidth = (0.5 + a * 0.9) * DPR;
     ctx.stroke();
-    // a small anchor dot where the string meets the image
-    ctx.beginPath();
-    ctx.arc(el._x * DPR, el._y * DPR, (1.2 + a * 1.6) * DPR, 0, Math.PI * 2);
-    ctx.fillStyle = `rgba(26,26,26,${(a * 0.6).toFixed(3)})`;
-    ctx.fill();
   }
-  // 3) thread revealed images to each other (the web)
+  // 3) thread connected dots to each other (the web of context)
   for(let a = 0; a < active.length; a++){
     for(let b = a + 1; b < active.length; b++){
       const A = active[a], B = active[b];
-      const dd = Math.hypot(A._x - B._x, A._y - B._y);
-      if(dd < 260){
-        const k = Math.min(A._i, B._i) * (1 - dd / 260);
+      const dd = Math.hypot(A._dotx - B._dotx, A._doty - B._doty);
+      if(dd < 300){
+        const k = Math.min(A._i, B._i) * (1 - dd / 300);
         if(k < 0.04) continue;
         ctx.beginPath();
-        ctx.moveTo(A._x * DPR, A._y * DPR);
-        ctx.lineTo(B._x * DPR, B._y * DPR);
+        ctx.moveTo(A._dotx * DPR, A._doty * DPR);
+        ctx.lineTo(B._dotx * DPR, B._doty * DPR);
         ctx.strokeStyle = `rgba(26,26,26,${(k * 0.4).toFixed(3)})`;
-        ctx.lineWidth = 0.8 * DPR;
+        ctx.lineWidth = 0.7 * DPR;
         ctx.stroke();
-      }
-    }
-  }
-  // 4) link each revealed image to a few nearby starfield dots
-  for(const el of active){
-    let drawn = 0;
-    for(const s of stars){
-      if(s.sx < 0) continue;
-      const dist = Math.hypot(s.sx - el._x, s.sy - el._y);
-      if(dist < 140){
-        ctx.beginPath();
-        ctx.moveTo(el._x * DPR, el._y * DPR);
-        ctx.lineTo(s.sx * DPR, s.sy * DPR);
-        ctx.strokeStyle = `rgba(26,26,26,${(el._i * 0.3 * (1 - dist / 140)).toFixed(3)})`;
-        ctx.lineWidth = 0.6 * DPR;
-        ctx.stroke();
-        if(++drawn >= 3) break;
       }
     }
   }
