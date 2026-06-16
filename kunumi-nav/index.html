@@ -366,11 +366,21 @@ function drawField(){
   for(const fn of fieldNodes){ const cl=fn._clear==null?1:fn._clear; if(cl<0.05) continue;
     const r=1.4+fn._i*2.0; ctx.beginPath(); ctx.arc(fn.x*DPR,fn.y*DPR,r*DPR,0,Math.PI*2);
     ctx.fillStyle=`rgba(16,16,16,${((0.42+fn._i*0.4)*cl).toFixed(2)})`; ctx.fill(); }
-  if(!staged && pointer.x!=null){
-    // cursor → revealed field images (Kunumi threads)
+  if(!staged){
     ctx.lineCap='round';
-    for(const fn of fieldNodes){ if(fn._i<0.05) continue; ctx.beginPath(); ctx.moveTo(pointer.x*DPR,pointer.y*DPR); ctx.lineTo(fn.x*DPR,fn.y*DPR);
-      ctx.strokeStyle=`rgba(20,20,20,${(fn._i*0.5).toFixed(3)})`; ctx.lineWidth=(0.5+fn._i)*DPR; ctx.stroke(); }
+    // very faint correlation lines: each visible image → the word it belongs to
+    // (a category client call-out, or — inside a project — the focus itself)
+    for(const fn of fieldNodes){
+      if(fn._o<0.04) continue;
+      const word=byId.get(fn.leafId);
+      if(!word||word.x==null) continue;
+      ctx.beginPath(); ctx.moveTo(fn.x*DPR,fn.y*DPR); ctx.lineTo(word.x*DPR,word.y*DPR);
+      ctx.strokeStyle=`rgba(20,20,20,${(fn._o*0.22).toFixed(3)})`; ctx.lineWidth=0.5*DPR; ctx.stroke();
+    }
+    // cursor → revealed field images (the reveal weave, kept subtle)
+    if(pointer.x!=null) for(const fn of fieldNodes){ if(fn._i<0.05) continue;
+      ctx.beginPath(); ctx.moveTo(pointer.x*DPR,pointer.y*DPR); ctx.lineTo(fn.x*DPR,fn.y*DPR);
+      ctx.strokeStyle=`rgba(20,20,20,${(fn._i*0.3).toFixed(3)})`; ctx.lineWidth=(0.4+fn._i*0.7)*DPR; ctx.stroke(); }
   }
   if(!staged){ // nav reaches into the field
     const reach=[byId.get(activeId)];
