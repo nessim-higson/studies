@@ -86,7 +86,21 @@ Restore any: `cd ~/CLAUDE/projects/studies && git show <commit>:kunumi-nav/index
 | **70** | `9397ec9` | ⭐ **LIKED BASELINE** — image → client-word correlation lines |
 | 71 | `1e37f52` | STATE.md: mark v70 baseline + tuning table (docs only) |
 
-**Frozen:** `_versions/kunumi-nav/v1/` = an immutable copy of the v70 liked baseline (see `snapshot.sh`).
+### Continued (v71+)
+| ~`?v` | what |
+|---|---|
+| 73 | Heroic type scale (active 80, kids 27) |
+| 74 | Bigger heroic type + screenshot physics; hero focus pinned to centre |
+| 75 | NEVVERLAND **logo SVG** as top-left brand mark |
+| 76 | Logo replaces the typeset focus too; nav type −20% |
+| 77–78 | Logo crop fix (measured/padded viewBox + cache-bust `?v=3`); **gallery → roll-to-browse satellites**, no rounded corners, imagery swaps in/out |
+| 79 | **Imagery swapped to Uniqlock stills** (`../uniqlock-v2/assets/imagery`), natural aspect ratios preserved everywhere (no square crop) |
+| 80 | **Mobile pass** — responsive `VS` scaling (logo/type/ring fit a phone), touch input + ambient field reveal, mobile chrome |
+| ~81 | **Inverted (dark) theme** + more dots (640) + sub-nav spaced off the wide logo (`CHILD_RING` 410) → **frozen `_versions/kunumi-nav/v2`** |
+
+**Frozen baselines:**
+- `_versions/kunumi-nav/v1/` = the v70 light "liked baseline".
+- `_versions/kunumi-nav/v2/` = the **inverted dark theme** (white type/dots/logo on `#0e0e0e`; logo flips via `filter:invert(1)`; imagery NOT inverted). Theme is a `body.dark` class + `--ink-rgb` var (CSS) and an `INK` token (canvas/SVG) — flip by toggling the class. Uses the Uniqlock imagery + responsive mobile scaling.
 
 ## History / decisions
 - Built as a blend of [[project_firstborn_tree]] (Nevverland organic mode) + [[project_kunumi_replica]] (visual language). See [[project_kunumi_nav]].

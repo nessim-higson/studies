@@ -18,9 +18,69 @@ core mechanic before wiring the final thing.
 **Current focus:** `orchestra` — a grid where each voice of a track drives a
 region of the screen.
 
-**Current build:** `r56-repack-masonry` (commit `876117f`, 2026-06-16) — REPACK is a
-**staggered native-AR masonry that fills the viewport, and whose layouts APPEAR (fade) rather
-than slide**. This is the r55 feedback addressed: r55's FIT was one flat centred row and its
+**Separate build — `comps/orchestra-morph/`** (the kept-aside r55 morph, the user's pick for
+"shifting + morphing all of it together"): the whole column structure re-rolls every bar and the
+entire layout **animates** (slides + resizes) to the new composition, gaps + imagery in/out,
+FIT/FILL. **r61-morph-fill** (commit `468f561`) reworked its FIT packer to **fill the viewport**
+(it used to live centred / as a thin strip): a **staggered masonry** — columns share the full
+width, each stacks its native-AR images, the whole thing scales so the **tallest column fills the
+height**, short columns leave ragged black at their bottoms (distributed, not a centred island).
+Verified landscape fills vertical 2→99% + most of the width. Listed on the comps slate as
+"Orchestra — Morph". The MAIN `comps/orchestra` is separate and unchanged (r60 crna).
+
+**Current main build:** `r60-lead-crna` (commit `fd1013f`, 2026-06-16) — the lead transition is back
+to the **CRNA four-side pull-back** (`VSPEC.pulse.kind` fold→crna). The user pointed at **r51's
+subdivide at low BPM** as the effect they want — that is the crna (incoming clip-reveals from an
+edge while the outgoing pulls back 30% + scale .8 + fade, cycling all four sides), **not** the
+3D fold built in r58/r59. So both subdivide and repack now show a single full-screen crna pull
+at low BPM, and the crna on the lead tile as you add more (lead fires every beat). The
+fold-ribbon prism code stays **parked** in `doTransition` (unused, revivable). Full-screen
+single-beat geometry + AR-aware tiles + tempo-scaled size (r57/r58) all unchanged.
+
+**Superseded:** r59-fold-ribbon (real 2-face 3D prism fold) and r58-repack-fold (flat hinge) —
+the fold was a misread; the wanted effect is the crna. Prism code retained for possible reuse.
+
+r59 was: same as r58 but the fold
+is the **real dynamic fold-ribbon**, not the flat hinge. `doTransition`'s `'fold'` branch
+builds a GSAP-free **2-face 3D prism**: a `.fold-hinge` (`transform-style: preserve-3d`, pushed
+back `translateZ(-R)`) carries two `.fold-face` children — the current work on the front face
+(`translateZ(R)`), the incoming folded 90° at the seam. The hinge rotates 90° over the beat so
+the incoming work turns **toward you** as the outgoing folds away into black, seam cycling all
+four edges; perspective scales with tile size. Verified the prism renders true 3D under
+`overflow:hidden` (face foreshortens 400→218px). `_folding` guard stops a fold over a running
+one / a relocation mid-fold. Used by the repack lead (pulse) + subdivide's focal block. (r58's
+fold was the flat single-layer hinge — "not as dynamic.")
+
+r58 was r57 + the **fold** and a single-beat fix:
+- **Single beat = ONE full-screen image** — at 1 voice the lone tile was sized to a wide
+  image's AR (a 95%×38% banner — the "weirdness"). Now `lit === 1` → a **full-bleed**
+  full-screen tile (no gutter, AR-matched toward the viewport).
+- **Fold on the lead** — `VSPEC.pulse.kind` is now `'fold'` (the silent-house 3D hinge),
+  shared by **subdivide AND repack**. In repack the lead (pulse = the largest tile, verified)
+  **folds every 2 beats**; other tiles still crossfade in place. At a single beat the
+  full-screen image folds on the beat. `doTransition(el, spec, url)` gained an optional url so
+  repack hands it an AR-matched image (`nextImgForAR`) — fold stays low-crop.
+
+r57 was **r52's collage bones** (the user's favourite) + two changes: Bones kept: a fixed
+**module-grid scaffold** of tiles (`buildScaffold` on a 20×13 / portrait 13×20 grid), big
+**black negative space**, images that **APPEAR in different places by fading** (`rotateRepack`
+relocates one image per bar — fade out here, fade in over there, never slides), tempo = how
+many tiles are lit. Changes:
+1. **No more cropping** — each tile is sized to its image's **native AR** (pick image → read
+   `arMap` → snap cell-dims to AR via a 3×3 integer search). Per-voice swaps + relocations
+   pick an AR-matched image (`nextImgForAR`) for the tile they land in. Gutter is a
+   **proportional shrink** (`GUT`, AR-exact). Verified dAR ≤ 0.04, no tile cropped beyond ~4%.
+2. **Singular beat = larger imagery** — tile target area scales inversely with the lit count:
+   60 BPM (1 voice) → one ~35–60% image; 104 BPM → five ~9% tiles. Relocation disabled at ≤2
+   lit so a single beat stays big and calm. Per-voice swaps re-enabled in repack (crossfade in
+   place) so imagery changes on the beat.
+Removed the r55/r56 masonry + FIT/FILL toggle (back to r52's chip set). **Repack history:** r51
+slice-grid → r52 fixed-AR tiles (user's favourite feel, but cropped) → r53 shelves → r54
+columns → r55 dynamic columns (slid too much) → r56 masonry → **r57 = r52 bones + AR-aware +
+tempo-size** (current). SUBDIVIDE unchanged; BREATHE tabled.
+
+**Older — r56:** `r56-repack-masonry` (commit `876117f`) — staggered native-AR masonry; the
+layouts APPEARED (fade) but it was a single-style masonry; superseded by r57 (r52 bones). This is the r55 feedback addressed: r55's FIT was one flat centred row and its
 imagery slid around the canvas (re-rolled + morphed every bar). Now:
 - **Staggered masonry** — `rollStruct` gives each column a varied **width** + vertical
   **offset**; `packMasonry` stacks native-AR images per column (height = colWidth / AR) then
