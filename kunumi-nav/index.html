@@ -154,8 +154,8 @@ function computeRoles(activeId){
     for(const s of byId.get(anc.parentId).childIds) if(!roles.has(s)) roles.set(s,'distant'); }
   return roles;
 }
-const ROLE={ active:{fs:116,weight:700,op:1,ls:'-0.035em',scale:2.1}, child:{fs:37,weight:500,op:.95,ls:'-0.005em',scale:1.15},
-  parent:{fs:21,weight:400,op:.55,ls:'0.02em',scale:.9}, sibling:{fs:17,weight:400,op:.4,ls:'0.03em',scale:.7}, distant:{fs:14,weight:400,op:.25,ls:'0.04em',scale:.5} };
+const ROLE={ active:{fs:93,weight:700,op:1,ls:'-0.035em',scale:2.1}, child:{fs:30,weight:500,op:.95,ls:'-0.005em',scale:1.15},
+  parent:{fs:17,weight:400,op:.55,ls:'0.02em',scale:.9}, sibling:{fs:14,weight:400,op:.4,ls:'0.03em',scale:.7}, distant:{fs:11,weight:400,op:.25,ls:'0.04em',scale:.5} };
 const labelHalfW=(label,fs)=>label.length*fs*0.29;
 
 /* ---- physics ---- */
@@ -296,9 +296,19 @@ function makeNodeEl(n){
   const anchor=document.createElementNS(NS,'circle'); anchor.setAttribute('class','anchor');
   const text=document.createElementNS(NS,'text'); text.setAttribute('text-anchor','middle'); text.setAttribute('dominant-baseline','central'); text.setAttribute('fill','#141414'); text.textContent=n.label;
   g.append(hit,anchor,text);
+  // the root focus renders as the NEVVERLAND logo instead of typeset text (hero only)
+  let logo=null;
+  if(n.id==='nevverland'){
+    logo=document.createElementNS(NS,'image');
+    logo.setAttribute('href','nevverland-logo.svg');
+    logo.setAttributeNS('http://www.w3.org/1999/xlink','xlink:href','nevverland-logo.svg');
+    logo.setAttribute('preserveAspectRatio','xMidYMid meet');
+    logo.style.display='none';
+    g.appendChild(logo);
+  }
   g.addEventListener('mouseenter',()=>hoverId=n.id); g.addEventListener('mouseleave',()=>hoverId=null);
   g.addEventListener('click',e=>{ e.stopPropagation(); navigate(n); });
-  svg.appendChild(g); return {g,hit,anchor,text};
+  svg.appendChild(g); return {g,hit,anchor,text,logo};
 }
 nodes.forEach(n=>nodeEls[n.id]=makeNodeEl(n));
 function buildSVG(){ lineEls.forEach(l=>l.remove()); lineEls=links.map(l=>{ const ln=document.createElementNS(NS,'line'); ln.dataset.s=l.s; ln.dataset.t=l.t; ln.dataset.kind=l.kind; svg.insertBefore(ln,svg.firstChild); return ln; }); }
@@ -327,11 +337,23 @@ function renderGraph(){
     const fs = r.fs * (inField ? FIELD.TYPE_SCALE : 1);   // nav shrinks when imagery comes up, stays seen
     let op = r.op; if(!inField && role==='child') op *= 0.5;   // landing sub-nav at half opacity
     el.g.setAttribute('transform',`translate(${n.x.toFixed(1)},${n.y.toFixed(1)})`); el.g.style.opacity=hov?Math.min(1,op+0.35):op;
-    el.text.setAttribute('font-size',fs); el.text.setAttribute('font-weight',r.weight); el.text.setAttribute('letter-spacing',r.ls);
-    const half=labelHalfW(n.label,fs), showDot=role==='active'||role==='child'||role==='parent';
-    el.anchor.setAttribute('cx',0); el.anchor.setAttribute('cy',fs*0.62+5); el.anchor.setAttribute('r',showDot?(role==='active'?2.4:1.8):0);
+    const isLogo = el.logo && role==='active';   // root focus = the NEVVERLAND logo
+    let half, ext;
+    if(isLogo){
+      const aspect=1389/204, lh=fs*0.95, lw=lh*aspect;
+      el.text.style.display='none'; el.logo.style.display='';
+      el.logo.setAttribute('x',(-lw/2).toFixed(1)); el.logo.setAttribute('y',(-lh/2).toFixed(1));
+      el.logo.setAttribute('width',lw.toFixed(1)); el.logo.setAttribute('height',lh.toFixed(1));
+      half=lw/2; ext=lh/2;
+    } else {
+      if(el.logo){ el.logo.style.display='none'; el.text.style.display=''; }
+      el.text.setAttribute('font-size',fs); el.text.setAttribute('font-weight',r.weight); el.text.setAttribute('letter-spacing',r.ls);
+      half=labelHalfW(n.label,fs); ext=fs;
+    }
+    const showDot=role==='active'||role==='child'||role==='parent';
+    el.anchor.setAttribute('cx',0); el.anchor.setAttribute('cy',ext*0.66+6); el.anchor.setAttribute('r',showDot?(role==='active'?2.4:1.8):0);
     el.anchor.setAttribute('fill','rgba(20,20,20,'+(role==='active'?0.85:0.5)+')');
-    el.hit.setAttribute('x',-half-16); el.hit.setAttribute('y',-fs); el.hit.setAttribute('width',half*2+32); el.hit.setAttribute('height',fs*2.2); }
+    el.hit.setAttribute('x',-half-16); el.hit.setAttribute('y',-ext); el.hit.setAttribute('width',half*2+32); el.hit.setAttribute('height',ext*2+12); }
   const tfp=fparams();
   for(const t of tileEls){
     const node=t.node;
