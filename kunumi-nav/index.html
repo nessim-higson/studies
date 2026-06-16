@@ -27,11 +27,11 @@
 
   /* image field tiles (Kunumi rollover) */
   #tiles{ position:absolute; inset:0; pointer-events:none; }
-  .tile{ position:absolute; left:0; top:0; width:7rem; height:7rem; transform:translate(-50%,-50%); padding:0; border:none; background:none;
+  .tile{ position:absolute; left:0; top:0; transform:translate(-50%,-50%); padding:0; border:none; background:none;
     cursor:pointer; opacity:0; pointer-events:auto; }   /* positioned via transform; layer only when revealed (JS) */
-  body.leaf-field .tile{ width:10.5rem; height:10.5rem; }   /* inside a project: larger, semi-visible thumbnails */
-  .tile .ti{ width:100%; height:100%; border-radius:1rem; overflow:hidden; box-shadow:0 8px 26px rgba(0,0,0,.10); }
-  .tile img{ width:100%; height:100%; object-fit:cover; display:block; }
+  body.leaf-field .tile img{ height:10.5rem; }   /* inside a project: larger, semi-visible thumbnails */
+  .tile .ti{ display:block; border-radius:1rem; overflow:hidden; box-shadow:0 8px 26px rgba(0,0,0,.10); }
+  .tile img{ display:block; height:7rem; width:auto; }   /* fixed height, natural width → aspect kept */
   .tile .cap{ position:absolute; left:50%; bottom:-1.9rem; transform:translateX(-50%); font-family:var(--mono);
     font-size:1rem; letter-spacing:.08em; text-transform:uppercase; color:rgba(20,20,20,.6); white-space:nowrap; opacity:0; transition:opacity .3s; }
   .tile:hover .cap{ opacity:1; }
@@ -43,10 +43,10 @@
   #stage{ position:fixed; inset:0; z-index:15; display:flex; flex-direction:column; align-items:center; justify-content:center;
     gap:2.2rem; padding:3.5rem; opacity:0; visibility:hidden; pointer-events:none; transition:opacity .35s ease, visibility .35s; }
   body.staged #stage{ opacity:1; visibility:visible; pointer-events:auto; }
-  #stage-img{ position:relative; z-index:2; width:min(68rem,80vmin); height:min(68rem,80vmin); overflow:hidden;
+  #stage-img{ position:relative; z-index:2; line-height:0; overflow:hidden;
     box-shadow:0 50px 120px rgba(0,0,0,.32); transform:scale(.92); transition:transform .4s cubic-bezier(.16,1,.3,1); }
   body.staged #stage-img{ transform:scale(1); }
-  #stage-img img{ position:absolute; inset:0; width:100%; height:100%; object-fit:cover; display:block; transition:opacity .5s ease; }
+  #stage-img img{ display:block; max-height:78vmin; max-width:60vw; width:auto; height:auto; transition:opacity .26s ease; }   /* aspect kept */
   #stage-meta{ position:relative; z-index:2; text-align:center; }
   #stage-topic{ font-family:var(--mono); font-size:1.1rem; letter-spacing:.18em; text-transform:uppercase; color:rgba(20,20,20,.4); margin-bottom:.5rem; }
   #stage-title{ font-size:clamp(20px,2.2vw,26px); letter-spacing:-.02em; }
@@ -54,7 +54,7 @@
   #stage-sats{ position:absolute; inset:0; pointer-events:none; z-index:1; }
   .sat{ position:absolute; transform:translate(-50%,-50%); padding:0; border:none; background:none; cursor:pointer; pointer-events:auto;
     opacity:0; will-change:transform,opacity; }
-  .sat img{ display:block; width:15rem; height:15rem; object-fit:cover; box-shadow:0 14px 44px rgba(0,0,0,.16); transition:opacity .4s ease; }
+  .sat img{ display:block; height:15rem; width:auto; box-shadow:0 14px 44px rgba(0,0,0,.16); transition:opacity .4s ease; }
   #stage-close{ position:absolute; top:2.4rem; right:2.4rem; width:4rem; height:4rem; border-radius:999px; border:none; cursor:pointer;
     background:rgba(20,20,20,.08); color:var(--ink); font-size:1.8rem; display:flex; align-items:center; justify-content:center; transition:background .2s; }
   #stage-close:hover{ background:rgba(20,20,20,.16); }
@@ -100,8 +100,9 @@
    image: at a category it surfaces that item; at an item it zooms to the stage. */
 
 /* ---- Kunumi image pool ---- */
-const COUNTS={science:7,culture:6,intelligence:7,meaning:5,language:6,society:6}, POOL=[];
-for(const[t,c]of Object.entries(COUNTS))for(let i=1;i<=c;i++)POOL.push(`../kunumi/img/${t}-${i}.webp`);
+// Uniqlock stills (mixed aspect ratios — preserved, never cropped)
+const POOL=[];
+for(let i=0;i<40;i++) POOL.push(`../uniqlock-v2/assets/imagery/${String(i).padStart(2,'0')}.jpg`);
 let _pi=0; const grab=n=>Array.from({length:n},()=>POOL[(_pi++)%POOL.length]);
 
 /* ---- nav content ---- */
@@ -449,10 +450,10 @@ function enterStage(src){
 }
 function setHero(src){
   stageSrc=src;
-  const img=document.createElement('img'); img.alt=''; img.src=src; img.style.opacity='0';
-  stageImg.appendChild(img);
-  requestAnimationFrame(()=>requestAnimationFrame(()=>{ img.style.opacity='1'; }));
-  setTimeout(()=>{ while(stageImg.children.length>1) stageImg.firstChild.remove(); }, 560);
+  let img=stageImg.querySelector('img');
+  if(!img){ img=document.createElement('img'); img.alt=''; stageImg.appendChild(img); img.src=src; return; }
+  img.style.opacity='0';                                  // fade out, swap, fade in (single img → keeps aspect)
+  setTimeout(()=>{ img.src=src; img.style.opacity='1'; }, 270);
 }
 function buildSats(){
   clearSats();
