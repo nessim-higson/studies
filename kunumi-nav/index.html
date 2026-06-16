@@ -135,7 +135,7 @@ function fieldKind(node){
   if(kids.length && kids.every(k=>k.isLeaf && k.images)) return 'category';
   return null;
 }
-const LEAF_FIELD_N=11, CAT_PER_CHILD=8;   // imagery, duped from each item's set
+const LEAF_FIELD_N=14, CAT_PER_CHILD=10;   // imagery, duped from each item's set
 function fieldImagesFor(node){
   const k=fieldKind(node); if(!k) return [];
   const dup=(imgs,id,label,n)=>Array.from({length:n},(_,i)=>({src:imgs[i%imgs.length],leafId:id,leafLabel:label}));
@@ -162,7 +162,7 @@ const P={ CHARGE:-560, CHARGE_MAX:460, LINK:{activeChild:160,breadcrumb:128,sibl
   CHILD_RING:230, CHILD_RING_STR:0.30, CENTER_ACTIVE:0.2, CENTER_OTHERS:0.014, ACTIVE_Y_BIAS:-30,
   BREADCRUMB_LIFT:188, BREADCRUMB_PULL:0.05, COLLIDE_STR:0.9, COLLIDE_PAD:16,
   DAMP:0.52, DRIFT:0.14, CURSOR:0.34, CURSOR_R:300, SHOCK:3, ALPHA_KICK:0.85, IDLE_ALPHA:0.04, ALPHA_DECAY:0.03 };
-const FIELD={ R:285, TYPE_SCALE:0.74, CLEAR_IN:150, CLEAR_W:120,
+const FIELD={ R:300, TYPE_SCALE:0.74, CLEAR_IN:150, CLEAR_W:120,
   // category: hidden at rest, blooms on rollover · leaf (a project): larger, semi-visible thumbnails
   cat:{ base:0, restS:0.5, peakS:1.12 },
   leaf:{ base:0.34, restS:0.86, peakS:1.12 } };
@@ -320,7 +320,8 @@ function renderGraph(){
     if(!visible){ el.g.style.display='none'; continue; } el.g.style.display='';
     const r=ROLE[role], hov=hoverId===n.id;
     const fs = r.fs * (inField ? FIELD.TYPE_SCALE : 1);   // nav shrinks when imagery comes up, stays seen
-    el.g.setAttribute('transform',`translate(${n.x.toFixed(1)},${n.y.toFixed(1)})`); el.g.style.opacity=hov?Math.min(1,r.op+0.35):r.op;
+    let op = r.op; if(!inField && role==='child') op *= 0.5;   // landing sub-nav at half opacity
+    el.g.setAttribute('transform',`translate(${n.x.toFixed(1)},${n.y.toFixed(1)})`); el.g.style.opacity=hov?Math.min(1,op+0.35):op;
     el.text.setAttribute('font-size',fs); el.text.setAttribute('font-weight',r.weight); el.text.setAttribute('letter-spacing',r.ls);
     const half=labelHalfW(n.label,fs), showDot=role==='active'||role==='child'||role==='parent';
     el.anchor.setAttribute('cx',0); el.anchor.setAttribute('cy',fs*0.62+5); el.anchor.setAttribute('r',showDot?(role==='active'?2.4:1.8):0);
@@ -352,7 +353,7 @@ function renderGraph(){
 const canvas=document.getElementById('field'), ctx=canvas.getContext('2d'); let DPR=1;
 function resize(){ DPR=Math.min(devicePixelRatio||1,1.5); canvas.width=W()*DPR; canvas.height=H()*DPR; canvas.style.width=W()+'px'; canvas.style.height=H()+'px'; }
 resize(); addEventListener('resize',resize);
-const STAR_N=360, STAR_SPEED=0.0003, stars=[];
+const STAR_N=470, STAR_SPEED=0.0003, stars=[];
 function placeStar(s){ s.x=Math.random()*2-1; s.y=Math.random()*2-1; s.z=Math.random()*0.85+0.15; s.b=Math.random()*0.5+0.4; s.sx=-9; s.sy=-9; }
 for(let i=0;i<STAR_N;i++){ const s={}; placeStar(s); stars.push(s); }
 function drawField(){
