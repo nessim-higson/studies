@@ -4,7 +4,16 @@ The Nevverland **organic tree navigation** re-rendered in the **Kunumi visual la
 
 - **Local:** http://localhost:4190/kunumi-nav/
 - **Live:** https://nessim-higson.github.io/studies/kunumi-nav/
-- **This STATE** describes the rolled-back baseline = git `ba2b080` (the hover-preview that was on top, `f0e657f`, was reverted by request).
+
+### ⭐ LIKED BASELINE — git `9397ec9` (site `?v=70`)
+User confirmed "I like this latest build." This is the current preferred state. Build on top of it; if anything goes sideways, restore with:
+`cd ~/CLAUDE/projects/studies && git show 9397ec9:kunumi-nav/index.html > ~/CLAUDE/projects/prototypes/kunumi-nav/index.html`
+
+What this baseline added on top of the earlier rolled-back `ba2b080` (the hover-preview `f0e657f` was reverted by request — do **not** re-add without asking):
+- **Denser field**: starfield `STAR_N` 470; imagery `CAT_PER_CHILD` 10 (Work ≈ 50 tiles), `LEAF_FIELD_N` 14; reveal radius `FIELD.R` 300.
+- **Project thumbnails larger + semi-visible**: leaf field uses `FIELD.leaf` (base opacity 0.34, restS 0.86) and `body.leaf-field .tile` = 10.5rem; categories stay hidden-at-rest (`FIELD.cat`, base 0).
+- **Landing sub-nav at half opacity**: in nav mode, `role==='child'` labels render at `op*0.5` (brighten on hover).
+- **Correlation lines**: every visible field image draws a very faint line (`opacity × 0.22`) to the word it belongs to — its client call-out in a category, or the focus itself inside a project. Cursor→image weave kept but softened (`_i*0.3`).
 
 ---
 
@@ -44,10 +53,14 @@ A frosted panel of 9 dials, all live: Settle (damping; lower = springier), Repul
 | `P` | `DAMP` | 0.52 | settle (lower = springier) |
 | `P` | `SHOCK` | 3 | click impulse |
 | `P` | `CHILD_RING` | 230 | bloom radius of call-outs |
-| `FIELD` | `R` | 240 | rollover reveal radius |
+| `FIELD` | `R` | 300 | rollover reveal radius |
 | `FIELD` | `TYPE_SCALE` | 0.74 | nav shrink in field mode |
 | `FIELD` | `CLEAR_IN`/`CLEAR_W` | 150 / 120 | central clear zone |
-| starfield | `STAR_N` | 240 | dot count |
+| `FIELD.leaf` | `base`/`restS` | 0.34 / 0.86 | project thumbs: semi-visible + larger |
+| `FIELD.cat` | `base` | 0 | category images hidden until reached |
+| counts | `CAT_PER_CHILD`/`LEAF_FIELD_N` | 10 / 14 | images per category-child / per project |
+| starfield | `STAR_N` | 470 | dot count |
+| correlation | line opacity | `_o × 0.22` | image → owning word |
 
 ---
 
