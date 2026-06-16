@@ -462,6 +462,22 @@ overlay.addEventListener('click', async () => {
   overlay.classList.add('leaving');
   setTimeout(() => overlay.remove(), 600);
 });
+
+async function __boot() {
+  if (ctx) return;
+  ctx = new AudioContext();
+  master = ctx.createGain(); master.gain.value = 0; master.connect(ctx.destination);
+  space = ctx.createConvolver(); space.buffer = makeIR(3.2);
+  const rev = ctx.createGain(); rev.gain.value = 0; space.connect(rev); rev.connect(master);
+  bus = ctx.createGain(); bus.connect(master); bus.connect(space);
+  noiseBuf = ctx.createBuffer(1, ctx.sampleRate * 0.4, ctx.sampleRate);
+  const nd = noiseBuf.getChannelData(0); for (let i = 0; i < nd.length; i++) nd[i] = Math.random() * 2 - 1;
+  pool = await manifestReady; initImages(); entered = true; running = true;
+}
+window.__dbg = {
+  boot: __boot, setBpm: (v) => { bpm = v; }, setMode, beat: () => onBeat(),
+  view: (id) => { const el = cells[id]; const g = (l) => { const cs = getComputedStyle(l); return { src: (l.src || '').split('/').pop(), op: +(+cs.opacity).toFixed(2), tf: cs.transform === 'none' ? 'none' : 'set', clip: l.style.clipPath || 'none', z: cs.zIndex }; }; return { area: binding['pulse'], front: el._front, L0: g(el._layers[0]), L1: g(el._layers[1]) }; },
+};
 </script>
 
 </body>

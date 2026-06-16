@@ -1,0 +1,435 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<meta name="theme-color" content="#F5F5F5" />
+<title>Nevverland — organic nav (Kunumi finish)</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;700&family=Space+Mono:wght@400&display=swap');
+  :root{ --bg:#F5F5F5; --ink:#141414; --font:'Space Grotesk',-apple-system,BlinkMacSystemFont,sans-serif; --mono:'Space Mono',ui-monospace,monospace; }
+  *{ margin:0; padding:0; box-sizing:border-box; }
+  html,body{ height:100%; }
+  body{ background:var(--bg); color:var(--ink); font-family:var(--font); -webkit-font-smoothing:antialiased; overflow:hidden; user-select:none;
+    cursor:url("data:image/svg+xml,%3Csvg width='8' height='8' viewBox='0 0 8 8' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Ccircle cx='4' cy='4' r='4' fill='%231C1C1C'/%3E%3C/svg%3E") 4 4, auto; }
+  #field{ position:fixed; inset:0; z-index:1; display:block; }
+
+  #navwrap{ position:fixed; inset:0; z-index:2; transform-origin:50% 46%;
+    transition: transform .55s cubic-bezier(.16,1,.3,1), opacity .4s ease; }
+  /* the nav recedes/shrinks in place when a piece takes the stage — no side-snap */
+  body.staged #navwrap{ transform: scale(.6); opacity:.22; pointer-events:none; }
+
+  #graph{ position:absolute; inset:0; width:100%; height:100%; overflow:visible; }
+  #graph line{ vector-effect:non-scaling-stroke; transition: opacity .35s ease, stroke-width .35s ease; }
+  .node{ cursor:pointer; }
+  .node text{ transition: font-size .55s cubic-bezier(0.34,1.56,0.64,1), fill-opacity .4s ease; }
+  .node .hit{ fill:transparent; } .node .anchor{ transition:r .5s ease; }
+
+  /* image field tiles (Kunumi rollover) */
+  #tiles{ position:absolute; inset:0; pointer-events:none; }
+  .tile{ position:absolute; left:0; top:0; width:7rem; height:7rem; transform:translate(-50%,-50%); padding:0; border:none; background:none;
+    cursor:pointer; opacity:0; pointer-events:auto; }   /* positioned via transform; layer only when revealed (JS) */
+  body.leaf-field .tile{ width:10.5rem; height:10.5rem; }   /* inside a project: larger, semi-visible thumbnails */
+  .tile .ti{ width:100%; height:100%; border-radius:1rem; overflow:hidden; box-shadow:0 8px 26px rgba(0,0,0,.10); }
+  .tile img{ width:100%; height:100%; object-fit:cover; display:block; }
+  .tile .cap{ position:absolute; left:50%; bottom:-1.9rem; transform:translateX(-50%); font-family:var(--mono);
+    font-size:1rem; letter-spacing:.08em; text-transform:uppercase; color:rgba(20,20,20,.6); white-space:nowrap; opacity:0; transition:opacity .3s; }
+  .tile:hover .cap{ opacity:1; }
+
+  #copy{ position:absolute; max-width:34rem; transform:translate(-50%,0); font-size:1.4rem; line-height:1.5;
+    letter-spacing:-.01em; color:rgba(20,20,20,.55); text-align:center; opacity:0; transition:opacity .5s; pointer-events:none; }
+
+  /* stage (zoom) */
+  #stage{ position:fixed; inset:0; z-index:15; display:flex; flex-direction:column; align-items:center; justify-content:center;
+    gap:2.2rem; padding:3.5rem; opacity:0; visibility:hidden; pointer-events:none; transition:opacity .35s ease, visibility .35s; }
+  body.staged #stage{ opacity:1; visibility:visible; pointer-events:auto; }
+  #stage-img{ width:min(70rem,82vmin); height:min(70rem,82vmin); border-radius:1.6rem; overflow:hidden;
+    box-shadow:0 50px 120px rgba(0,0,0,.32); transform:scale(.9); transition:transform .4s cubic-bezier(.16,1,.3,1); }
+  body.staged #stage-img{ transform:scale(1); }
+  #stage-img img{ width:100%; height:100%; object-fit:cover; display:block; }
+  #stage-meta{ text-align:center; }
+  #stage-topic{ font-family:var(--mono); font-size:1.1rem; letter-spacing:.18em; text-transform:uppercase; color:rgba(20,20,20,.4); margin-bottom:.5rem; }
+  #stage-title{ font-size:clamp(20px,2.2vw,26px); letter-spacing:-.02em; }
+  #stage-strip{ display:flex; gap:1rem; margin-top:.2rem; }
+  .sthumb{ width:5.2rem; height:5.2rem; border-radius:.8rem; overflow:hidden; cursor:pointer; border:none; padding:0; background:none;
+    box-shadow:0 0 0 1px rgba(0,0,0,.06); opacity:.55; transition:opacity .3s, transform .3s cubic-bezier(.16,1,.3,1); }
+  .sthumb.on{ opacity:1; box-shadow:0 0 0 2px rgba(20,20,20,.5); } .sthumb:hover{ opacity:1; transform:translateY(-3px); }
+  .sthumb img{ width:100%; height:100%; object-fit:cover; display:block; }
+  #stage-close{ position:absolute; top:2.4rem; right:2.4rem; width:4rem; height:4rem; border-radius:999px; border:none; cursor:pointer;
+    background:rgba(20,20,20,.08); color:var(--ink); font-size:1.8rem; display:flex; align-items:center; justify-content:center; transition:background .2s; }
+  #stage-close:hover{ background:rgba(20,20,20,.16); }
+
+  #brand{ position:fixed; top:2.4rem; left:2.4rem; z-index:20; font-size:1.3rem; letter-spacing:.01em; color:rgba(20,20,20,.5); font-family:var(--mono); text-transform:uppercase; }
+  #hint{ position:fixed; bottom:2.4rem; left:0; right:0; z-index:5; text-align:center; font-size:1.15rem; letter-spacing:.04em; color:rgba(20,20,20,.3); font-family:var(--mono); pointer-events:none; transition:opacity .6s; }
+  body.staged #hint{ opacity:0; }
+
+  #panel{ position:fixed; bottom:2rem; right:2rem; z-index:30; width:22rem; background:rgba(245,245,245,.9); -webkit-backdrop-filter:blur(14px); backdrop-filter:blur(14px);
+    border:1px solid rgba(20,20,20,.1); border-radius:1rem; padding:1.5rem 1.6rem; font-family:var(--mono); font-size:1.05rem; color:rgba(20,20,20,.7); display:none; }
+  body.controls #panel{ display:block; }
+  #panel h4{ font-size:1rem; letter-spacing:.14em; text-transform:uppercase; margin-bottom:1.1rem; color:rgba(20,20,20,.42); font-weight:400; display:flex; justify-content:space-between; }
+  .ctl{ margin-bottom:.85rem; } .ctl .row{ display:flex; justify-content:space-between; margin-bottom:.3rem; } .ctl .row b{ font-weight:400; color:rgba(20,20,20,.45); }
+  .ctl input[type=range]{ width:100%; accent-color:#1a1a1a; height:2px; }
+  #panel .tip{ margin-top:.6rem; font-size:.92rem; color:rgba(20,20,20,.32); }
+  #ctrl-hint{ position:fixed; bottom:2.4rem; right:2.4rem; z-index:5; font-family:var(--mono); font-size:1.05rem; letter-spacing:.06em; color:rgba(20,20,20,.3); pointer-events:none; }
+  body.controls #ctrl-hint, body.staged #ctrl-hint{ opacity:0; }
+  html{ font-size:62.5%; } body{ font-size:1.6rem; }
+</style>
+</head>
+<body>
+  <canvas id="field"></canvas>
+  <div id="navwrap">
+    <div id="tiles"></div>
+    <p id="copy"></p>
+    <svg id="graph" xmlns="http://www.w3.org/2000/svg"></svg>
+  </div>
+  <div id="stage">
+    <button id="stage-close" aria-label="Close">&times;</button>
+    <div id="stage-img"></div>
+    <div id="stage-meta"><div id="stage-topic"></div><div id="stage-title"></div></div>
+    <div id="stage-strip"></div>
+  </div>
+  <div id="brand">Nevverland</div>
+  <div id="hint">click to enter · click the focus to step back</div>
+  <div id="ctrl-hint">C — controls</div>
+  <div id="panel"><h4><span>Feel</span><span>press C</span></h4></div>
+
+<script>
+/* Nevverland organic nav, Kunumi finish. Category/leaf levels become a Kunumi
+   rollover image field (dots always on, images bloom near the cursor). Click an
+   image: at a category it surfaces that item; at an item it zooms to the stage. */
+
+/* ---- Kunumi image pool ---- */
+const COUNTS={science:7,culture:6,intelligence:7,meaning:5,language:6,society:6}, POOL=[];
+for(const[t,c]of Object.entries(COUNTS))for(let i=1;i<=c;i++)POOL.push(`../kunumi/img/${t}-${i}.webp`);
+let _pi=0; const grab=n=>Array.from({length:n},()=>POOL[(_pi++)%POOL.length]);
+
+/* ---- nav content ---- */
+const NAV={ id:'nevverland', label:'Nevverland', copy:'An experimental practice. Navigation as material, type as structure, imagery as weather.', children:[
+  { id:'work', label:'Work', copy:'Studies in interfaces that behave like places.', children:[
+    { id:'nike', label:'Nike', copy:'Motion identity sprints — twelve directions in ten days.' },
+    { id:'hbo', label:'HBO', copy:'Title sequences as navigation. The menu is the trailer.' },
+    { id:'sony', label:'Sony', copy:'Product stories told through a bent lens.' },
+    { id:'pepsi', label:'Pepsi', copy:'A summer of colour, run as a live system.' },
+    { id:'experimental', label:'Experimental', copy:'Off-brief studies — where the language gets invented.' } ]},
+  { id:'about', label:'About', copy:'Who we are, how we think, the hands on the work.', children:[
+    { id:'studio', label:'Studio' }, { id:'people', label:'People' }, { id:'process', label:'Process' } ]},
+  { id:'info', label:'Info', copy:'The quiet pages — notes, credits, the archive.', children:[
+    { id:'notes', label:'Notes' }, { id:'colophon', label:'Colophon' }, { id:'archive', label:'Archive' } ]},
+  { id:'contact', label:'Contact', copy:'Where to find us, and how to start something.', children:[
+    { id:'newyork', label:'New York' }, { id:'losangeles', label:'Los Angeles' }, { id:'email', label:'Email' } ]},
+]};
+
+const nodes=[], byId=new Map();
+(function walk(item,parentId,depth){
+  const childIds=(item.children||[]).map(c=>c.id), isLeaf=childIds.length===0;
+  const n={ id:item.id, label:item.label, copy:item.copy||null, parentId, depth, childIds, isLeaf,
+    images: isLeaf?grab(4):null, x:0,y:0,vx:0,vy:0, phase:Math.random()*Math.PI*2, drift:0.5+Math.random(), shown:false };
+  nodes.push(n); byId.set(n.id,n); (item.children||[]).forEach(c=>walk(c,item.id,depth+1));
+})(NAV,null,0);
+const ancestorsOf=id=>{const o=[];let c=byId.get(id);while(c&&c.parentId){o.push(c.parentId);c=byId.get(c.parentId);}return o;};
+
+/* ---- field-mode helpers ---- */
+function fieldKind(node){
+  if(node.isLeaf && node.images) return 'leaf';
+  const kids=node.childIds.map(id=>byId.get(id));
+  if(kids.length && kids.every(k=>k.isLeaf && k.images)) return 'category';
+  return null;
+}
+const LEAF_FIELD_N=14, CAT_PER_CHILD=10;   // imagery, duped from each item's set
+function fieldImagesFor(node){
+  const k=fieldKind(node); if(!k) return [];
+  const dup=(imgs,id,label,n)=>Array.from({length:n},(_,i)=>({src:imgs[i%imgs.length],leafId:id,leafLabel:label}));
+  if(k==='leaf') return dup(node.images,node.id,node.label,LEAF_FIELD_N);
+  return node.childIds.flatMap(id=>{ const kid=byId.get(id); return dup(kid.images,kid.id,kid.label,CAT_PER_CHILD); });
+}
+
+/* ---- roles + type styling ---- */
+function computeRoles(activeId){
+  const roles=new Map(), active=byId.get(activeId); roles.set(activeId,'active');
+  for(const a of ancestorsOf(activeId)) roles.set(a,'parent');
+  for(const c of active.childIds) roles.set(c,'child');
+  if(active.parentId) for(const s of byId.get(active.parentId).childIds) if(!roles.has(s)) roles.set(s,'sibling');
+  for(const a of ancestorsOf(activeId)){ const anc=byId.get(a); if(!anc.parentId) continue;
+    for(const s of byId.get(anc.parentId).childIds) if(!roles.has(s)) roles.set(s,'distant'); }
+  return roles;
+}
+const ROLE={ active:{fs:46,weight:700,op:1,ls:'-0.02em',scale:2.1}, child:{fs:22,weight:500,op:.95,ls:'0',scale:1.15},
+  parent:{fs:15,weight:400,op:.55,ls:'0.02em',scale:.9}, sibling:{fs:12,weight:400,op:.4,ls:'0.03em',scale:.7}, distant:{fs:10,weight:400,op:.25,ls:'0.04em',scale:.5} };
+const labelHalfW=(label,fs)=>label.length*fs*0.29;
+
+/* ---- physics ---- */
+const P={ CHARGE:-560, CHARGE_MAX:460, LINK:{activeChild:160,breadcrumb:128,sibling:118,distant:135}, LINK_STR:0.4,
+  CHILD_RING:230, CHILD_RING_STR:0.30, CENTER_ACTIVE:0.2, CENTER_OTHERS:0.014, ACTIVE_Y_BIAS:-30,
+  BREADCRUMB_LIFT:188, BREADCRUMB_PULL:0.05, COLLIDE_STR:0.9, COLLIDE_PAD:16,
+  DAMP:0.52, DRIFT:0.14, CURSOR:0.34, CURSOR_R:300, SHOCK:3, ALPHA_KICK:0.85, IDLE_ALPHA:0.04, ALPHA_DECAY:0.03 };
+const FIELD={ R:300, TYPE_SCALE:0.74, CLEAR_IN:150, CLEAR_W:120,
+  // category: hidden at rest, blooms on rollover · leaf (a project): larger, semi-visible thumbnails
+  cat:{ base:0, restS:0.5, peakS:1.12 },
+  leaf:{ base:0.34, restS:0.86, peakS:1.12 } };
+const fparams = () => fkind==='leaf' ? FIELD.leaf : FIELD.cat;
+
+let activeId='nevverland', roles=computeRoles(activeId), links=[], alpha=P.ALPHA_KICK, prevFocus=null, driftT=0, hoverId=null,
+    fieldNodes=[], inField=false, fkind=null, staged=false, stageProject=null, stageSrc=null,
+    idleFrames=0, gT=0, navDX=0, navDY=0;
+const pointer={x:null,y:null};
+const W=()=>innerWidth, H=()=>innerHeight;
+nodes.forEach(n=>{ n.x=W()/2+(Math.random()-0.5)*60; n.y=H()/2+(Math.random()-0.5)*60; });
+
+/* ---- field scatter (Kunumi even on-screen layout) ---- */
+function scatterField(imgs){
+  const out=[], n=imgs.length, gx=Math.ceil(Math.sqrt(n*1.6)), gy=Math.ceil(n/gx);
+  imgs.forEach((im,i)=>{
+    const col=i%gx, row=Math.floor(i/gx);
+    let nx=(col+0.5+(Math.random()-0.5)*0.7)/gx, ny=(row+0.5+(Math.random()-0.5)*0.7)/gy;
+    // push out of the centre where the focus label sits
+    const dx=nx-0.5, dy=ny-0.5;
+    if(Math.abs(dx)<0.16 && Math.abs(dy)<0.13){ const s=Math.min(0.16/Math.max(Math.abs(dx),1e-3),0.13/Math.max(Math.abs(dy),1e-3)); nx=0.5+dx*s*1.1; ny=0.5+dy*s*1.1; }
+    out.push({ ...im, bx:Math.min(0.93,Math.max(0.07,nx)), by:Math.min(0.9,Math.max(0.12,ny)),
+      x:0,y:0,_i:0,_o:0, phase:Math.random()*Math.PI*2, drift:0.5+Math.random(), _lit:false });
+  });
+  return out;
+}
+
+function rebuild(){
+  roles=computeRoles(activeId);
+  const active=byId.get(activeId);
+  fkind=fieldKind(active); inField=!!fkind;
+  document.body.classList.toggle('leaf-field', inField && fkind==='leaf');
+
+  let visibleNav;
+  if(inField && fkind==='category'){   // category keeps clickable client call-outs (the children)
+    visibleNav=[active, ...ancestorsOf(activeId).map(id=>byId.get(id)), ...active.childIds.map(id=>byId.get(id))];
+  } else if(inField){ visibleNav=[active, ...ancestorsOf(activeId).map(id=>byId.get(id))]; }
+  else visibleNav=nodes.filter(n=>roles.has(n.id));
+
+  for(const n of visibleNav){ if(!n.shown){ const p=n.parentId?byId.get(n.parentId):null;
+    if(p&&p.shown){ n.x=p.x+(Math.random()-0.5)*40; n.y=p.y+(Math.random()-0.5)*40; } n.shown=true; } }
+
+  fieldNodes = inField ? scatterField(fieldImagesFor(active)) : [];
+
+  links=[];
+  if(inField){ const chain=[activeId,...ancestorsOf(activeId)];
+    for(let i=0;i<chain.length-1;i++) links.push({s:chain[i+1], t:chain[i], kind:'breadcrumb'});
+    if(fkind==='category') for(const cid of active.childIds) links.push({s:activeId, t:cid, kind:'activeChild'}); }
+  else for(const n of visibleNav){ if(!n.parentId||!roles.has(n.parentId)) continue; const r=roles.get(n.id);
+    const kind=r==='child'?'activeChild':(r==='active'||r==='parent')?'breadcrumb':r==='sibling'?'sibling':'distant';
+    links.push({s:n.parentId,t:n.id,kind}); }
+
+  const f=byId.get(activeId);
+  if(prevFocus&&prevFocus!==activeId&&f.x!=null){ for(const n of visibleNav){ if(n===f) continue;
+    const dx=n.x-f.x,dy=n.y-f.y,d=Math.hypot(dx,dy)||1,imp=P.SHOCK*Math.min(1,220/d); n.vx+=dx/d*imp; n.vy+=dy/d*imp; } }
+  prevFocus=activeId; alpha=P.ALPHA_KICK;
+  ref.visibleNav=visibleNav;
+  buildSVG(); buildTiles();
+}
+const ref={visibleNav:[]};
+
+function tick(){
+  alpha+=(P.IDLE_ALPHA-alpha)*P.ALPHA_DECAY; const a=alpha;
+  // global idle wander — the whole composition floats
+  gT+=0.005; idleFrames++;
+  const amp = idleFrames>90 ? 50 : 16;
+  navDX += (Math.sin(gT*0.7)*amp - navDX)*0.02;
+  navDY += (Math.sin(gT*0.9+1.3)*amp*0.7 - navDY)*0.02;
+  const cx=W()/2+navDX, cy=H()/2+navDY, active=byId.get(activeId), vis=ref.visibleNav;
+
+  for(const n of vis){
+    const r=roles.get(n.id);
+    const cxs=r==='active'?P.CENTER_ACTIVE:P.CENTER_OTHERS; n.vx+=(cx-n.x)*cxs*a;
+    const ty=r==='parent'?cy-P.BREADCRUMB_LIFT:r==='active'?cy+P.ACTIVE_Y_BIAS:cy;
+    const cys=r==='active'?P.CENTER_ACTIVE:r==='parent'?P.BREADCRUMB_PULL:P.CENTER_OTHERS; n.vy+=(ty-n.y)*cys*a;
+  }
+  for(let i=0;i<vis.length;i++)for(let j=i+1;j<vis.length;j++){ const A=vis[i],B=vis[j];
+    let dx=B.x-A.x,dy=B.y-A.y,d2=dx*dx+dy*dy; if(d2<1){dx=Math.cos(A.phase);dy=Math.sin(A.phase);d2=1;}
+    const d=Math.sqrt(d2); if(d>P.CHARGE_MAX) continue; const w=P.CHARGE*a*(ROLE[roles.get(A.id)].scale+ROLE[roles.get(B.id)].scale)*0.5/d2;
+    A.vx+=dx/d*w;A.vy+=dy/d*w;B.vx-=dx/d*w;B.vy-=dy/d*w; }
+  for(const l of links){ const s=byId.get(l.s),t=byId.get(l.t); if(!s||!t) continue;
+    let dx=t.x-s.x,dy=t.y-s.y,d=Math.hypot(dx,dy)||1,k=(d-P.LINK[l.kind])/d*a*P.LINK_STR;
+    s.vx+=dx*k*0.5;s.vy+=dy*k*0.5;t.vx-=dx*k*0.5;t.vy-=dy*k*0.5; }
+  for(const n of vis){ if(roles.get(n.id)!=='child') continue;   // clients bloom on a ring around the focus
+    let dx=n.x-active.x,dy=n.y-active.y,d=Math.hypot(dx,dy); if(d<1){dx=Math.cos(n.phase);dy=Math.sin(n.phase);d=1;}
+    const k=(P.CHILD_RING-d)/d*P.CHILD_RING_STR*a; n.vx+=dx*k;n.vy+=dy*k; }
+  for(let i=0;i<vis.length;i++)for(let j=i+1;j<vis.length;j++){ const A=vis[i],B=vis[j];
+    const ra=Math.max(labelHalfW(A.label,ROLE[roles.get(A.id)].fs),ROLE[roles.get(A.id)].fs*0.7)+P.COLLIDE_PAD*0.5;
+    const rb=Math.max(labelHalfW(B.label,ROLE[roles.get(B.id)].fs),ROLE[roles.get(B.id)].fs*0.7)+P.COLLIDE_PAD*0.5;
+    let dx=B.x-A.x,dy=B.y-A.y,d=Math.hypot(dx,dy)||1,min=ra+rb; if(d<min){const p=(min-d)/d*P.COLLIDE_STR*0.5; A.vx-=dx*p;A.vy-=dy*p;B.vx+=dx*p;B.vy+=dy*p;} }
+  driftT+=0.006;
+  for(const n of vis){ n.vx+=Math.cos(driftT*n.drift+n.phase)*P.DRIFT*0.1; n.vy+=Math.sin(driftT*n.drift*1.37+n.phase)*P.DRIFT*0.1; }
+  if(pointer.x!=null&&!staged) for(const n of vis){ const dx=pointer.x-n.x,dy=pointer.y-n.y,d=Math.hypot(dx,dy);
+    if(d>P.CURSOR_R||d<2) continue; const k=P.CURSOR*(1-d/P.CURSOR_R)*0.18; n.vx+=dx/d*k;n.vy+=dy/d*k; }
+  const m=90;
+  for(const n of vis){ if(n.x<m)n.vx+=(m-n.x)*0.4*a; if(n.x>W()-m)n.vx-=(n.x-(W()-m))*0.4*a; if(n.y<m)n.vy+=(m-n.y)*0.4*a; if(n.y>H()-m)n.vy-=(n.y-(H()-m))*0.4*a;
+    n.vx*=P.DAMP;n.vy*=P.DAMP;n.x+=n.vx;n.y+=n.vy; }
+
+  // ---- image field: position + Kunumi proximity reveal ----
+  const navC=byId.get(activeId), fp=fparams();
+  for(const fn of fieldNodes){
+    // aspects of the work floating by — larger, layered drift
+    fn.x = fn.bx*W() + navDX*0.6 + Math.cos(driftT*fn.drift+fn.phase)*20 + Math.sin(driftT*0.4+fn.phase)*9;
+    fn.y = fn.by*H() + navDY*0.6 + Math.sin(driftT*fn.drift*1.2+fn.phase)*18 + Math.cos(driftT*0.33+fn.phase*1.3)*7;
+    // keep the nav's central zone clear — fade images out as they near the focus
+    const dn = navC.x!=null ? Math.hypot(fn.x-navC.x, fn.y-navC.y) : 999;
+    fn._clear = Math.min(1, Math.max(0, (dn-FIELD.CLEAR_IN)/FIELD.CLEAR_W));
+    let target=0;
+    if(pointer.x!=null && !staged){ const d=Math.hypot(fn.x-pointer.x, fn.y-pointer.y);
+      if(d<FIELD.R){ const u=1-d/FIELD.R; target=u*u*(3-2*u); } }
+    fn._i += (target-fn._i)*(target>fn._i?0.5:0.2);
+    // leaf thumbnails carry a semi-visible base; category stays hidden until reached.
+    // the clear zone fades the whole thing (base included) out from under the nav.
+    const reveal = fp.base + (1-fp.base)*Math.min(1, fn._i*1.4);
+    fn._o = Math.min(1, reveal) * fn._clear;
+  }
+  renderGraph();
+}
+
+/* ---- SVG / tiles ---- */
+const svg=document.getElementById('graph'), tilesEl=document.getElementById('tiles'), copyEl=document.getElementById('copy'), NS='http://www.w3.org/2000/svg';
+let lineEls=[]; const nodeEls={}; let tileEls=[];
+function makeNodeEl(n){
+  const g=document.createElementNS(NS,'g'); g.setAttribute('class','node'); g.dataset.id=n.id;
+  const hit=document.createElementNS(NS,'rect'); hit.setAttribute('class','hit');
+  const anchor=document.createElementNS(NS,'circle'); anchor.setAttribute('class','anchor');
+  const text=document.createElementNS(NS,'text'); text.setAttribute('text-anchor','middle'); text.setAttribute('dominant-baseline','central'); text.setAttribute('fill','#141414'); text.textContent=n.label;
+  g.append(hit,anchor,text);
+  g.addEventListener('mouseenter',()=>hoverId=n.id); g.addEventListener('mouseleave',()=>hoverId=null);
+  g.addEventListener('click',e=>{ e.stopPropagation(); navigate(n); });
+  svg.appendChild(g); return {g,hit,anchor,text};
+}
+nodes.forEach(n=>nodeEls[n.id]=makeNodeEl(n));
+function buildSVG(){ lineEls.forEach(l=>l.remove()); lineEls=links.map(l=>{ const ln=document.createElementNS(NS,'line'); ln.dataset.s=l.s; ln.dataset.t=l.t; ln.dataset.kind=l.kind; svg.insertBefore(ln,svg.firstChild); return ln; }); }
+function buildTiles(){
+  tileEls.forEach(t=>t.el.remove()); tileEls=[];
+  for(const fn of fieldNodes){ const b=document.createElement('button'); b.className='tile';
+    // image is mounted lazily, only when the tile is revealed (see render loop) —
+    // keeps at most a handful of 1024px bitmaps decoded at once
+    b.innerHTML=`<span class="ti"></span><span class="cap">${fn.leafLabel}</span>`;
+    b.addEventListener('click',e=>{ e.stopPropagation(); fieldClick(fn); });
+    tilesEl.appendChild(b); tileEls.push({el:b, ti:b.querySelector('.ti'), node:fn, mounted:false}); }
+}
+const trailSet=()=>new Set([activeId,...ancestorsOf(activeId)]);
+function renderGraph(){
+  const trail=trailSet();
+  for(const ln of lineEls){ const s=byId.get(ln.dataset.s),t=byId.get(ln.dataset.t); if(!s||!t) continue;
+    ln.setAttribute('x1',s.x);ln.setAttribute('y1',s.y);ln.setAttribute('x2',t.x);ln.setAttribute('y2',t.y);
+    const onTrail=trail.has(s.id)&&trail.has(t.id), lit=hoverId===s.id||hoverId===t.id;
+    ln.setAttribute('stroke','rgba(20,20,20,1)'); ln.setAttribute('stroke-width',lit?1.1:0.6); ln.setAttribute('opacity',lit?0.5:onTrail?0.26:0.1); }
+  for(const n of nodes){ const el=nodeEls[n.id]; const role=roles.get(n.id);
+    const visible = inField
+      ? (role==='active' || role==='parent' || (fkind==='category' && role==='child'))
+      : !!role;
+    if(!visible){ el.g.style.display='none'; continue; } el.g.style.display='';
+    const r=ROLE[role], hov=hoverId===n.id;
+    const fs = r.fs * (inField ? FIELD.TYPE_SCALE : 1);   // nav shrinks when imagery comes up, stays seen
+    let op = r.op; if(!inField && role==='child') op *= 0.5;   // landing sub-nav at half opacity
+    el.g.setAttribute('transform',`translate(${n.x.toFixed(1)},${n.y.toFixed(1)})`); el.g.style.opacity=hov?Math.min(1,op+0.35):op;
+    el.text.setAttribute('font-size',fs); el.text.setAttribute('font-weight',r.weight); el.text.setAttribute('letter-spacing',r.ls);
+    const half=labelHalfW(n.label,fs), showDot=role==='active'||role==='child'||role==='parent';
+    el.anchor.setAttribute('cx',0); el.anchor.setAttribute('cy',fs*0.62+5); el.anchor.setAttribute('r',showDot?(role==='active'?2.4:1.8):0);
+    el.anchor.setAttribute('fill','rgba(20,20,20,'+(role==='active'?0.85:0.5)+')');
+    el.hit.setAttribute('x',-half-16); el.hit.setAttribute('y',-fs); el.hit.setAttribute('width',half*2+32); el.hit.setAttribute('height',fs*2.2); }
+  const tfp=fparams();
+  for(const t of tileEls){
+    const node=t.node;
+    // invisible tile → write nothing, and free its image so few bitmaps stay decoded
+    if(node._o < 0.006){
+      if(node._vis){ node._vis=false; t.el.style.opacity='0'; t.el.style.willChange='auto';
+        if(t.mounted){ t.ti.textContent=''; t.mounted=false; } }
+      continue;
+    }
+    if(!node._vis){ node._vis=true; t.el.style.willChange='transform,opacity'; }
+    if(!t.mounted){ const img=new Image(); img.decoding='async'; img.alt=''; img.src=node.src; t.ti.appendChild(img); t.mounted=true; }
+    const s=(tfp.restS+(tfp.peakS-tfp.restS)*node._i).toFixed(3);
+    t.el.style.transform=`translate(${node.x.toFixed(1)}px,${node.y.toFixed(1)}px) translate(-50%,-50%) scale(${s})`;
+    t.el.style.opacity=node._o.toFixed(2);
+    t.el.style.zIndex = node._i>0.4 ? 5 : 1;
+  }
+  const active=byId.get(activeId);
+  if(active.copy&&active.x!=null){ const afs=ROLE.active.fs*(inField?FIELD.TYPE_SCALE:1);
+    copyEl.textContent=active.copy; copyEl.style.left=active.x+'px'; copyEl.style.top=(active.y+afs*0.62+18)+'px'; copyEl.style.opacity=staged?0:0.9; }
+  else copyEl.style.opacity=0;
+}
+
+/* ---- starfield + threads ---- */
+const canvas=document.getElementById('field'), ctx=canvas.getContext('2d'); let DPR=1;
+function resize(){ DPR=Math.min(devicePixelRatio||1,1.5); canvas.width=W()*DPR; canvas.height=H()*DPR; canvas.style.width=W()+'px'; canvas.style.height=H()+'px'; }
+resize(); addEventListener('resize',resize);
+const STAR_N=470, STAR_SPEED=0.0003, stars=[];
+function placeStar(s){ s.x=Math.random()*2-1; s.y=Math.random()*2-1; s.z=Math.random()*0.85+0.15; s.b=Math.random()*0.5+0.4; s.sx=-9; s.sy=-9; }
+for(let i=0;i<STAR_N;i++){ const s={}; placeStar(s); stars.push(s); }
+function drawField(){
+  ctx.clearRect(0,0,canvas.width,canvas.height); const cx=W()/2,cy=H()/2;
+  for(const s of stars){ s.z-=STAR_SPEED; if(s.z<=0.12){ placeStar(s); s.z=1; continue; }
+    const sx=cx+(s.x/s.z)*cx, sy=cy+(s.y/s.z)*cy; s.sx=sx; s.sy=sy; if(sx<-8||sx>W()+8||sy<-8||sy>H()+8) continue;
+    const near=1-s.z, rad=s.b*(near*2.5)+0.55; ctx.beginPath(); ctx.arc(sx*DPR,sy*DPR,rad*DPR,0,Math.PI*2);
+    ctx.fillStyle=`rgba(18,18,18,${(0.3+near*0.5).toFixed(2)})`; ctx.fill(); }
+  // image-field content dots: always visible, brighten on reveal (Kunumi)
+  for(const fn of fieldNodes){ const cl=fn._clear==null?1:fn._clear; if(cl<0.05) continue;
+    const r=1.4+fn._i*2.0; ctx.beginPath(); ctx.arc(fn.x*DPR,fn.y*DPR,r*DPR,0,Math.PI*2);
+    ctx.fillStyle=`rgba(16,16,16,${((0.42+fn._i*0.4)*cl).toFixed(2)})`; ctx.fill(); }
+  if(!staged){
+    ctx.lineCap='round';
+    // very faint correlation lines: each visible image → the word it belongs to
+    // (a category client call-out, or — inside a project — the focus itself)
+    for(const fn of fieldNodes){
+      if(fn._o<0.04) continue;
+      const word=byId.get(fn.leafId);
+      if(!word||word.x==null) continue;
+      ctx.beginPath(); ctx.moveTo(fn.x*DPR,fn.y*DPR); ctx.lineTo(word.x*DPR,word.y*DPR);
+      ctx.strokeStyle=`rgba(20,20,20,${(fn._o*0.22).toFixed(3)})`; ctx.lineWidth=0.5*DPR; ctx.stroke();
+    }
+    // cursor → revealed field images (the reveal weave, kept subtle)
+    if(pointer.x!=null) for(const fn of fieldNodes){ if(fn._i<0.05) continue;
+      ctx.beginPath(); ctx.moveTo(pointer.x*DPR,pointer.y*DPR); ctx.lineTo(fn.x*DPR,fn.y*DPR);
+      ctx.strokeStyle=`rgba(20,20,20,${(fn._i*0.3).toFixed(3)})`; ctx.lineWidth=(0.4+fn._i*0.7)*DPR; ctx.stroke(); }
+  }
+  if(!staged){ // nav reaches into the field
+    const reach=[byId.get(activeId)];
+    for(const node of reach){ if(node.x==null) continue; let drawn=0;
+      for(const s of stars){ if(s.sx<0) continue; const d=Math.hypot(s.sx-node.x,s.sy-node.y);
+        if(d<150){ ctx.beginPath(); ctx.moveTo(node.x*DPR,node.y*DPR); ctx.lineTo(s.sx*DPR,s.sy*DPR);
+          ctx.strokeStyle=`rgba(20,20,20,${(0.12*(1-d/150)).toFixed(3)})`; ctx.lineWidth=0.6*DPR; ctx.stroke(); if(++drawn>=2) break; } } }
+  }
+}
+
+/* ---- interaction ---- */
+function navigate(n){ if(staged){ exitStage(); return; } const next=n.id===activeId?n.parentId:n.id; if(!next) return;
+  activeId=next; document.getElementById('hint').style.opacity='0'; rebuild(); }
+function fieldClick(fn){
+  if(fkind==='category'){ activeId=fn.leafId; document.getElementById('hint').style.opacity='0'; rebuild(); }   // the work item comes forward
+  else enterStage(fn.src);                                                                                       // a leaf image → zoom to stage
+}
+addEventListener('mousemove',e=>{ pointer.x=e.clientX; pointer.y=e.clientY; idleFrames=0; });
+addEventListener('mouseleave',()=>{ pointer.x=null; pointer.y=null; });
+
+/* ---- stage (zoom in place) ---- */
+const stageImg=document.getElementById('stage-img'), stageTopic=document.getElementById('stage-topic'), stageTitle=document.getElementById('stage-title'), stageStrip=document.getElementById('stage-strip');
+function enterStage(src){ const a=byId.get(activeId); stageProject=a; stageSrc=src; staged=true; document.body.classList.add('staged'); renderStage(); }
+function renderStage(){ if(!stageProject) return;
+  stageImg.innerHTML=`<img src="${stageSrc}" alt="">`; stageTopic.textContent=stageProject.label; stageTitle.textContent=stageProject.copy||stageProject.label;
+  stageStrip.innerHTML='';
+  for(const src of stageProject.images){ const b=document.createElement('button'); b.className='sthumb'+(src===stageSrc?' on':'');
+    b.innerHTML=`<img src="${src}" alt="">`; b.addEventListener('click',e=>{ e.stopPropagation(); stageSrc=src; renderStage(); }); stageStrip.appendChild(b); } }
+function exitStage(){ staged=false; stageProject=null; document.body.classList.remove('staged'); }
+document.getElementById('stage-close').addEventListener('click',e=>{ e.stopPropagation(); exitStage(); });
+document.getElementById('stage').addEventListener('click',e=>{ if(e.target.id==='stage') exitStage(); });
+addEventListener('keydown',e=>{ if(e.key==='Escape') exitStage(); });
+
+/* ---- controls ---- */
+const CONTROLS=[ {k:'DAMP',label:'Settle (← springier)',min:0.3,max:0.85,step:0.01},{k:'CHARGE',label:'Repulsion',min:200,max:1000,step:10,neg:true},
+  {k:'LINK_STR',label:'Thread tension',min:0.05,max:1,step:0.01},{k:'CHILD_RING',label:'Bloom radius',min:120,max:340,step:5},
+  {k:'CHILD_RING_STR',label:'Bloom strength',min:0.05,max:0.6,step:0.01},{k:'DRIFT',label:'Idle drift',min:0,max:0.5,step:0.01},
+  {k:'CURSOR',label:'Cursor gravity',min:0,max:1,step:0.01},{k:'SHOCK',label:'Click shock',min:0,max:15,step:0.5},{k:'ALPHA_KICK',label:'Move energy',min:0.2,max:1,step:0.05} ];
+const panel=document.getElementById('panel');
+for(const c of CONTROLS){ const w=document.createElement('div'); w.className='ctl'; const cur=c.neg?-P[c.k]:P[c.k];
+  w.innerHTML=`<div class="row"><span>${c.label}</span><b>${cur}</b></div><input type="range" min="${c.min}" max="${c.max}" step="${c.step}" value="${cur}">`;
+  const inp=w.querySelector('input'),out=w.querySelector('b');
+  inp.addEventListener('input',()=>{ const v=parseFloat(inp.value); P[c.k]=c.neg?-v:v; out.textContent=v; alpha=Math.max(alpha,0.2); }); panel.appendChild(w); }
+const tip=document.createElement('div'); tip.className='tip'; tip.textContent='lower Settle = bouncier · adjust live'; panel.appendChild(tip);
+addEventListener('keydown',e=>{ if(e.key==='c'||e.key==='C') document.body.classList.toggle('controls'); });
+
+/* ---- loop ---- */
+function loop(){ drawField(); tick(); requestAnimationFrame(loop); }
+rebuild(); loop();
+</script>
+</body>
+</html>

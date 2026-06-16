@@ -41,6 +41,28 @@ Chrome: `Kunumi Institute` wordmark (top-left), `PT / EN` toggle (top-right), ce
 
 ---
 
+## Version history (deployed landmarks)
+Every row is a deployed build. `?v` = cache-bust number in the live URL; `commit` is in the `studies` repo.
+Restore any: `cd ~/CLAUDE/projects/studies && git show <commit>:kunumi/index.html > ~/CLAUDE/projects/prototypes/kunumi/index.html`
+
+| `?v` | commit | milestone |
+|---|---|---|
+| 44 | `126f7f1` | Initial Kunumi Institute replica (Next.js → vanilla: intro sequence, dynamic island, particle cursor) |
+| 45 | `49d7d5f` | AI-generated image constellation + connected-node navigation |
+| 46 | `4ee4c3d` | ★ Cursor-driven real-time string weave — the correct mechanic |
+| 47 | `b6c4533` | Denser — 37 images, wider scatter, smaller tiles |
+| 48 | `8adc411` | Mobile ambient drift + perf passes |
+| 49 | `6f97efa` | Images absent at rest, fade-up + grow on rollover (matches original) |
+| 50 | `ba90cfd` | Faster — snappy fade-up, dormant-tile skip, lighter particles |
+| 51 | `9166751` | Minimal particle trail (perf-first) |
+| 52 | `40e029c` | Remove particle trail entirely; tighten reveal radius |
+| 53 | `ca3c8f3` | ★ Always-on 3D starfield drifting toward camera + image↔dot links |
+| 54 | `fe48605` | Images attach to moving dots (pop up beside connected dots) |
+| 55 | `313593b` | Much slower dot drift |
+| **56** | `9185bb6` | ⭐ Even on-screen dot distribution + wider catch radius — **frozen as `_versions/kunumi/v1`** |
+
+(After v56 the work moved to the sibling [kunumi-nav](../kunumi-nav/STATE.md) prototype; this build is considered complete.)
+
 ## History / decisions
 - Images are **absent at rest** and fade up + grow on rollover (not always-present) — corrected from an earlier always-visible version.
 - The weave is **cursor-driven & real-time** (lines connect to dots, images attach to dots) — corrected from an earlier static-cluster + fixed-grid version.
