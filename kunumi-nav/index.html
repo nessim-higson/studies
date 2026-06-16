@@ -59,7 +59,8 @@
     background:rgba(20,20,20,.08); color:var(--ink); font-size:1.8rem; display:flex; align-items:center; justify-content:center; transition:background .2s; }
   #stage-close:hover{ background:rgba(20,20,20,.16); }
 
-  #brand{ position:fixed; top:2.4rem; left:2.4rem; z-index:20; font-size:1.3rem; letter-spacing:.01em; color:rgba(20,20,20,.5); font-family:var(--mono); text-transform:uppercase; }
+  #brand{ position:fixed; top:2.6rem; left:2.6rem; z-index:20; }
+  #brand img{ display:block; height:1.9rem; width:auto; opacity:.72; }
   #hint{ position:fixed; bottom:2.4rem; left:0; right:0; z-index:5; text-align:center; font-size:1.15rem; letter-spacing:.04em; color:rgba(20,20,20,.3); font-family:var(--mono); pointer-events:none; transition:opacity .6s; }
   body.staged #hint{ opacity:0; }
 
@@ -88,7 +89,7 @@
     <div id="stage-meta"><div id="stage-topic"></div><div id="stage-title"></div></div>
     <div id="stage-strip"></div>
   </div>
-  <div id="brand">Nevverland</div>
+  <div id="brand"><img src="nevverland-logo.svg" alt="Nevverland" /></div>
   <div id="hint">click to enter · click the focus to step back</div>
   <div id="ctrl-hint">C — controls</div>
   <div id="panel"><h4><span>Feel</span><span>press C</span></h4></div>
