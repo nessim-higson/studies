@@ -12,7 +12,7 @@
   body.dark{ --bg:#0e0e0e; --ink:#ededed; --ink-rgb:235,235,235; }
   body.dark #panel{ background:rgba(16,16,16,.9); }
   body.dark .tile .ti, body.dark .sat img, body.dark #stage-img{ box-shadow:0 14px 44px rgba(0,0,0,.55); }
-  body.dark #brand img, body.dark #graph image{ filter:invert(1); }   /* monochrome logo flips to light */
+  body.dark #brand img, body.dark #graph image{ filter:brightness(0) invert(1); }   /* monochrome logo → pure white */
   *{ margin:0; padding:0; box-sizing:border-box; }
   html,body{ height:100%; }
   body{ background:var(--bg); color:var(--ink); font-family:var(--font); -webkit-font-smoothing:antialiased; overflow:hidden; user-select:none;
@@ -193,8 +193,13 @@ const W=()=>innerWidth, H=()=>innerHeight;
 // responsive scale — shrinks type + geometry together so the whole thing fits a phone
 const TOUCH = matchMedia('(hover: none), (pointer: coarse)').matches;
 let VS=1; function computeVS(){ VS = Math.max(0.46, Math.min(1, (innerWidth-32)/1060)); } computeVS(); addEventListener('resize', computeVS);
-// ink colour for canvas + svg, read from the active theme (light or inverted/dark)
-const INK = (getComputedStyle(document.body).getPropertyValue('--ink-rgb').trim()) || '20,20,20';
+// theme — default is set on <body> (dark); ?theme=light|dark overrides; press I to flip live
+{ const tp=new URLSearchParams(location.search).get('theme');
+  if(tp==='light') document.body.classList.remove('dark');
+  if(tp==='dark') document.body.classList.add('dark'); }
+// ink colour for canvas + svg, read from the active theme
+let INK='20,20,20'; function applyTheme(){ INK=getComputedStyle(document.body).getPropertyValue('--ink-rgb').trim()||'20,20,20'; } applyTheme();
+addEventListener('keydown',e=>{ if(e.key==='i'||e.key==='I'){ document.body.classList.toggle('dark'); applyTheme(); } });
 nodes.forEach(n=>{ n.x=W()/2+(Math.random()-0.5)*60; n.y=H()/2+(Math.random()-0.5)*60; });
 
 /* ---- field scatter (Kunumi even on-screen layout) ---- */
