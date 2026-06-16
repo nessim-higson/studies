@@ -1,6 +1,6 @@
 # UNIQLOCK V2 — STATE
 
-*Living status doc — last updated 2026-06-15. Companion to [SPEC.md](SPEC.md):
+*Living status doc — last updated 2026-06-16 (build r50-crna-css). Companion to [SPEC.md](SPEC.md):
 SPEC is the design-time intent; STATE is where the build actually is. When they
 disagree, STATE wins (and note the divergence here).*
 
@@ -16,7 +16,45 @@ not yet assembled — we're still choosing the sound, the transition, and the
 core mechanic before wiring the final thing.
 
 **Current focus:** `orchestra` — a grid where each voice of a track drives a
-region of the screen. First probe shipped (Strata on a grayscale block grid).
+region of the screen.
+
+**Current build:** `r53-repack-native-ar` (commit `f9311cc`, 2026-06-16) — REPACK is now a
+**native-AR collage**: each image keeps its OWN aspect ratio (captured on preload into
+`arMap`), the cell box is sized to that AR so `object-fit:cover` shows the full image with
+**zero crop**, and images are wedged into the canvas by a shelf packer (full-height columns
+landscape / stacked rows portrait; 1 band for ≤3 images, 2 bands otherwise) with leftover
+space left **black** (negative space, never 100%). The whole frame recomposes on a cadence
+(every bar / on tempo tier change) by a **fade, not a slide**, so images "appear in different
+places" without moving. Per-voice in-place swaps are disabled in repack (they'd crop / fight
+the frame). Reference: the user's NEVVERLAND.mov stills (native-AR images + black). Tempo
+still = image count (1 at 60 BPM → 6 at max). SUBDIVIDE unchanged; BREATHE tabled. Prior
+collage notes (r52, fixed-AR tiles + relocation) superseded — they cropped.
+
+**Older:** `r52-repack-collage` (commit `dbaacee`, 2026-06-16) — the orchestra
+on Strata imagery, with the **R25 crna four-side pull-back** as PULSE's transition
+(pure CSS, GSAP removed — see Open decisions #4), the IAAH metronome box keeping
+time, **two modes** (subdivide / repack), tempo fader, accent + warm-black design pass.
+
+**This round (r52)** reworked both modes again + tabled the third, per user direction
+("images shouldn't move; replace them in different places; fixed AR's; don't cover
+100%; black opens up"):
+- **REPACK → a STILL fixed-AR collage** (replacing r51's moving slice-grid). Boxes no
+  longer slide. A stable scaffold of fixed-aspect-ratio tiles is packed onto a fine
+  module grid (14×9 / portrait 9×14) with a **render-time gutter** (the black gaps)
+  and a **coverage cap (~0.84)** so it never fills 100% — empty areas read as negative
+  space. **Tempo = how many tiles are LIT** (1 image at 60 BPM → ~5 at 104 → 6 at max).
+  Periodically (every bar) the system **relocates one image to a free tile by fading it
+  out here and in over there — never translating** ("appears in a different place it
+  sees fit"), so black opens and closes. Per-voice swaps still change the image inside a
+  lit tile in place. Identity voice→tile binding (the per-section rebind is skipped in
+  repack so tiles stay put). Spare scaffold positions (= voices+3 built, voices lit) are
+  the relocation targets.
+- **SUBDIVIDE → in/out black.** Keeps the favored tiled layout (untouched mechanic), but
+  now fades cells to black and back on a per-bar cadence (`.veil`) — images come in and
+  out, black areas open up in the grid.
+- **BREATHE → TABLED.** Two attempts (r50 global track-swell = jitter; r51 local
+  image-scale = inert) — neither landed. Chip + key removed, logic parked. The `.inner`
+  + `.veil` cell layers it introduced stay (the collage/in-out use `.veil`).
 
 **Live:**
 - Slate / all comps → https://nessim-higson.github.io/uniqlock-v2/comps/
@@ -65,7 +103,7 @@ Newest first. All under `comps/`, served at port 4191, listed on the slate page.
 
 | # | Comp | What it is | Standing |
 |---|---|---|---|
-| 20 | **orchestra** | Sound+image: each voice of a track lights a grid block | **Active direction** ([landmark-02](versions/landmark-02-orchestra/)) |
+| 20 | **orchestra** | Sound+image: each voice changes a grid block, R25 crna on PULSE | **Active direction** — current `r50-crna-css` (`landmark-02` is the early probe) |
 | 19 | **sound** | Generative audio sampler — ARC + 3 Tectonic forks | Active (the sound lab) |
 | 18 | fold | Silent-house 4-side 3D hinge transition | Kept |
 | 17 | tempo | You hold the metronome; work changes per beat; crna 4-side pull transition | **Favored transition** |
@@ -121,17 +159,23 @@ each **voice** of a track owns a **region**, and that region reacts when its
 voice plays. Because our music is generative, we know exactly which voice fires
 when (sample-accurate, ahead of time) — no FFT guessing.
 
-**`comps/orchestra/` (probe 01 — Strata, color = grayscale blocks):**
-- Gapless, square-cornered, **responsive** grid (desktop / tablet / mobile, via
-  `grid-template-areas` per breakpoint). Six blocks rest at dark→light greys.
-- Strata's 5 voices each flash a block when they sound (visual scheduled at the
-  audio event time): PULSE (every beat, center), GROAN A/B (slow swells), SHIMMER
-  (bright bar accent), DRIVE (off-beats), TICK (fast top-strip).
+**`comps/orchestra/` (Orchestra 01 — Strata, on IAAH imagery) — current at r50:**
+- Gapless, square-cornered, **responsive** grid, JS-driven placement (six blocks,
+  each an IAAH image cell with a two-layer crossfade from the imagery manifest).
+- Strata's 6 voices each change their block when they sound, each with its own
+  transition: **PULSE = the R25 crna four-side pull-back** (the chosen hero
+  transition); GROANS = slow zoom; SHIMMER = dissolve; DRIVE = wipe; TICK = hard
+  cut. Visuals scheduled at the audio event time.
+- **Three modes** (chips / keys 1-3): SUBDIVIDE (layout count + composition vary
+  by tempo, PULSE not always hero), REPACK (recomposes each section), BREATHE
+  (seams swell on the beat). `L` toggles instrument labels.
 - **BPM fills the grid in** — at 60 only PULSE is alive; crossing 74/88/102/116
-  lights the rest (the Tectonic tier gate, made visual).
-- **Section reassignment ON** — every 8 bars the voice→block binding rotates one
-  step (a verified permutation); PULSE walks all six blocks over time, so the
-  composition keeps recomposing.
+  brings in the other voices (the Tectonic tier gate, made visual).
+- **Section reassignment** — every 8 bars the voice→block binding rotates; the
+  visible blocks are always the live voices' blocks (so nothing freezes).
+- IAAH metronome box keeps time; warm-black + IAAH-yellow accent; reduced-motion
+  + focus-visible a11y. A per-cell transaction token guards transition cleanup so
+  a stale cleanup can't freeze a block.
 
 **Built as an engine, not a one-off:** a track exposes named voice-events; a
 mapping binds event-names → regions → block behaviors. So the planned **suite**
@@ -175,11 +219,14 @@ cells.
    conductor vs. free-tempo).
 4. **Transition** — DECIDED (2026-06-16): the **R25 crna four-side pull-back**
    (`landmark-01-the-door` / R25 `comps/solo/`) is THE transition. Ported verbatim
-   into orchestra PULSE as `kind: 'crna'` — uses GSAP + the `pageTransition` CustomEase:
+   into orchestra PULSE as `kind: 'crna'` — pure CSS (clip-path + transform/opacity
+   transitions, ease `cubic-bezier(.45,.05,.2,1)` ≈ the `pageTransition` CustomEase):
    incoming clip-reveals from an edge on top while the outgoing pulls back 30% + scale
-   .8 + opacity .4, 0.7s, cycling all four sides. (Earlier fold/pull attempts kept in
-   code as alternates `kind: 'fold'`/`'pull'` but NOT used.) `landmark-03-fold-ribbon`
-   is kept as a reference but is not the chosen transition.
+   .8 + opacity .4, 0.7s (capped to <1 beat), cycling all four sides. NOTE: tried GSAP
+   first (r49) to match the ease exactly — it would NOT tween clip-path reliably here
+   and fought the CSS transitions the other voices use, leaving layers stuck at their
+   start clips. CSS-only fixed it. Earlier fold/pull attempts kept as unused alternates
+   (`kind: 'fold'`/`'pull'`). `landmark-03-fold-ribbon` kept as reference, not chosen.
 5. **Drawer / nav** — wire real destinations into the mark-as-door drawer
    (`landmark-01`).
 6. Carry-overs from SPEC: shareable `?seed=` permutation URL; what the "hourly

@@ -153,13 +153,13 @@ function computeRoles(activeId){
     for(const s of byId.get(anc.parentId).childIds) if(!roles.has(s)) roles.set(s,'distant'); }
   return roles;
 }
-const ROLE={ active:{fs:46,weight:700,op:1,ls:'-0.02em',scale:2.1}, child:{fs:22,weight:500,op:.95,ls:'0',scale:1.15},
-  parent:{fs:15,weight:400,op:.55,ls:'0.02em',scale:.9}, sibling:{fs:12,weight:400,op:.4,ls:'0.03em',scale:.7}, distant:{fs:10,weight:400,op:.25,ls:'0.04em',scale:.5} };
+const ROLE={ active:{fs:80,weight:700,op:1,ls:'-0.03em',scale:2.1}, child:{fs:27,weight:500,op:.95,ls:'0',scale:1.15},
+  parent:{fs:16,weight:400,op:.55,ls:'0.02em',scale:.9}, sibling:{fs:13,weight:400,op:.4,ls:'0.03em',scale:.7}, distant:{fs:11,weight:400,op:.25,ls:'0.04em',scale:.5} };
 const labelHalfW=(label,fs)=>label.length*fs*0.29;
 
 /* ---- physics ---- */
 const P={ CHARGE:-560, CHARGE_MAX:460, LINK:{activeChild:160,breadcrumb:128,sibling:118,distant:135}, LINK_STR:0.4,
-  CHILD_RING:230, CHILD_RING_STR:0.30, CENTER_ACTIVE:0.2, CENTER_OTHERS:0.014, ACTIVE_Y_BIAS:-30,
+  CHILD_RING:320, CHILD_RING_STR:0.30, CENTER_ACTIVE:0.2, CENTER_OTHERS:0.014, ACTIVE_Y_BIAS:-30,
   BREADCRUMB_LIFT:188, BREADCRUMB_PULL:0.05, COLLIDE_STR:0.9, COLLIDE_PAD:16,
   DAMP:0.52, DRIFT:0.14, CURSOR:0.34, CURSOR_R:300, SHOCK:3, ALPHA_KICK:0.85, IDLE_ALPHA:0.04, ALPHA_DECAY:0.03 };
 const FIELD={ R:300, TYPE_SCALE:0.74, CLEAR_IN:150, CLEAR_W:120,
