@@ -43,18 +43,18 @@
   #stage{ position:fixed; inset:0; z-index:15; display:flex; flex-direction:column; align-items:center; justify-content:center;
     gap:2.2rem; padding:3.5rem; opacity:0; visibility:hidden; pointer-events:none; transition:opacity .35s ease, visibility .35s; }
   body.staged #stage{ opacity:1; visibility:visible; pointer-events:auto; }
-  #stage-img{ width:min(70rem,82vmin); height:min(70rem,82vmin); border-radius:1.6rem; overflow:hidden;
-    box-shadow:0 50px 120px rgba(0,0,0,.32); transform:scale(.9); transition:transform .4s cubic-bezier(.16,1,.3,1); }
+  #stage-img{ position:relative; z-index:2; width:min(68rem,80vmin); height:min(68rem,80vmin); overflow:hidden;
+    box-shadow:0 50px 120px rgba(0,0,0,.32); transform:scale(.92); transition:transform .4s cubic-bezier(.16,1,.3,1); }
   body.staged #stage-img{ transform:scale(1); }
-  #stage-img img{ width:100%; height:100%; object-fit:cover; display:block; }
-  #stage-meta{ text-align:center; }
+  #stage-img img{ position:absolute; inset:0; width:100%; height:100%; object-fit:cover; display:block; transition:opacity .5s ease; }
+  #stage-meta{ position:relative; z-index:2; text-align:center; }
   #stage-topic{ font-family:var(--mono); font-size:1.1rem; letter-spacing:.18em; text-transform:uppercase; color:rgba(20,20,20,.4); margin-bottom:.5rem; }
   #stage-title{ font-size:clamp(20px,2.2vw,26px); letter-spacing:-.02em; }
-  #stage-strip{ display:flex; gap:1rem; margin-top:.2rem; }
-  .sthumb{ width:5.2rem; height:5.2rem; border-radius:.8rem; overflow:hidden; cursor:pointer; border:none; padding:0; background:none;
-    box-shadow:0 0 0 1px rgba(0,0,0,.06); opacity:.55; transition:opacity .3s, transform .3s cubic-bezier(.16,1,.3,1); }
-  .sthumb.on{ opacity:1; box-shadow:0 0 0 2px rgba(20,20,20,.5); } .sthumb:hover{ opacity:1; transform:translateY(-3px); }
-  .sthumb img{ width:100%; height:100%; object-fit:cover; display:block; }
+  /* the project's other images orbit the hero and come to the cursor as you roll */
+  #stage-sats{ position:absolute; inset:0; pointer-events:none; z-index:1; }
+  .sat{ position:absolute; transform:translate(-50%,-50%); padding:0; border:none; background:none; cursor:pointer; pointer-events:auto;
+    opacity:0; will-change:transform,opacity; }
+  .sat img{ display:block; width:15rem; height:15rem; object-fit:cover; box-shadow:0 14px 44px rgba(0,0,0,.16); transition:opacity .4s ease; }
   #stage-close{ position:absolute; top:2.4rem; right:2.4rem; width:4rem; height:4rem; border-radius:999px; border:none; cursor:pointer;
     background:rgba(20,20,20,.08); color:var(--ink); font-size:1.8rem; display:flex; align-items:center; justify-content:center; transition:background .2s; }
   #stage-close:hover{ background:rgba(20,20,20,.16); }
@@ -85,11 +85,11 @@
   </div>
   <div id="stage">
     <button id="stage-close" aria-label="Close">&times;</button>
+    <div id="stage-sats"></div>
     <div id="stage-img"></div>
     <div id="stage-meta"><div id="stage-topic"></div><div id="stage-title"></div></div>
-    <div id="stage-strip"></div>
   </div>
-  <div id="brand"><img src="nevverland-logo.svg" alt="Nevverland" /></div>
+  <div id="brand"><img src="nevverland-logo.svg?v=3" alt="Nevverland" /></div>
   <div id="hint">click to enter · click the focus to step back</div>
   <div id="ctrl-hint">C — controls</div>
   <div id="panel"><h4><span>Feel</span><span>press C</span></h4></div>
@@ -300,8 +300,8 @@ function makeNodeEl(n){
   let logo=null;
   if(n.id==='nevverland'){
     logo=document.createElementNS(NS,'image');
-    logo.setAttribute('href','nevverland-logo.svg');
-    logo.setAttributeNS('http://www.w3.org/1999/xlink','xlink:href','nevverland-logo.svg');
+    logo.setAttribute('href','nevverland-logo.svg?v=3');
+    logo.setAttributeNS('http://www.w3.org/1999/xlink','xlink:href','nevverland-logo.svg?v=3');
     logo.setAttribute('preserveAspectRatio','xMidYMid meet');
     logo.style.display='none';
     g.appendChild(logo);
@@ -340,7 +340,7 @@ function renderGraph(){
     const isLogo = el.logo && role==='active';   // root focus = the NEVVERLAND logo
     let half, ext;
     if(isLogo){
-      const aspect=1473/202, lh=fs*0.95, lw=lh*aspect;
+      const aspect=1525/230, lh=fs*1.02, lw=lh*aspect;
       el.text.style.display='none'; el.logo.style.display='';
       el.logo.setAttribute('x',(-lw/2).toFixed(1)); el.logo.setAttribute('y',(-lh/2).toFixed(1));
       el.logo.setAttribute('width',lw.toFixed(1)); el.logo.setAttribute('height',lh.toFixed(1));
@@ -428,15 +428,64 @@ function fieldClick(fn){
 addEventListener('mousemove',e=>{ pointer.x=e.clientX; pointer.y=e.clientY; idleFrames=0; });
 addEventListener('mouseleave',()=>{ pointer.x=null; pointer.y=null; });
 
-/* ---- stage (zoom in place) ---- */
-const stageImg=document.getElementById('stage-img'), stageTopic=document.getElementById('stage-topic'), stageTitle=document.getElementById('stage-title'), stageStrip=document.getElementById('stage-strip');
-function enterStage(src){ const a=byId.get(activeId); stageProject=a; stageSrc=src; staged=true; document.body.classList.add('staged'); renderStage(); }
-function renderStage(){ if(!stageProject) return;
-  stageImg.innerHTML=`<img src="${stageSrc}" alt="">`; stageTopic.textContent=stageProject.label; stageTitle.textContent=stageProject.copy||stageProject.label;
-  stageStrip.innerHTML='';
-  for(const src of stageProject.images){ const b=document.createElement('button'); b.className='sthumb'+(src===stageSrc?' on':'');
-    b.innerHTML=`<img src="${src}" alt="">`; b.addEventListener('click',e=>{ e.stopPropagation(); stageSrc=src; renderStage(); }); stageStrip.appendChild(b); } }
-function exitStage(){ staged=false; stageProject=null; document.body.classList.remove('staged'); }
+/* ---- stage: a roll-to-browse gallery ----
+   the project's other images orbit the hero; rolling the cursor draws the nearest
+   ones toward it (grow + brighten); click promotes one to the hero (crossfade) and
+   a fresh image swaps into its place. Images also cycle in/out on a timer. */
+const stageImg=document.getElementById('stage-img'), stageTopic=document.getElementById('stage-topic'),
+      stageTitle=document.getElementById('stage-title'), stageSatsEl=document.getElementById('stage-sats');
+const SAT_POS=[[0.105,0.30],[0.135,0.62],[0.075,0.85],[0.895,0.27],[0.865,0.60],[0.925,0.83]];
+let stageSats=[], satDeck=[], satIdx=0, satFrame=0;
+const nextSrc=()=> satDeck.length? satDeck[(satIdx++)%satDeck.length] : '';
+
+function enterStage(src){
+  stageProject=byId.get(activeId); staged=true; satFrame=0;
+  document.body.classList.add('staged');
+  stageTopic.textContent=stageProject.label; stageTitle.textContent=stageProject.copy||stageProject.label;
+  // deck = the project's images (cycled) so swaps feel like a deeper set
+  satDeck=stageProject.images.slice(); satIdx=0;
+  stageImg.innerHTML=''; setHero(src);
+  buildSats();
+}
+function setHero(src){
+  stageSrc=src;
+  const img=document.createElement('img'); img.alt=''; img.src=src; img.style.opacity='0';
+  stageImg.appendChild(img);
+  requestAnimationFrame(()=>requestAnimationFrame(()=>{ img.style.opacity='1'; }));
+  setTimeout(()=>{ while(stageImg.children.length>1) stageImg.firstChild.remove(); }, 560);
+}
+function buildSats(){
+  clearSats();
+  for(const [nx,ny] of SAT_POS){
+    const b=document.createElement('button'); b.className='sat';
+    const img=document.createElement('img'); img.alt=''; img.src=nextSrc(); b.appendChild(img);
+    const s={ el:b, img, nx, ny, x:nx*W(), y:ny*H(), _s:0.4, _o:0 };
+    b.addEventListener('click',e=>{ e.stopPropagation(); setHero(s.img.src); swapSat(s); });
+    stageSats.push(s); stageSatsEl.appendChild(b);
+  }
+}
+function swapSat(s){ s.img.style.opacity='0'; setTimeout(()=>{ s.img.src=nextSrc(); s.img.style.opacity='1'; }, 300); }
+function clearSats(){ stageSats.forEach(s=>s.el.remove()); stageSats=[]; }
+function updateStage(){
+  satFrame++;
+  const px=pointer.x, py=pointer.y;
+  for(const s of stageSats){
+    const bx=s.nx*W(), by=s.ny*H();
+    let tx=bx, ty=by, scale=0.62, op=0.32;
+    if(px!=null){
+      const d=Math.hypot(bx-px, by-py);
+      if(d<320){ const u=1-d/320, e=u*u*(3-2*u);
+        tx=bx+(px-bx)*0.16*e; ty=by+(py-by)*0.16*e;   // come toward the cursor
+        scale=0.62+0.5*e; op=0.32+0.68*e; }            // grow + brighten
+    }
+    s.x+=(tx-s.x)*0.16; s.y+=(ty-s.y)*0.16; s._s+=(scale-s._s)*0.16; s._o+=(op-s._o)*0.16;
+    s.el.style.transform=`translate(${s.x.toFixed(1)}px,${s.y.toFixed(1)}px) translate(-50%,-50%) scale(${s._s.toFixed(3)})`;
+    s.el.style.opacity=s._o.toFixed(2);
+  }
+  // imagery swapping in/out: cycle one satellite every ~2.5s
+  if(stageSats.length && satFrame%150===0) swapSat(stageSats[(satFrame/150)%stageSats.length]);
+}
+function exitStage(){ staged=false; stageProject=null; document.body.classList.remove('staged'); clearSats(); }
 document.getElementById('stage-close').addEventListener('click',e=>{ e.stopPropagation(); exitStage(); });
 document.getElementById('stage').addEventListener('click',e=>{ if(e.target.id==='stage') exitStage(); });
 addEventListener('keydown',e=>{ if(e.key==='Escape') exitStage(); });
@@ -455,7 +504,7 @@ const tip=document.createElement('div'); tip.className='tip'; tip.textContent='l
 addEventListener('keydown',e=>{ if(e.key==='c'||e.key==='C') document.body.classList.toggle('controls'); });
 
 /* ---- loop ---- */
-function loop(){ drawField(); tick(); requestAnimationFrame(loop); }
+function loop(){ drawField(); tick(); if(staged) updateStage(); requestAnimationFrame(loop); }
 rebuild(); loop();
 </script>
 </body>
