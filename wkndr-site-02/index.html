@@ -3,25 +3,22 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-<title>WKNDR</title>
-<meta name="description" content="WKNDR is a weekend companion that reads the weather, learns your taste, and turns free time into plans worth keeping." />
-<meta name="theme-color" content="#f0f4f0" />
+<title>WKNDR — Tinder your events</title>
+<meta name="description" content="WKNDR ranks your weekend by the weather and matches plans with the people you'd actually go with." />
+<meta name="theme-color" content="#faf8f3" />
 <style>
   @font-face{
     font-family:'TWKLausannePan';
     src:url('fonts/TWKLausannePan-300.woff2') format('woff2');
     font-weight:300;font-display:swap;
   }
-  @font-face{
-    font-family:'TWKLausanne';
-    src:url('fonts/TWKLausanne-350.woff2') format('woff2');
-    font-weight:350;font-display:swap;
+  :root{
+    --paper:#faf8f3; --ink:#1a1a1a; --accent:#ff4d1f; --accent-deep:#8a2818;
   }
-  :root{--background:#f0f4f0;--foreground:#000;}
   *{box-sizing:border-box;margin:0;padding:0;}
   html{scroll-behavior:auto;height:100%;}
   body{
-    background:#f0f4f0;color:var(--foreground);
+    background:#eceae3;color:var(--ink);
     font-family:'TWKLausannePan',system-ui,-apple-system,sans-serif;
     -webkit-font-smoothing:auto;-webkit-text-stroke:.2px;
     height:100%;overflow:hidden;
@@ -31,63 +28,294 @@
   #stage{
     position:fixed;top:-50px;left:0;right:0;bottom:-50px;
     display:flex;align-items:center;justify-content:center;
-    background:#f0f4f0;overflow:hidden;
+    background:#eceae3;overflow:hidden;
   }
 
-  /* background headline (sits behind the deck) */
+  /* fixed brand mark (logo) */
+  #brandmark{
+    position:fixed;top:clamp(18px,3vh,30px);left:clamp(20px,3vw,42px);z-index:9990;
+    display:flex;align-items:center;gap:8px;
+    font-family:'TWKLausannePan',sans-serif;font-weight:300;font-size:15px;
+    letter-spacing:.16em;text-transform:uppercase;color:var(--ink);
+    opacity:0;pointer-events:none;
+  }
+  #brandmark .wk-dot{width:7px;height:7px;border-radius:50%;background:var(--accent);}
+  #early{
+    position:fixed;top:clamp(16px,3vh,28px);right:clamp(20px,3vw,42px);z-index:9990;
+    font-family:'TWKLausannePan',sans-serif;font-weight:300;font-size:13px;letter-spacing:.02em;
+    color:var(--ink);text-decoration:none;opacity:0;
+    border:0.5px solid rgba(0,0,0,0.25);border-radius:999px;padding:8px 16px;
+    background:rgba(255,255,255,0.5);backdrop-filter:blur(6px);transition:background .2s ease;
+  }
+  #early:hover{background:#fff;}
+
+  /* background headline (behind the deck, seen at intro/outro) */
   #headline-wrap{
     position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
     z-index:0;pointer-events:none;padding-bottom:6vh;opacity:0;
   }
   #headline{
-    font-family:'TWKLausannePan',sans-serif;font-weight:300;font-size:34px;color:#000;
-    text-align:center;max-width:clamp(440px,22vw + 300px,640px);
-    letter-spacing:-0.01em;padding:0 20px;line-height:1.18;pointer-events:auto;
+    font-family:'TWKLausannePan',sans-serif;font-weight:300;font-size:38px;color:var(--ink);
+    text-align:center;max-width:clamp(440px,24vw + 320px,680px);
+    letter-spacing:-0.02em;padding:0 20px;line-height:1.12;pointer-events:auto;
   }
 
-  /* the deck container (lifts in, holds cards + closing content) */
+  /* the deck container */
   #deck{
     position:relative;
     height:min(79vh, calc(min(94vw,1260px) * 3 / 5));
     aspect-ratio:5 / 3;max-width:min(94vw,1260px);
     will-change:transform;
   }
-
   .card{
     position:absolute;inset:0;
-    border-radius:clamp(8px,2vw,20px);
-    border:0.5px solid rgba(0,0,0,0.05);
+    border-radius:clamp(8px,2vw,22px);
+    border:0.5px solid rgba(0,0,0,0.06);
     overflow:hidden;transform-origin:center bottom;will-change:transform;
+    box-shadow:0 1px 0 rgba(255,255,255,0.4) inset;
   }
-  .card>.media{width:100%;height:100%;background-color:#f7f7f7;position:relative;}
-  .card video,.card img{width:100%;height:100%;object-fit:cover;display:block;}
-  /* editable color-card slot */
-  .card-label{
+  .card>.media{width:100%;height:100%;position:relative;}
+
+  /* ---- cover card ---- */
+  .card-cover{
     position:absolute;inset:0;display:flex;flex-direction:column;
-    align-items:center;justify-content:center;text-align:center;padding:24px;
+    align-items:center;justify-content:center;text-align:center;padding:6%;
   }
-  .card-label .ct{
+  .card-cover .wk-logo{
     font-family:'TWKLausannePan',sans-serif;font-weight:300;
-    font-size:clamp(28px,4.2vw,60px);letter-spacing:-0.02em;line-height:1.02;
+    font-size:clamp(46px,9vw,140px);letter-spacing:-0.01em;
+    display:inline-flex;align-items:center;line-height:1;
   }
-  .card-label .ck{
+  .card-cover .wk-logo .wk-dot{
+    width:.15em;height:.15em;border-radius:50%;background:var(--accent);
+    display:inline-block;margin-right:.14em;
+  }
+  .card-cover .tag{
     font-family:'TWKLausannePan',sans-serif;font-weight:300;
-    font-size:clamp(13px,1.2vw,17px);margin-top:14px;opacity:0.72;
+    font-size:clamp(18px,2vw,30px);margin-top:clamp(16px,2.4vw,32px);letter-spacing:-0.01em;
   }
-  .card-label .cn{
-    position:absolute;top:18px;left:20px;font-size:13px;opacity:0.55;
-    font-family:'TWKLausannePan',sans-serif;font-weight:300;letter-spacing:0.02em;
+  .card-cover .sub{
+    font-family:'TWKLausannePan',sans-serif;font-weight:300;
+    font-size:clamp(12px,1.1vw,16px);opacity:.45;margin-top:9px;letter-spacing:.01em;
   }
 
-  /* closing content (timeline + bio), revealed at the end */
+  /* ---- device card (copy + iphone) ---- */
+  .card-device{
+    position:absolute;inset:0;display:flex;align-items:center;
+    gap:clamp(18px,3.5vw,56px);padding:clamp(24px,4.4vw,66px);
+  }
+  .card-device .copy{flex:1 1 0;min-width:0;}
+  .card-device .k{
+    font-family:'TWKLausannePan',sans-serif;font-weight:300;
+    font-size:clamp(11px,1vw,14px);letter-spacing:.18em;text-transform:uppercase;
+    opacity:.5;display:flex;align-items:center;gap:9px;margin-bottom:clamp(13px,1.6vw,22px);
+  }
+  .card-device .k .kdot{width:6px;height:6px;border-radius:50%;background:var(--accent);opacity:.9;}
+  .card-device h2{
+    font-family:'TWKLausannePan',sans-serif;font-weight:300;
+    font-size:clamp(25px,3.4vw,54px);line-height:1.02;letter-spacing:-0.024em;
+  }
+  .card-device p{
+    font-family:'TWKLausannePan',sans-serif;font-weight:300;
+    font-size:clamp(13px,1.25vw,19px);line-height:1.5;opacity:.62;
+    margin-top:clamp(13px,1.5vw,22px);max-width:32ch;
+  }
+  .card-device .phone-wrap{
+    flex:0 0 auto;height:100%;display:flex;align-items:center;justify-content:center;
+  }
+
+  /* ---- iPhone frame ---- */
+  .phone{
+    position:relative;height:min(88%,640px);aspect-ratio:9 / 19.5;
+    background:#0b0b0d;border-radius:13% / 6%;padding:1.1%;
+    box-shadow:0 44px 80px -22px rgba(0,0,0,0.45), 0 10px 26px rgba(0,0,0,0.2),
+               0 0 0 1.5px rgba(0,0,0,0.5);
+    flex:0 0 auto;
+  }
+  .screen{
+    position:relative;width:100%;height:100%;border-radius:11.6% / 5.4%;overflow:hidden;
+    container-type:size;
+    font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;
+    color:var(--ink);background:var(--paper);
+  }
+  .island{
+    position:absolute;top:1.5cqh;left:50%;transform:translateX(-50%);
+    width:32cqw;height:3.2cqh;background:#000;border-radius:5cqh;z-index:8;
+  }
+
+  /* app topbar */
+  .wk-top{
+    position:absolute;top:0;left:0;right:0;z-index:6;
+    display:flex;align-items:center;justify-content:space-between;
+    padding:6cqh 5cqw 1.6cqh;
+  }
+  .wk-logo.app{display:inline-flex;align-items:center;gap:1.4cqw;
+    font-weight:600;font-size:1.85cqh;letter-spacing:.16em;}
+  .wk-logo.app .wk-dot{width:1.1cqh;height:1.1cqh;border-radius:50%;background:var(--accent);}
+  .wk-temp{font-size:1.6cqh;opacity:.5;letter-spacing:.02em;font-weight:500;}
+
+  /* poster card inside the app */
+  .wk-card{
+    position:absolute;left:5cqw;right:5cqw;top:9.5cqh;bottom:13cqh;
+    border-radius:4cqh;overflow:hidden;color:#fff;
+    box-shadow:0 6cqh 12cqh -4cqh rgba(0,0,0,0.4);
+  }
+  .wk-card.behind{top:11cqh;bottom:14.5cqh;left:8cqw;right:8cqw;filter:brightness(.9);}
+  .wk-card::after{content:'';position:absolute;inset:0;
+    background:linear-gradient(to top, rgba(0,0,0,0.66) 0%, rgba(0,0,0,0.12) 45%, transparent 70%);}
+  .pg-live{background:linear-gradient(145deg,#5a4b8c,#241d44);}
+  .pg-art{background:linear-gradient(145deg,#b9613a,#5e2a1c);}
+  .pg-stage{background:linear-gradient(145deg,#834066,#361d35);}
+  .pg-eat{background:linear-gradient(145deg,#cf8038,#7a3f1a);}
+  .pg-drink{background:linear-gradient(145deg,#2f8f86,#143f3c);}
+  .pg-out{background:linear-gradient(145deg,#4e9a63,#21452f);}
+  .pg-market{background:linear-gradient(145deg,#6f9a4a,#2c4a24);}
+  .wk-when{
+    position:absolute;top:2.4cqh;left:2.6cqw;z-index:3;
+    background:rgba(255,255,255,0.18);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);
+    font-size:1.5cqh;font-weight:600;letter-spacing:.04em;padding:.8cqh 2cqw;border-radius:2cqh;
+  }
+  .wk-pill{
+    position:absolute;top:6.2cqh;left:2.6cqw;z-index:3;
+    background:var(--accent);color:#fff;font-size:1.45cqh;font-weight:600;letter-spacing:.02em;
+    padding:.8cqh 2cqw;border-radius:2cqh;box-shadow:0 1cqh 3cqh rgba(255,77,31,0.4);
+  }
+  .wk-cardbody{position:absolute;left:3cqw;right:3cqw;bottom:2.8cqh;z-index:3;}
+  .wk-eye{font-size:1.4cqh;font-weight:700;letter-spacing:.14em;opacity:.85;margin-bottom:.8cqh;}
+  .wk-eye.dk{color:var(--accent-deep);opacity:1;}
+  .wk-title{font-size:4cqh;font-weight:600;line-height:1.02;letter-spacing:-0.01em;}
+  .wk-ven{font-size:1.7cqh;opacity:.82;margin-top:.7cqh;}
+
+  /* swipe stamp + tilt */
+  .wk-card.tilt{transform:rotate(7deg);}
+  .wk-stamp{
+    position:absolute;top:16cqh;left:7cqw;z-index:4;transform:rotate(-13deg);
+    border:0.6cqh solid #46c37a;color:#46c37a;font-weight:800;font-size:4.4cqh;
+    letter-spacing:.08em;padding:.4cqh 2.4cqw;border-radius:1.8cqh;text-transform:uppercase;
+    background:rgba(8,30,18,0.25);
+  }
+
+  /* control buttons */
+  .wk-ctrls{
+    position:absolute;left:0;right:0;bottom:3.2cqh;z-index:5;
+    display:flex;align-items:center;justify-content:center;gap:4cqw;
+  }
+  .wk-cb{
+    width:7.4cqh;height:7.4cqh;border-radius:50%;display:flex;align-items:center;justify-content:center;
+    font-size:3.1cqh;background:#fff;box-shadow:0 1.4cqh 3cqh rgba(0,0,0,0.14);border:0.4cqh solid #eee;
+  }
+  .wk-cb.nope{color:#e0503a;} .wk-cb.like{color:#46c37a;} .wk-cb.save{color:var(--accent);}
+
+  /* share sheet */
+  .wk-sheet{
+    position:absolute;left:0;right:0;bottom:0;z-index:5;
+    background:#fff;border-radius:5cqh 5cqh 0 0;padding:3cqh 6cqw 5cqh;
+    box-shadow:0 -2cqh 8cqh rgba(0,0,0,0.1);height:78cqh;
+  }
+  .wk-sheet-grip{width:11cqw;height:0.7cqh;border-radius:1cqh;background:#ddd;margin:0 auto 3cqh;}
+  .wk-sheet-h{font-size:3.2cqh;font-weight:600;letter-spacing:-0.01em;}
+  .wk-sheet-sub{font-size:1.7cqh;opacity:.5;margin-top:.7cqh;}
+  .wk-thumbs{display:flex;gap:2.5cqw;margin:3cqh 0;}
+  .wk-thumbs span{flex:1;aspect-ratio:3/4;border-radius:2.4cqh;}
+  .wk-sheet-foot{font-size:1.7cqh;opacity:.55;line-height:1.45;margin-top:2.4cqh;text-align:center;}
+  .wk-sheet-foot b{font-weight:700;opacity:.85;}
+
+  /* primary CTA */
+  .wk-cta{
+    width:100%;border:none;border-radius:3cqh;background:var(--accent);color:#fff;
+    font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;font-weight:600;font-size:2.1cqh;
+    padding:2.4cqh;display:flex;align-items:center;justify-content:center;gap:2cqw;letter-spacing:.01em;
+    box-shadow:0 2cqh 5cqh rgba(255,77,31,0.34);
+  }
+  .wk-cta .wk-dot{width:1.4cqh;height:1.4cqh;border-radius:50%;background:#fff;}
+
+  /* match header */
+  .wk-mhead{
+    position:absolute;top:0;left:0;right:0;z-index:6;
+    display:flex;align-items:center;justify-content:space-between;padding:5.6cqh 4.5cqw 1.4cqh;
+  }
+  .wk-mx{font-size:2.4cqh;opacity:.5;width:5cqw;}
+  .wk-mmid{display:flex;flex-direction:column;align-items:center;gap:.4cqh;}
+  .wk-mmid .wk-logo.app{font-size:1.5cqh;}
+  .wk-mwith{font-size:1.5cqh;opacity:.6;}
+  .wk-mwith b{font-weight:700;opacity:.9;}
+  .wk-mcount{font-size:1.9cqh;font-weight:700;color:var(--accent);width:8cqw;text-align:right;}
+  .wk-mprog{position:absolute;top:9.4cqh;left:6cqw;right:6cqw;height:0.7cqh;border-radius:1cqh;
+    background:rgba(0,0,0,0.08);z-index:6;overflow:hidden;}
+  .wk-mprog span{display:block;height:100%;background:var(--accent);border-radius:1cqh;}
+  .wk-mstep{position:absolute;bottom:11.4cqh;left:0;right:0;text-align:center;font-size:1.5cqh;opacity:.45;z-index:5;}
+
+  /* slam (it's a match) */
+  .scr-slam{
+    background:radial-gradient(120% 90% at 50% 8%, #ff8a4d 0%, #ff4d1f 42%, #8a2818 100%);
+    color:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;
+    padding:0 7cqw;text-align:center;
+  }
+  .slam-av{display:flex;align-items:center;justify-content:center;margin-bottom:4cqh;}
+  .slam-av .av{
+    flex:0 0 auto;
+    width:14cqh;height:14cqh;border-radius:50%;display:flex;align-items:center;justify-content:center;
+    font-weight:700;font-size:2.4cqh;border:0.6cqh solid var(--paper);
+    box-shadow:0 2cqh 5cqh rgba(0,0,0,0.25);
+  }
+  .slam-av .you{background:#4a716b;margin-right:-3cqw;}
+  .slam-av .them{background:#1a1a1a;margin-left:-3cqw;}
+  .slam-av .spark{font-size:4cqh;color:#ffe08a;z-index:2;text-shadow:0 0 2cqh rgba(255,224,138,0.8);}
+  .slam-h{font-size:4.9cqh;font-weight:600;letter-spacing:-0.02em;margin-bottom:4cqh;}
+  .slam-card{
+    background:rgba(255,255,255,0.97);color:var(--ink);border-radius:3cqh;padding:2.2cqh;
+    display:flex;align-items:center;gap:3cqw;width:40cqh;box-shadow:0 3cqh 7cqh rgba(0,0,0,0.25);
+    text-align:left;margin-bottom:4cqh;
+  }
+  .slam-card .thumb{width:11cqh;height:11cqh;border-radius:2.2cqh;flex:0 0 auto;}
+  .slam-card>div{min-width:0;}
+  .scr-slam .wk-cta{width:40cqh;}
+  .slam-title{font-size:2.6cqh;font-weight:600;line-height:1.05;}
+  .slam-both{font-size:1.7cqh;color:var(--accent-deep);font-weight:600;margin-top:.7cqh;}
+  .scr-slam .wk-cta{background:#fff;color:var(--accent-deep);box-shadow:0 2cqh 5cqh rgba(0,0,0,0.2);}
+
+  /* plan */
+  .wk-plan{position:absolute;top:8.5cqh;left:6cqw;right:6cqw;bottom:4cqh;z-index:5;
+    display:flex;flex-direction:column;}
+  .plan-h{font-size:4.6cqh;font-weight:600;letter-spacing:-0.02em;}
+  .plan-sub{font-size:1.7cqh;opacity:.5;margin-top:.6cqh;margin-bottom:2.6cqh;}
+  .plan-row{display:flex;align-items:center;gap:3cqw;padding:1.8cqh 0;border-top:0.4cqh solid rgba(0,0,0,0.07);}
+  .plan-row .thumb{width:7cqh;height:7cqh;border-radius:1.8cqh;flex:0 0 auto;}
+  .plan-t{font-size:2.2cqh;font-weight:600;}
+  .plan-row .plan-chk{margin-left:auto;color:#46c37a;font-size:2.6cqh;font-weight:700;}
+  .wk-plan .wk-cta{margin-top:auto;}
+  .plan-2{text-align:center;font-size:1.7cqh;opacity:.5;margin-top:2cqh;}
+
+  /* ambient field screen */
+  .scr-field{overflow:hidden;}
+  .field-bg{position:absolute;inset:0;
+    background:
+      radial-gradient(120% 80% at 50% 0%, #fff0b0 0%, transparent 52%),
+      radial-gradient(90% 70% at 18% 28%, #d8e08a 0%, transparent 58%),
+      radial-gradient(110% 90% at 82% 82%, #6fa24a 0%, transparent 64%),
+      linear-gradient(180deg, #b7c96a, #2c4a26);
+  }
+  .field-copy{position:absolute;left:6cqw;right:6cqw;bottom:6cqh;z-index:3;}
+  .field-cond{color:#fffdf6;font-size:1.7cqh;font-weight:700;letter-spacing:.16em;opacity:.9;margin-bottom:1.6cqh;}
+  .field-phrase{color:#fffdf6;font-size:2.7cqh;font-weight:500;line-height:1.2;letter-spacing:-0.01em;}
+  .scr-field .wk-temp{color:#fffdf6;opacity:.85;}
+  .scr-field .wk-logo.app{color:#fffdf6;}
+
+  /* ---- closing content ---- */
   #closing{
     position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
     z-index:0;padding:40px;opacity:0;pointer-events:none;touch-action:auto;
   }
   #closing .inner{display:flex;flex-direction:column;align-items:center;}
+  .closing-logo{
+    display:flex;align-items:center;gap:8px;margin-bottom:28px;
+    font-family:'TWKLausannePan',sans-serif;font-weight:300;font-size:17px;
+    letter-spacing:.16em;text-transform:uppercase;color:var(--ink);
+  }
+  .closing-logo .wk-dot{width:8px;height:8px;border-radius:50%;background:var(--accent);}
   #icon-row{position:relative;margin-bottom:24px;}
   #icon-row .icons{display:flex;gap:8px;}
-  .icon-wiggle{width:40px;height:40px;border-radius:10px;cursor:pointer;}
+  .icon-wiggle{width:40px;height:40px;border-radius:11px;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,0.08);}
   .label{
     position:absolute;bottom:100%;left:0;right:0;display:flex;justify-content:center;
     margin-bottom:20px;pointer-events:none;
@@ -98,26 +326,27 @@
   }
   .label .lab-inner span{
     display:block;font-family:'TWKLausannePan',sans-serif;font-weight:300;
-    font-size:15px;color:#000;line-height:1.3;
+    font-size:15px;color:var(--ink);line-height:1.3;
   }
   .label .lab-inner span.yr{opacity:.5;}
-
   .closing-text{
-    font-family:'TWKLausannePan',sans-serif;font-weight:300;font-size:18px;color:#000;
+    font-family:'TWKLausannePan',sans-serif;font-weight:300;font-size:18px;color:var(--ink);
     text-align:center;line-height:1.45;max-width:560px;
   }
   .mclane-link{
     text-decoration:underline;text-underline-offset:3px;text-decoration-thickness:0.5px;
-    text-decoration-color:rgba(0,0,0,0.75);cursor:default;pointer-events:auto;
-    color:inherit;position:relative;
+    text-decoration-color:rgba(0,0,0,0.6);cursor:default;pointer-events:auto;
+    color:inherit;position:relative;font-weight:600;
   }
   .get-in-touch{
-    background:none;border:none;padding:0;font:inherit;color:inherit;letter-spacing:inherit;
-    cursor:pointer;text-decoration:none;-webkit-tap-highlight-color:transparent;
-    touch-action:manipulation;transition:opacity .4s ease;
+    background:var(--accent);color:#fff;border:none;border-radius:999px;padding:11px 22px;
+    font-family:'TWKLausannePan',sans-serif;font-weight:300;font-size:16px;letter-spacing:.01em;
+    cursor:pointer;-webkit-tap-highlight-color:transparent;touch-action:manipulation;
+    transition:opacity .4s ease,transform .2s ease;box-shadow:0 6px 18px rgba(255,77,31,0.32);
   }
+  .get-in-touch:hover{transform:translateY(-1px);}
   .git-arrow{
-    display:inline-block;position:relative;clip-path:inset(0);margin-left:4px;
+    display:inline-block;position:relative;clip-path:inset(0);margin-left:5px;
     font-family:'SF Pro',system-ui;font-weight:300;
   }
   .git-arrow-out,.git-arrow-in{display:inline-block;}
@@ -126,43 +355,31 @@
   .get-in-touch:hover .git-arrow-in{animation:.35s cubic-bezier(.65,0,.35,1) forwards git-arrow-in-anim;}
   @keyframes git-arrow-out-anim{to{transform:translateX(100%);}}
   @keyframes git-arrow-in-anim{0%{transform:translateX(-100%);}to{transform:translateX(0);}}
-
+  .git-wrap{display:inline-block;margin-top:6px;}
   .touched{
-    position:absolute;top:0;left:50%;transform:translateX(-50%);white-space:nowrap;
-    opacity:0;transition:opacity .4s ease;pointer-events:none;
+    position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);white-space:nowrap;
+    opacity:0;transition:opacity .4s ease;pointer-events:none;color:#fff;
   }
   .copied-toast{
-    display:inline-block;padding:6px 12px;background:#fff;border-radius:8px;font-size:14px;color:#000;
+    display:inline-block;padding:6px 12px;background:#fff;border-radius:8px;font-size:14px;color:var(--ink);
     white-space:nowrap;opacity:0;transform:translateY(6px) rotate(-3deg);
     transition:opacity .4s cubic-bezier(.16,1,.3,1),transform .4s cubic-bezier(.16,1,.3,1);
-    pointer-events:none;
+    pointer-events:none;box-shadow:0 4px 14px rgba(0,0,0,0.12);
   }
-
   @keyframes wiggle{0%{transform:rotate(-2deg);}50%{transform:rotate(2deg);}to{transform:rotate(-2deg);}}
   .icon-wiggle:hover,.icon-wiggle.wiggling{animation:.3s ease-in-out infinite wiggle;}
 
-  /* hidden "fur" character */
-  #fur{
-    position:absolute;bottom:-170px;left:50%;transform:translateX(-50%);
-    width:340px;height:486px;z-index:1;opacity:0;transition:opacity .5s ease;
-    pointer-events:none;overflow:hidden;background:transparent;
-  }
-  #fur video{width:100%;height:auto;object-fit:contain;object-position:top center;}
-
-  /* backdrop blur layer */
+  /* backdrop blur + social popup */
   #backdrop{
     position:fixed;top:-50px;left:0;right:0;bottom:-50px;
     backdrop-filter:blur(0px);-webkit-backdrop-filter:blur(0px);background:transparent;
     transition:backdrop-filter .3s ease,-webkit-backdrop-filter .3s ease,background .3s ease;
     pointer-events:none;z-index:-1;
   }
-
-  /* social popup */
   #social{
-    position:fixed;top:0;left:0;
-    transform:translate(-50%,-50%) scale(0.55);
+    position:fixed;top:0;left:0;transform:translate(-50%,-50%) scale(0.55);
     background:#fff;border-radius:999px;padding:10px 14px;
-    box-shadow:0 8px 32px rgba(0,0,0,0.12);
+    box-shadow:0 8px 32px rgba(0,0,0,0.14);
     display:flex;flex-direction:row;gap:12px;align-items:center;
     z-index:10000;opacity:0;pointer-events:none;
     transition:opacity .2s ease,transform .25s cubic-bezier(.16,1,.3,1);
@@ -176,38 +393,43 @@
   #social a:hover{transform:translateY(-3px) scale(1.08);}
 
   @media(max-width:768px){
-    #headline{font-size:24px;line-height:1.2;letter-spacing:0;max-width:90vw;}
+    #headline{font-size:25px;line-height:1.14;letter-spacing:-0.01em;max-width:90vw;}
     .closing-text{max-width:90vw;}
-    #fur{width:90vw;height:60vh;bottom:-205px;}
+    .card-device{gap:14px;padding:18px;}
+    .card-device .copy h2{font-size:19px;}
+    .card-device .copy p{display:none;}
+    .card-device .k{margin-bottom:8px;font-size:9px;}
+    #early{display:none;}
   }
 </style>
 </head>
 <body>
 <div id="stage">
 
+  <div id="brandmark"><span class="wk-dot"></span>WKNDR</div>
+  <a id="early" href="#" onclick="document.getElementById('git')&&document.getElementById('git').scrollIntoView();return false;">Get early access</a>
+
   <div id="headline-wrap">
-    <h1 id="headline">WKNDR turns a blank Saturday into a plan worth keeping — built around the weather, your people, and the places nearby.</h1>
+    <h1 id="headline">Your weekend, ranked by the weather — and matched with the people you'd actually go with.</h1>
   </div>
 
   <div id="deck">
     <div id="closing">
       <div class="inner">
-        <div id="icon-row">
-          <!-- hover labels + icons injected by JS -->
-        </div>
+        <div class="closing-logo"><span class="wk-dot"></span>WKNDR</div>
+        <div id="icon-row"><!-- weather chips injected by JS --></div>
         <p class="closing-text">
-          <span class="mclane-link" id="mclane-link">WKNDR</span> is a weekend companion for people who actually want to go do something. It reads the forecast, learns your taste, and turns free time into plans worth showing up for. Made in Brooklyn, built for wherever your weekend takes you.
-          <span style="display:block;margin-top:0.75em"></span>
-          <span style="display:block;text-align:center">
-            <span style="position:relative;display:inline-block">
-              <button type="button" class="get-in-touch" id="git" aria-label="Copy email address">Get early access<span class="git-arrow"><span class="git-arrow-out">→</span><span class="git-arrow-in">→</span></span></button>
-              <span class="touched" id="touched">You're on the list</span>
-            </span>
-          </span>
-          <span style="display:block;margin-top:16px;text-align:center">
-            <span class="copied-toast" id="copied">Email copied</span>
-          </span>
+          <span class="mclane-link" id="mclane-link">WKNDR</span> reads the forecast, ranks every plan against it, and lets you match the ones you'd both show up for — no sign-up, no app to download. Save a few, share one link, find your weekend together.
         </p>
+        <span class="git-wrap">
+          <span style="position:relative;display:inline-block">
+            <button type="button" class="get-in-touch" id="git" aria-label="Copy email address">Get early access<span class="git-arrow"><span class="git-arrow-out">→</span><span class="git-arrow-in">→</span></span></button>
+            <span class="touched" id="touched">You're on the list</span>
+          </span>
+        </span>
+        <span style="display:block;margin-top:16px;text-align:center">
+          <span class="copied-toast" id="copied">Email copied</span>
+        </span>
       </div>
     </div>
     <!-- cards injected by JS -->
@@ -215,57 +437,132 @@
 
   <div id="backdrop"></div>
 
+  <!-- social popup — placeholder WKNDR links, swap for real handles -->
   <div id="social">
-    <a href="https://www.linkedin.com/in/mclane-teitel-0888a489/" target="_blank" rel="noopener noreferrer" style="background:#007BB6"><svg width="24" height="24" viewBox="0 0 90 90" fill="#fff"><path d="M1.48 29.91h18.657v60.01H1.48V29.91zM10.809.08c5.963 0 10.809 4.846 10.809 10.819 0 5.967-4.846 10.813-10.809 10.813C4.832 21.712 0 16.866 0 10.899 0 4.926 4.832.08 10.809.08"/><path d="M31.835 29.91h17.89v8.206h.255c2.49-4.72 8.576-9.692 17.647-9.692C86.514 28.424 90 40.849 90 57.007V89.92H71.357V60.737c0-6.961-.121-15.912-9.692-15.912-9.706 0-11.187 7.587-11.187 15.412V89.92H31.835V29.91z"/></svg></a>
-    <a href="https://x.com/mclaneteitel" target="_blank" rel="noopener noreferrer" style="background:#000"><svg width="22" height="22" viewBox="0 0 512 462.799" fill="#fff"><path fill-rule="nonzero" d="M403.229 0h78.506L310.219 196.04 512 462.799H354.002L230.261 301.007 88.669 462.799h-78.56l183.455-209.683L0 0h161.999l111.856 147.88L403.229 0zm-27.556 415.805h43.505L138.363 44.527h-46.68l283.99 371.278z"/></svg></a>
-    <a href="https://www.instagram.com/mclaneteitel/" target="_blank" rel="noopener noreferrer" style="background:radial-gradient(circle at 30% 107%,#fdf497 0%,#fdf497 5%,#fd5949 45%,#d6249f 60%,#285AEB 90%)"><svg width="28" height="28" viewBox="0 0 16 16" fill="#fff"><path d="M8 0C5.829 0 5.556.01 4.703.048 3.85.088 3.269.222 2.76.42a3.9 3.9 0 00-1.417.923A3.9 3.9 0 00.42 2.76C.222 3.268.087 3.85.048 4.7.01 5.555 0 5.827 0 8.001c0 2.172.01 2.444.048 3.297.04.852.174 1.433.372 1.942.205.526.478.972.923 1.417.444.445.89.719 1.416.923.51.198 1.09.333 1.942.372C5.555 15.99 5.827 16 8 16s2.444-.01 3.298-.048c.851-.04 1.434-.174 1.943-.372a3.9 3.9 0 001.416-.923c.445-.445.718-.891.923-1.417.197-.509.332-1.09.372-1.942C15.99 10.445 16 10.173 16 8s-.01-2.445-.048-3.299c-.04-.851-.175-1.433-.372-1.941a3.9 3.9 0 00-.923-1.417A3.9 3.9 0 0013.24.42c-.51-.198-1.092-.333-1.943-.372C10.443.01 10.172 0 7.998 0zm-.717 1.442h.718c2.136 0 2.389.007 3.232.046.78.035 1.204.166 1.486.275.373.145.64.319.92.599s.453.546.598.92c.11.281.24.705.275 1.485.039.843.047 1.096.047 3.231s-.008 2.389-.047 3.232c-.035.78-.166 1.203-.275 1.485a2.5 2.5 0 01-.599.919c-.28.28-.546.453-.92.598-.28.11-.704.24-1.485.276-.843.038-1.096.047-3.232.047s-2.39-.009-3.233-.047c-.78-.036-1.203-.166-1.485-.276a2.5 2.5 0 01-.92-.598 2.5 2.5 0 01-.6-.92c-.109-.281-.24-.705-.275-1.485-.038-.843-.046-1.096-.046-3.233s.008-2.388.046-3.231c.036-.78.166-1.204.276-1.486.145-.373.319-.64.599-.92s.546-.453.92-.598c.282-.11.705-.24 1.485-.276.738-.034 1.024-.044 2.515-.045zm4.988 1.328a.96.96 0 100 1.92.96.96 0 000-1.92m-4.27 1.122a4.109 4.109 0 100 8.217 4.109 4.109 0 000-8.217m0 1.441a2.667 2.667 0 110 5.334 2.667 2.667 0 010-5.334"/></svg></a>
-    <a href="https://venmo.com/u/mclane" target="_blank" rel="noopener noreferrer" style="background:#008FFF"><svg width="24" height="26" viewBox="0 0 26 26" fill="#fff"><path d="M21.428 4.4c.77 1.281 1.119 2.601 1.119 4.27 0 5.32-4.541 12.23-8.227 17.08H6.15L2.776 5.563l7.37-.7 1.792 14.362c1.65-2.67 3.815-6.648 3.815-9.52 0-1.594-.273-2.678-.7-3.57z"/></svg></a>
+    <a href="https://www.instagram.com/" target="_blank" rel="noopener noreferrer" style="background:radial-gradient(circle at 30% 107%,#fdf497 0%,#fdf497 5%,#fd5949 45%,#d6249f 60%,#285AEB 90%)"><svg width="28" height="28" viewBox="0 0 16 16" fill="#fff"><path d="M8 0C5.829 0 5.556.01 4.703.048 3.85.088 3.269.222 2.76.42a3.9 3.9 0 00-1.417.923A3.9 3.9 0 00.42 2.76C.222 3.268.087 3.85.048 4.7.01 5.555 0 5.827 0 8.001c0 2.172.01 2.444.048 3.297.04.852.174 1.433.372 1.942.205.526.478.972.923 1.417.444.445.89.719 1.416.923.51.198 1.09.333 1.942.372C5.555 15.99 5.827 16 8 16s2.444-.01 3.298-.048c.851-.04 1.434-.174 1.943-.372a3.9 3.9 0 001.416-.923c.445-.445.718-.891.923-1.417.197-.509.332-1.09.372-1.942C15.99 10.445 16 10.173 16 8s-.01-2.445-.048-3.299c-.04-.851-.175-1.433-.372-1.941a3.9 3.9 0 00-.923-1.417A3.9 3.9 0 0013.24.42c-.51-.198-1.092-.333-1.943-.372C10.443.01 10.172 0 7.998 0zm-.717 1.442h.718c2.136 0 2.389.007 3.232.046.78.035 1.204.166 1.486.275.373.145.64.319.92.599s.453.546.598.92c.11.281.24.705.275 1.485.039.843.047 1.096.047 3.231s-.008 2.389-.047 3.232c-.035.78-.166 1.203-.275 1.485a2.5 2.5 0 01-.599.919c-.28.28-.546.453-.92.598-.28.11-.704.24-1.485.276-.843.038-1.096.047-3.232.047s-2.39-.009-3.233-.047c-.78-.036-1.203-.166-1.485-.276a2.5 2.5 0 01-.92-.598 2.5 2.5 0 01-.6-.92c-.109-.281-.24-.705-.275-1.485-.038-.843-.046-1.096-.046-3.233s.008-2.388.046-3.231c.036-.78.166-1.204.276-1.486.145-.373.319-.64.599-.92s.546-.453.92-.598c.282-.11.705-.24 1.485-.276.738-.034 1.024-.044 2.515-.045zm4.988 1.328a.96.96 0 100 1.92.96.96 0 000-1.92m-4.27 1.122a4.109 4.109 0 100 8.217 4.109 4.109 0 000-8.217m0 1.441a2.667 2.667 0 110 5.334 2.667 2.667 0 010-5.334"/></svg></a>
+    <a href="https://x.com/" target="_blank" rel="noopener noreferrer" style="background:#000"><svg width="22" height="22" viewBox="0 0 512 462.799" fill="#fff"><path fill-rule="nonzero" d="M403.229 0h78.506L310.219 196.04 512 462.799H354.002L230.261 301.007 88.669 462.799h-78.56l183.455-209.683L0 0h161.999l111.856 147.88L403.229 0zm-27.556 415.805h43.505L138.363 44.527h-46.68l283.99 371.278z"/></svg></a>
+    <a href="https://nessim-higson.github.io/wkndr/" target="_blank" rel="noopener noreferrer" style="background:#ff4d1f"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.7"><circle cx="12" cy="12" r="9.2"/><path d="M2.8 12h18.4M12 2.8c2.6 2.6 2.6 15.8 0 18.4M12 2.8c-2.6 2.6-2.6 15.8 0 18.4"/></svg></a>
   </div>
 
 </div>
 
 <script>
 // ============================================================
-//  EDIT ME — every card below is just a color + a label.
-//  Swap colors, titles and kickers to retheme the whole deck.
+//  WKNDR Site 02 — scroll-dealt deck of real app screens.
+//  Each card is { kind, bg, text, k(icker), h(eadline), p(ara), screen }.
+//  Screens are live HTML mockups of the WKNDR app (see SCREENS).
 // ============================================================
+
+// ---- WKNDR app screen mockups (rendered inside the iPhone) ----
+const SCREENS = {
+  field: () => `<div class="screen scr-field"><div class="island"></div>
+    <div class="field-bg"></div>
+    <div class="wk-top"><span class="wk-logo app"><span class="wk-dot"></span>WKNDR</span><span class="wk-temp">SAT · 21°</span></div>
+    <div class="field-copy"><div class="field-cond">WARM · DRY · GENTLE BREEZE</div><div class="field-phrase">A soft, generous day — the kind that lets you choose your own adventure.</div></div>
+  </div>`,
+
+  stack: () => `<div class="screen"><div class="island"></div>
+    <div class="wk-top"><span class="wk-logo app"><span class="wk-dot"></span>WKNDR</span><span class="wk-temp">SAT · 21°</span></div>
+    <div class="wk-card behind pg-eat"></div>
+    <div class="wk-card pg-drink">
+      <div class="wk-when">SAT · 20:30</div>
+      <div class="wk-pill">★ Perfect this weekend</div>
+      <div class="wk-cardbody"><div class="wk-eye">LIVE · MUSIC</div><div class="wk-title">Lente Sessions</div><div class="wk-ven">Muziekgebouw · Centrum</div></div>
+    </div>
+    <div class="wk-ctrls"><span class="wk-cb nope">✕</span><span class="wk-cb save">★</span><span class="wk-cb like">✓</span></div>
+  </div>`,
+
+  swipe: () => `<div class="screen"><div class="island"></div>
+    <div class="wk-top"><span class="wk-logo app"><span class="wk-dot"></span>WKNDR</span><span class="wk-temp">SUN · 19°</span></div>
+    <div class="wk-card behind pg-out"></div>
+    <div class="wk-card tilt pg-eat">
+      <div class="wk-stamp">YES</div>
+      <div class="wk-when">SUN · 10:00</div>
+      <div class="wk-cardbody"><div class="wk-eye">EAT · BRUNCH</div><div class="wk-title">Bakhuis Noord</div><div class="wk-ven">Amsterdam-Noord</div></div>
+    </div>
+    <div class="wk-ctrls"><span class="wk-cb nope">✕</span><span class="wk-cb save">★</span><span class="wk-cb like">✓</span></div>
+  </div>`,
+
+  share: () => `<div class="screen"><div class="island"></div>
+    <div class="wk-top"><span class="wk-logo app"><span class="wk-dot"></span>WKNDR</span><span class="wk-temp">3 saved ♥</span></div>
+    <div class="wk-sheet">
+      <div class="wk-sheet-grip"></div>
+      <div class="wk-sheet-h">Plan these together</div>
+      <div class="wk-sheet-sub">3 picks · from Ness</div>
+      <div class="wk-thumbs"><span class="pg-live"></span><span class="pg-eat"></span><span class="pg-art"></span></div>
+      <button class="wk-cta"><span class="wk-dot"></span>Plan together · Match</button>
+      <div class="wk-sheet-foot">They'll swipe these to find the ones you <b>both</b> want.</div>
+    </div>
+  </div>`,
+
+  matchdeck: () => `<div class="screen"><div class="island"></div>
+    <div class="wk-mhead"><span class="wk-mx">✕</span>
+      <div class="wk-mmid"><span class="wk-logo app"><span class="wk-dot"></span>WKNDR</span><span class="wk-mwith">Matching with <b>Ness</b></span></div>
+      <span class="wk-mcount">♥ 2</span></div>
+    <div class="wk-mprog"><span style="width:25%"></span></div>
+    <div class="wk-card behind pg-live"></div>
+    <div class="wk-card pg-out">
+      <div class="wk-when">SUN · 11:00</div>
+      <div class="wk-cardbody"><div class="wk-eye">OUT · MARKET</div><div class="wk-title">Pekmarkt</div><div class="wk-ven">Amsterdam-Noord</div></div>
+    </div>
+    <div class="wk-mstep">4 of 16</div>
+    <div class="wk-ctrls"><span class="wk-cb nope">✕</span><span class="wk-cb like">✓</span></div>
+  </div>`,
+
+  slam: () => `<div class="screen scr-slam"><div class="island"></div>
+    <div class="slam-av"><span class="av you">You</span><span class="av spark">✦</span><span class="av them">N</span></div>
+    <div class="slam-h">It's a match</div>
+    <div class="slam-card"><span class="thumb pg-eat"></span><div><div class="wk-eye dk">EAT</div><div class="slam-title">Café de Plantage</div><div class="slam-both">You both want to go here</div></div></div>
+    <button class="wk-cta">Keep swiping · 2 matched</button>
+  </div>`,
+
+  plan: () => `<div class="screen"><div class="island"></div>
+    <div class="wk-top"><span class="wk-logo app"><span class="wk-dot"></span>WKNDR</span><span class="wk-temp">SAT–SUN</span></div>
+    <div class="wk-plan">
+      <div class="plan-h">2 matches</div>
+      <div class="plan-sub">with Ness · this weekend</div>
+      <div class="plan-row"><span class="thumb pg-eat"></span><div><div class="plan-t">Café de Plantage</div><div class="wk-eye dk">EAT · SAT 19:00</div></div><span class="plan-chk">✓</span></div>
+      <div class="plan-row"><span class="thumb pg-live"></span><div><div class="plan-t">Lente Sessions</div><div class="wk-eye dk">LIVE · SAT 20:30</div></div><span class="plan-chk">✓</span></div>
+      <button class="wk-cta">Send Ness your matches</button>
+      <div class="plan-2">Add 2 to my list · Export to calendar</div>
+    </div>
+  </div>`,
+};
+
+// ---- the deck (cover + field + feed + swipe + 4-card matching arc) ----
 const projects = [
-  {color:"#F4C95D", text:"#1c1303", kicker:"Drop ideas, lock a plan",     title:"Plan the weekend"},
-  {color:"#7FB7D9", text:"#08222e", kicker:"Weather-aware suggestions",   title:"Read the sky"},
-  {color:"#E98A77", text:"#3a0f0a", kicker:"Invite, match, go",           title:"Gather your people"},
-  {color:"#8FB996", text:"#11261a", kicker:"An outfit for the forecast",  title:"Save your looks"},
-  {color:"#B6A6E0", text:"#1e1340", kicker:"Places that fit the mood",    title:"Find the spot"},
-  {color:"#2E3A59", text:"#dfe7ff", kicker:"Keep the good ones",          title:"Make the recap"},
+  {kind:'cover',  bg:'#faf8f3', text:'#1a1a1a'},
+  {kind:'device', bg:'#1f3a36', text:'#eafaf4', k:'The field', h:'It starts with the sky.', p:'An ambient field reads the live forecast and sets the mood — warm, cool, or volatile.', screen:'field'},
+  {kind:'device', bg:'#143f3c', text:'#eafaf6', k:'The feed', h:'Your weekend, ranked by the weather.', p:"Every pick is scored against Saturday's forecast, so the best plan floats to the top.", screen:'stack'},
+  {kind:'device', bg:'#7a3f1a', text:'#ffeede', k:'Swipe', h:"Keep what you'd actually do.", p:'Right to save, left to skip. It quietly learns your taste as you go.', screen:'swipe'},
+  {kind:'device', bg:'#faf8f3', text:'#1a1a1a', k:'Matching · 01', h:'Save a few. Share one link.', p:'No sign-up, nothing to download. The link itself is the invite.', screen:'share'},
+  {kind:'device', bg:'#121a2e', text:'#eef2f7', k:'Matching · 02', h:'Then you swipe through theirs.', p:"Your partner's picks become your deck. Yes on the ones you're into.", screen:'matchdeck'},
+  {kind:'device', bg:'accent',  text:'#ffffff', k:'Matching · 03', h:'When you both say yes.', p:"Overlap triggers the match — the one plan you'll both actually show up for.", screen:'slam'},
+  {kind:'device', bg:'#faf8f3', text:'#1a1a1a', k:'Matching · 04', h:'Overlap becomes a plan.', p:'Send it back, add it to your weekend, export to your calendar. Done.', screen:'plan'},
 ];
 
-// end-card chips = the weather moods WKNDR adapts to. Hover for the label.
+// end-card chips = the weather moods WKNDR adapts to (real app modes). Hover for the label.
 const timeline = [
-  {color:"#7FB7D9", name:"Rain",     role:"Cozy indoors",    years:"stay-in mode"},
-  {color:"#8FB996", name:"Overcast", role:"Soft and calm",   years:"easy plans"},
-  {color:"#F4C95D", name:"Clear",    role:"Blue-sky energy", years:"get outside"},
-  {color:"#E98A77", name:"Golden",   role:"Late afternoon",  years:"magic hour"},
+  {color:'#c8d27a', name:'Warm',     role:'Dry · gentle breeze', years:'choose your adventure'},
+  {color:'#9fc0b8', name:'Cool',     role:'Clear · crisp air',   years:'the city is walkable'},
+  {color:'#6c7e9c', name:'Cold & wet', role:'An indoor day',     years:'well spent inside'},
+  {color:'#e08a4a', name:'Hot',      role:'Dry · keep water close', years:'chase the shade'},
 ];
 
 const isMobile = window.innerWidth < 768;
 
-// ---- exact constants from source ----
-const L = isMobile ? 300 : 800;          // dismissDistance / step
-const HFAC = isMobile ? 1.8 : 0.8;       // closing extra
-const TOTAL = projects.length;            // 16
-const UMAX = L + (TOTAL-1)*L + L*HFAC;    // max scroll progress
+// ---- deck engine constants ----
+const L = isMobile ? 300 : 800;
+const HFAC = isMobile ? 1.8 : 0.8;
+const TOTAL = projects.length;
+const UMAX = L + (TOTAL-1)*L + L*HFAC;
 const VISIBLE = 3;
-const introYStart = isMobile ? 50 : 72;   // vh
+const introYStart = isMobile ? 50 : 72;
 const cInit = isMobile ? 150 : 300;
-// spring params
 const SPR = isMobile ? {k:120,c:35,m:0.3} : {k:200,c:40,m:0.5};
 
 // ---- motion values ----
-let p = 0;                 // raw scroll target
-let m = 0, mv = 0;         // spring position + velocity
-let cOff = cInit;          // intro offset (animates ->0)
-let dMaster = 0;           // master opacity (animates ->1)
-let ready = false;
-
+let p = 0, m = 0, mv = 0, cOff = cInit, dMaster = 0, ready = false;
 const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
 const invlerp=(v,a,b)=>clamp((v-a)/(b-a),0,1);
 const lerp=(a,b,t)=>a+(b-a)*t;
@@ -273,29 +570,40 @@ const lerp=(a,b,t)=>a+(b-a)*t;
 // ---- build cards ----
 const deck = document.getElementById('deck');
 const cardEls = [];
-projects.forEach((proj,i)=>{
+projects.forEach((c,i)=>{
   const card = document.createElement('div');
   card.className='card';
   const media = document.createElement('div');
   media.className='media';
-  media.style.backgroundColor = proj.color;
-  media.style.color = proj.text || '#000';
-  const lab = document.createElement('div');
-  lab.className='card-label';
-  lab.innerHTML =
-    `<div class="cn">${String(i+1).padStart(2,'0')} / ${projects.length}</div>`+
-    `<div class="ct">${proj.title}</div>`+
-    `<div class="ck">${proj.kicker}</div>`;
-  media.appendChild(lab);
+  media.style.color = c.text;
+  media.style.background = (c.bg==='accent')
+    ? 'radial-gradient(120% 120% at 28% 0%, #ff7a3d 0%, #ff4d1f 40%, #a32d12 100%)'
+    : c.bg;
+  if(c.kind==='cover'){
+    media.innerHTML = `<div class="card-cover">
+      <div class="wk-logo"><span class="wk-dot"></span>WKNDR</div>
+      <div class="tag">Tinder your events.</div>
+      <div class="sub">Weather-ranked plans for your weekend.</div>
+    </div>`;
+  } else {
+    media.innerHTML = `<div class="card-device">
+      <div class="copy">
+        <div class="k"><span class="kdot"></span>${c.k}</div>
+        <h2>${c.h}</h2>
+        <p>${c.p}</p>
+      </div>
+      <div class="phone-wrap"><div class="phone">${SCREENS[c.screen]()}</div></div>
+    </div>`;
+  }
   card.appendChild(media);
   deck.appendChild(card);
   cardEls.push(card);
 });
 
-// ---- build timeline icons + labels ----
+// ---- build weather chips + hover labels ----
 const iconRow = document.getElementById('icon-row');
 const labelEls = [];
-timeline.forEach((t,i)=>{
+timeline.forEach((t)=>{
   const label=document.createElement('div');
   label.className='label';
   label.innerHTML=`<div class="lab-inner"><span>${t.name}</span><span>${t.role}</span><span class="yr">${t.years}</span></div>`;
@@ -319,7 +627,6 @@ iconRow.appendChild(iconsWrap);
 function setHovered(idx){
   labelEls.forEach((el,i)=>{
     const on = i===idx;
-    // center label over its icon
     if(on && iconImgs[i]){
       const off = iconImgs[i].offsetLeft + 22 - (iconsWrap.offsetWidth/2);
       el.style.left = off+'px';
@@ -339,6 +646,8 @@ const mclaneLink=document.getElementById('mclane-link');
 const gitBtn=document.getElementById('git');
 const touchedEl=document.getElementById('touched');
 const copiedEl=document.getElementById('copied');
+const brandmark=document.getElementById('brandmark');
+const earlyLink=document.getElementById('early');
 
 // ---- input ----
 window.addEventListener('wheel',(e)=>{
@@ -363,10 +672,7 @@ stage.addEventListener('touchmove',(e)=>{
 let socialOpen=false;
 function openSocial(o){ socialOpen=o; }
 mclaneLink.addEventListener('mouseenter',(e)=>{
-  if(!isMobile){
-    social.style.left=(e.clientX+76.8)+'px';
-    social.style.top=e.clientY+'px';
-  }
+  if(!isMobile){ social.style.left=(e.clientX+76.8)+'px'; social.style.top=e.clientY+'px'; }
   openSocial(true);
 });
 mclaneLink.addEventListener('mouseleave',()=>openSocial(false));
@@ -374,7 +680,7 @@ social.addEventListener('mouseenter',()=>openSocial(true));
 social.addEventListener('mouseleave',()=>openSocial(false));
 if(isMobile){ social.style.left='50%'; social.style.top='50%'; }
 
-// ---- get in touch ----
+// ---- get early access (copy email) ----
 let emailCopied=false;
 gitBtn.addEventListener('click',()=>{
   if(emailCopied) return;
@@ -386,15 +692,14 @@ gitBtn.addEventListener('click',()=>{
   document.body.removeChild(ta);
   emailCopied=true;
   gitBtn.style.opacity='0'; touchedEl.style.opacity='1';
-  setTimeout(()=>{ copiedEl.style.opacity='.65'; copiedEl.style.transform='translateY(0) rotate(0deg)'; },500);
+  setTimeout(()=>{ copiedEl.style.opacity='1'; copiedEl.style.transform='translateY(0) rotate(0deg)'; },500);
   setTimeout(()=>{ copiedEl.style.opacity='0'; copiedEl.style.transform='translateY(6px) rotate(-3deg)'; },2500);
   setTimeout(()=>{ emailCopied=false; gitBtn.style.opacity='1'; touchedEl.style.opacity='0'; },2500);
 });
 
-// ---- intro tweens (custom-bezier eased) ----
+// ---- intro tweens ----
 function cubicBezier(p1x,p1y,p2x,p2y){
-  // sample-based bezier easing
-  function bz(t,a,b){return ((1-t)*(1-t)*(1-t)*0)+3*(1-t)*(1-t)*t*a+3*(1-t)*t*t*b+t*t*t*1;}
+  function bz(t,a,b){return 3*(1-t)*(1-t)*t*a+3*(1-t)*t*t*b+t*t*t;}
   return function(x){
     let lo=0,hi=1,t=x;
     for(let i=0;i<18;i++){ t=(lo+hi)/2; const xx=bz(t,p1x,p2x); if(xx<x)lo=t; else hi=t; }
@@ -404,15 +709,13 @@ function cubicBezier(p1x,p1y,p2x,p2y){
 const easeIntro=cubicBezier(.22,1,.36,1);
 let introStart=null;
 
-// ---- spring step ----
+// ---- spring ----
 function springStep(dt){
-  // substep for stability
   const steps=Math.max(1,Math.ceil(dt/0.004));
   const h=dt/steps;
   for(let i=0;i<steps;i++){
     const f=(-SPR.k*(m-p)-SPR.c*mv)/SPR.m;
-    mv+=f*h;
-    m+=mv*h;
+    mv+=f*h; m+=mv*h;
   }
   if(Math.abs(m-p)<0.001 && Math.abs(mv)<0.01){ m=p; mv=0; }
 }
@@ -422,32 +725,30 @@ let last=null;
 function frame(ts){
   if(introStart===null) introStart=ts;
   if(last===null) last=ts;
-  let dt=(ts-last)/1000; last=ts;
-  dt=Math.min(dt,1/30);
+  let dt=(ts-last)/1000; last=ts; dt=Math.min(dt,1/30);
 
   springStep(dt);
 
-  // intro tweens
   const tSec=(ts-introStart)/1000;
-  // cOff: cInit -> 0 over 1.4s, delay .3s
   { const t=invlerp(tSec,0.3,0.3+1.4); cOff=lerp(cInit,0,easeIntro(t)); }
-  // dMaster: 0 -> 1 over 1.6s, delay .1s
   { const t=invlerp(tSec,0.1,0.1+1.6); dMaster=lerp(0,1,easeIntro(t)); }
   if(!ready && tSec>0.05) ready=true;
 
   const f=Math.max(0,m-L);
 
-  // ---- deck container transform ----
-  const introY = lerp(introYStart,0, invlerp(m,0,L));        // vh
+  // deck container
+  const introY = lerp(introYStart,0, invlerp(m,0,L));
   const rot = lerp(2,0, invlerp(m,0,L)) * (isMobile?0:1);
-  deck.style.transform = `translateY(calc(${introY}vh + ${cOff}px)) rotate(${rot}deg)`;
-  if(isMobile) deck.style.transform += ' scale(0.97)';
+  deck.style.transform = `translateY(calc(${introY}vh + ${cOff}px)) rotate(${rot}deg)` + (isMobile?' scale(0.97)':'');
 
-  // ---- headline opacity = dMaster * x ----
+  // background headline + brand chrome
   const x = lerp(1,0, invlerp(f,(TOTAL-2)*L,(TOTAL-1)*L));
   headlineWrap.style.opacity = dMaster * x;
+  brandmark.style.opacity = dMaster * 0.85;
+  earlyLink.style.opacity = dMaster * 0.85;
+  earlyLink.style.pointerEvents = dMaster>0.5?'auto':'none';
 
-  // ---- cards ----
+  // cards
   for(let e=0;e<TOTAL;e++){
     const h = (e*L - f)/L + 1;
     const y = h<1 ? -(1-h)*L : (h-1)*18;
@@ -457,22 +758,21 @@ function frame(ts){
              : (isMobile && e===0 && h>0) ? 1.5*Math.min(1,h) : 0;
     const op = (h<-0.5 || h>VISIBLE+1) ? 0 : (h>VISIBLE ? 1-(h-VISIBLE) : 1);
     const z = Math.round(TOTAL - h + 1);
-    const pe = h<0.1 ? 'none':'auto';
     const el=cardEls[e];
     el.style.transform=`translateY(${y}px) scale(${sc}) rotate(${ro}deg)`;
     el.style.opacity=op;
     el.style.zIndex=z;
-    el.style.pointerEvents=pe;
+    el.style.pointerEvents=h<0.1?'none':'auto';
   }
 
-  // ---- closing content ----
+  // closing
   const b=(TOTAL-1)*L;
   const T=invlerp(f,b+0.3*L,b+0.7*L);
   closing.style.opacity = ready ? T : 0;
   closing.style.zIndex = (T>0.01)?9999:0;
   closing.style.pointerEvents = T>0.3?'auto':'none';
 
-  // ---- backdrop + social ----
+  // backdrop + social
   backdrop.style.backdropFilter = socialOpen?'blur(8px)':'blur(0px)';
   backdrop.style.webkitBackdropFilter = socialOpen?'blur(8px)':'blur(0px)';
   backdrop.style.background = socialOpen?'rgba(0,0,0,0.05)':'transparent';

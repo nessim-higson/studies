@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Plai — Emergent UI Sketchbook</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Space+Mono:wght@400;700&family=Nunito:wght@600;700;800;900&family=Caveat:wght@600;700&display=swap" rel="stylesheet">
+<style>
+  :root{--ink:#0b0b0d;--panel:#131315;--line:#2a2a31;--dash:#3a3a44;--chalk:#f3f3ef;--muted:#8a8a92;
+    --yellow:#ffd23f;--red:#ff4d4d;--orange:#ff9f1c;--green:#3ddc84;--sky:#3da5ff;--grape:#a06cff;--pink:#ff6fcf;}
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:var(--ink);color:var(--chalk);font-family:'Nunito',system-ui,sans-serif;font-weight:600;-webkit-font-smoothing:antialiased;
+    background-image:radial-gradient(circle at 1px 1px,rgba(255,255,255,.03) 1px,transparent 0);background-size:22px 22px}
+  .wrap{max-width:1080px;margin:0 auto;padding:54px 26px 110px}
+  .kick{font-family:'Press Start 2P',monospace;font-size:10px;color:var(--muted);letter-spacing:1px;margin-bottom:18px}
+  h1{font-weight:900;font-size:clamp(30px,4.4vw,48px);letter-spacing:-.03em;line-height:1.02;margin-bottom:16px}
+  h1 .y{color:var(--yellow)}
+  .lede{font-size:18px;color:#c8c8ce;max-width:64ch;line-height:1.55}
+  .lede b{color:#fff}
+  .scribble{font-family:'Caveat',cursive;font-weight:700;color:var(--yellow);font-size:21px}
+  .sectlbl{font-family:'Press Start 2P',monospace;font-size:12px;color:var(--muted);letter-spacing:1px;margin:54px 0 8px}
+  .sectsub{color:#a6a6ae;font-size:15px;margin-bottom:22px;max-width:62ch}
+
+  /* ---- the reframe / metaphor ---- */
+  .reframe{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-top:34px}
+  .meta-card{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:26px}
+  .meta-card .lbl{font-family:'Space Mono',monospace;font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:12px}
+  .meta-card .big{font-size:21px;font-weight:900;line-height:1.25;letter-spacing:-.01em}
+  .meta-card .big em{font-style:normal;color:var(--yellow)}
+  .meta-card .note{font-size:14px;color:#aaa;margin-top:12px;font-weight:600}
+
+  /* ---- two-layer spine diagram ---- */
+  .spine{background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:34px;margin-top:24px;position:relative;overflow:hidden}
+  .emerge-row{display:flex;gap:12px;flex-wrap:wrap;justify-content:center;margin-bottom:14px}
+  .chip{font-family:'Space Mono',monospace;font-size:12px;padding:9px 13px;border:1.5px dashed var(--dash);border-radius:999px;color:#cfcfd4;background:rgba(255,255,255,.02);animation:rise 3s ease-in-out infinite}
+  .chip b{color:var(--yellow)}
+  @keyframes rise{0%,100%{transform:translateY(0)}50%{transform:translateY(-5px)}}
+  .layer-lbl{text-align:center;font-family:'Space Mono',monospace;font-size:10px;letter-spacing:1px;text-transform:uppercase;margin:10px 0}
+  .layer-lbl.em{color:var(--pink)}
+  .layer-lbl.st{color:var(--sky)}
+  .spine-bar{display:flex;gap:10px;flex-wrap:wrap;justify-content:center;background:linear-gradient(180deg,rgba(61,165,255,.1),rgba(61,165,255,.03));border:2px solid var(--sky);border-radius:12px;padding:16px}
+  .spine-bar .s{font-family:'Space Mono',monospace;font-size:12px;font-weight:700;padding:8px 12px;border-radius:8px;background:rgba(61,165,255,.12);color:#bfe0ff}
+  .arrow-down{text-align:center;color:var(--dash);font-size:22px;margin:6px 0}
+  .spine-rule{text-align:center;margin-top:20px;font-size:15px;font-weight:800}
+  .spine-rule .y{color:var(--yellow)}
+
+  /* ---- pattern sketches ---- */
+  .patterns{display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-top:14px}
+  .pat{background:var(--panel);border:1px solid var(--line);border-radius:16px;overflow:hidden;display:flex;flex-direction:column}
+  .pat .num{position:absolute;top:14px;right:16px;font-family:'Press Start 2P',monospace;font-size:14px;color:var(--dash)}
+  .sketch{height:200px;background:#0d0d10;border-bottom:1px dashed var(--dash);position:relative;display:flex;align-items:center;justify-content:center;overflow:hidden}
+  .pat .body{padding:20px 22px 22px;position:relative}
+  .pat .pname{font-size:19px;font-weight:900;letter-spacing:-.01em;margin-bottom:6px}
+  .pat .what{font-size:14px;color:#bcbcc4;line-height:1.5;margin-bottom:14px}
+  .ex{display:flex;gap:10px;margin-top:6px}
+  .ex .e{flex:1;border:1px solid var(--line);border-radius:9px;padding:9px 11px}
+  .ex .e .t{font-family:'Space Mono',monospace;font-size:9px;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px}
+  .ex .e.kid .t{color:var(--green)} .ex .e.adult .t{color:var(--grape)}
+  .ex .e .d{font-size:12.5px;font-weight:700;color:#d3d3da}
+
+  /* wireframe bits inside sketches */
+  .frame{border:1.5px dashed var(--dash);border-radius:12px;width:78%;height:78%;position:relative;background:rgba(255,255,255,.01)}
+  .wf{position:absolute;font-family:'Space Mono',monospace;font-size:10px;color:var(--muted)}
+  .dock{position:absolute;bottom:10px;left:50%;transform:translateX(-50%);display:flex;gap:6px;background:#16161a;border:1px solid var(--line);border-radius:999px;padding:6px 8px}
+  .dock i{width:16px;height:16px;border-radius:4px;background:#2a2a31;display:block}
+  .pop{width:16px;height:16px;border-radius:4px;animation:poof .8s ease-in-out infinite alternate}
+  @keyframes poof{from{transform:scale(.7);opacity:.5}to{transform:scale(1);opacity:1}}
+  .anno{position:absolute;font-family:'Caveat',cursive;font-weight:700;color:var(--yellow);font-size:16px;line-height:1}
+  .ghost{position:absolute;border:1.5px dashed var(--pink);border-radius:3px;opacity:.6}
+  .px{position:absolute;width:12px;height:12px;border-radius:2px}
+
+  /* ---- interactive ---- */
+  .demo{background:var(--panel);border:1px solid var(--yellow);border-radius:18px;padding:30px;margin-top:24px}
+  .demo h3{font-size:20px;font-weight:900;margin-bottom:6px}
+  .demo .sub{font-size:14px;color:#a6a6ae;margin-bottom:20px}
+  .demo-stage{display:grid;grid-template-columns:1fr 200px;gap:20px}
+  .canvas{height:280px;background:#0b0b0e;border-radius:14px;position:relative;overflow:hidden;border:1px solid var(--line)}
+  .canvas .grid{position:absolute;inset:0;background-image:linear-gradient(rgba(255,255,255,.04) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.04) 1px,transparent 1px);background-size:18px 18px}
+  .live-dock{position:absolute;bottom:14px;left:50%;transform:translateX(-50%);display:flex;gap:8px;background:#16161a;border:1px solid var(--line);border-radius:999px;padding:9px 12px;align-items:center;min-height:46px}
+  .live-dock .core{width:22px;height:22px;border-radius:6px;background:#33333a;display:flex;align-items:center;justify-content:center;font-size:11px}
+  .live-dock .gen{width:26px;height:26px;border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:14px;animation:summon .45s cubic-bezier(.34,1.56,.64,1) backwards}
+  @keyframes summon{from{transform:scale(0) translateY(10px);opacity:0}to{transform:scale(1) translateY(0);opacity:1}}
+  .intents{display:flex;flex-direction:column;gap:9px}
+  .intents .il{font-family:'Space Mono',monospace;font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:1px}
+  .intent{text-align:left;background:#16161a;border:1px solid var(--line);color:#cfcfd4;font-family:'Nunito';font-weight:800;font-size:13px;padding:11px 13px;border-radius:10px;cursor:pointer}
+  .intent:hover{border-color:var(--yellow)}
+  .intent.on{background:var(--yellow);color:#1a1300;border-color:var(--yellow)}
+  .summon-note{position:absolute;top:12px;left:14px;font-family:'Caveat',cursive;font-weight:700;color:var(--pink);font-size:17px;opacity:0;transition:.3s}
+
+  /* ---- platform ---- */
+  .platform{background:linear-gradient(135deg,#0e1320,#0d0d10);border:1px solid #243047;border-radius:18px;padding:34px;margin-top:24px}
+  .flow{display:flex;align-items:stretch;gap:0;margin-top:22px;flex-wrap:wrap}
+  .node{flex:1;min-width:150px;background:rgba(255,255,255,.03);border:1px solid var(--line);border-radius:12px;padding:16px;text-align:center}
+  .node .nt{font-family:'Space Mono',monospace;font-size:10px;color:var(--sky);text-transform:uppercase;margin-bottom:8px;letter-spacing:.5px}
+  .node .nd{font-size:13px;font-weight:700;color:#d3d3da}
+  .flowarrow{display:flex;align-items:center;color:var(--dash);font-size:20px;padding:0 8px}
+  .platform .takeaway{margin-top:20px;font-size:15px;font-weight:800;color:var(--yellow)}
+
+  .build{margin-top:24px;display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+  .step{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:18px}
+  .step .sn{font-family:'Press Start 2P',monospace;font-size:11px;color:var(--green);margin-bottom:10px}
+  .step .st{font-weight:900;font-size:15px;margin-bottom:5px}
+  .step .sd{font-size:12.5px;color:#a6a6ae;font-weight:600;line-height:1.45}
+
+  .steer{margin-top:34px;font-family:'Space Mono',monospace;font-size:13px;color:#8a8a92;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:18px 20px;line-height:1.6}
+  .steer b{color:var(--green)}
+  @media(max-width:820px){.reframe,.patterns,.demo-stage{grid-template-columns:1fr}.build{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="kick">PLAI · EMERGENT UI — A SKETCHBOOK FOR IVAN</div>
+  <h1>The interface doesn't <span class="y">have</span> features.<br>It <span class="y">grows</span> them — as you create.</h1>
+  <p class="lede">These are <b>sketches, not specs</b> — ideas to react to. The thing that unsticks "fluid &amp; emergent" isn't more fluidity. It's drawing a hard line between <b>what never moves</b> and <b>what's generated on the fly.</b> Get that line right and the whole system becomes buildable, learnable, and still feels alive. <span class="scribble">↓ start here</span></p>
+
+  <!-- REFRAME -->
+  <div class="sectlbl">▼ FIRST, A WAY TO EXPLAIN IT</div>
+  <div class="sectsub">Two metaphors to make "what is he building?" land in one sentence — for investors, for kids' parents, for Ivan himself.</div>
+  <div class="reframe">
+    <div class="meta-card">
+      <div class="lbl">The architecture, in one line</div>
+      <div class="big">Most apps are a building with <em>fixed rooms.</em> Plai is a <em>stage</em> — the floor never moves, but the set rebuilds for every scene.</div>
+      <div class="note">→ This is why it feels fluid without falling apart. The stage = the stable spine. The set = the emergent layer.</div>
+    </div>
+    <div class="meta-card">
+      <div class="lbl">Kids AND adults, in one line</div>
+      <div class="big">It's <em>one instrument.</em> A kid plays three notes; a pro plays a symphony. The interface only reveals as much as you reach for.</div>
+      <div class="note">→ You don't build a "kids mode" and an "adults mode." You build one surface that grows with the maker.</div>
+    </div>
+  </div>
+
+  <!-- SPINE MODEL -->
+  <div class="sectlbl">▼ THE ONE IDEA THAT UNBLOCKS EVERYTHING</div>
+  <div class="sectsub">Ivan's stuck because "emergent UI" sounds like *everything moves*. It doesn't. Draw this line and the rest is detail.</div>
+  <div class="spine">
+    <div class="layer-lbl em">↑ EMERGENT LAYER — generated per moment, never memorized</div>
+    <div class="emerge-row">
+      <span class="chip" style="animation-delay:0s"><b>tools</b> that appear</span>
+      <span class="chip" style="animation-delay:.3s"><b>stamps</b> for what you're making</span>
+      <span class="chip" style="animation-delay:.6s"><b>scaffolds</b> &amp; guides</span>
+      <span class="chip" style="animation-delay:.9s"><b>generated</b> assets</span>
+      <span class="chip" style="animation-delay:1.2s">the <b>medium</b> it becomes</span>
+    </div>
+    <div class="arrow-down">⌄ floats on top of ⌄</div>
+    <div class="layer-lbl st">THE STABLE SPINE — never moves, always learnable</div>
+    <div class="spine-bar">
+      <span class="s">the canvas</span><span class="s">paint = one gesture</span><span class="s">undo</span>
+      <span class="s">where your stuff lives</span><span class="s">how to get home</span><span class="s">sign-in</span>
+    </div>
+    <div class="spine-rule">The rule: <span class="y">if a 5-year-old needs muscle memory for it, it lives in the spine.</span> Everything else can be summoned.</div>
+  </div>
+
+  <!-- PATTERNS -->
+  <div class="sectlbl">▼ SIX PATTERNS FOR THE EMERGENT LAYER</div>
+  <div class="sectsub">Each is a concrete interaction Ivan can build — with a kid example and an adult example, because it's the same pattern serving both.</div>
+  <div class="patterns" id="patterns"></div>
+
+  <!-- INTERACTIVE -->
+  <div class="sectlbl">▼ FEEL IT — THE SUMMONED TOOLBAR</div>
+  <div class="demo">
+    <h3>Pick an intent. Watch the tools materialize.</h3>
+    <div class="sub">The dock starts with only the core gesture. Tell it what you're making and the relevant tools appear — then vanish when you move on. No menu, no settings, no hunting.</div>
+    <div class="demo-stage">
+      <div class="canvas">
+        <div class="grid"></div>
+        <div class="summon-note" id="snote"></div>
+        <div class="live-dock" id="dock"></div>
+      </div>
+      <div class="intents">
+        <div class="il">// I want to make…</div>
+        <button class="intent" data-k="forest">🌲 a forest</button>
+        <button class="intent" data-k="face">🙂 a face</button>
+        <button class="intent" data-k="castle">🏰 a castle</button>
+        <button class="intent" data-k="animate">✨ it move</button>
+        <button class="intent" data-k="reset">↺ just paint</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- PLATFORM -->
+  <div class="sectlbl">▼ HOW IT RUNS ON THE PLATFORM YOU'RE BUILDING</div>
+  <div class="sectsub">The emergent layer isn't magic or hand-wired screens — it's a loop. This is the seam between Ivan's robust backend and the fluid front.</div>
+  <div class="platform">
+    <div style="font-size:16px;font-weight:800;color:#d3d3da">The emergent loop</div>
+    <div class="flow">
+      <div class="node"><div class="nt">1 · Signal</div><div class="nd">What you're doing + what you typed/drew + who you are</div></div>
+      <div class="flowarrow">→</div>
+      <div class="node"><div class="nt">2 · Engine</div><div class="nd">Recommend or generate: which tools, stamps, scaffolds fit <i>now</i></div></div>
+      <div class="flowarrow">→</div>
+      <div class="node"><div class="nt">3 · Registry</div><div class="nd">Compose from a library of real components + generated assets you control</div></div>
+      <div class="flowarrow">→</div>
+      <div class="node"><div class="nt">4 · Render</div><div class="nd">Drop into the emergent layer, above the stable spine</div></div>
+    </div>
+    <div class="takeaway">The platform's real job: a fast Signal→Engine→Registry loop. The UI stays thin. That's the robust system worth building — not 1,000 hand-made screens.</div>
+  </div>
+
+  <!-- BUILD ORDER -->
+  <div class="sectlbl">▼ SO IT'S NOT OVERWHELMING — A BUILD ORDER</div>
+  <div class="build">
+    <div class="step"><div class="sn">01</div><div class="st">Lock the spine</div><div class="sd">Ship the stable canvas + core gestures rock-solid. This alone is a great product. Everything emergent is additive.</div></div>
+    <div class="step"><div class="sn">02</div><div class="st">Summon from a fixed library</div><div class="sd">The engine just <i>picks</i> from tools you authored. Feels alive, zero generation risk. (Pattern 1.)</div></div>
+    <div class="step"><div class="sn">03</div><div class="st">Then generate</div><div class="sd">Once the loop works, let the registry generate assets &amp; "make real." The wow moments — earned on a stable base.</div></div>
+  </div>
+
+  <div class="steer">// FOR IVAN: the question isn't "how do I make the UI emergent?" — it's <b>"what's in my spine vs my emergent layer?"</b> Answer that and the patterns above are just the menu. // FOR NESSIM: want me to turn any one sketch into a real interactive prototype, or build the spine/emergent split as a one-page diagram he can put in a deck?</div>
+</div>
+
+<script>
+  const C={red:'#ff4d4d',orange:'#ff9f1c',yellow:'#ffd23f',green:'#3ddc84',sky:'#3da5ff',grape:'#a06cff',pink:'#ff6fcf'};
+  const CA=Object.values(C);
+
+  // ---------- pattern cards with mini wireframe sketches ----------
+  const PATS=[
+    {num:'01',name:'Summoned Tools',what:'The toolbar is generated, not fixed. Reach toward something and the tools for it appear — then leave when you don\'t need them.',
+     kid:'Paints green → tree & bush stamps pop into the dock.', adult:'Types "isometric" → grid-snap & depth tools appear.',
+     sketch:`<div class="frame"><div class="dock"><i></i><div class="pop" style="background:var(--green)"></div><div class="pop" style="background:var(--orange);animation-delay:.2s"></div><i></i></div><div class="anno" style="bottom:42px;right:18px">appear on demand →</div></div>`},
+    {num:'02',name:'The Canvas Suggests',what:'Scaffolds emerge FROM the content. Start a shape and the canvas offers structure — symmetry, guides, a horizon — that you can take or ignore.',
+     kid:'Draws half a butterfly → the other half mirrors as a ghost.', adult:'Blocks a horizon → sky/ground zones + perspective guides.',
+     sketch:`<div class="frame"><div class="px" style="left:30%;top:35%;background:var(--sky)"></div><div class="ghost" style="left:54%;top:33%;width:16px;height:16px"></div><div class="anno" style="left:20%;bottom:24px">↖ it mirrors for you</div></div>`},
+    {num:'03',name:'Say / Sketch it into being',what:'Intent becomes content. Describe or rough-sketch it, the system makes it real — a creature, a scene, a working little game.',
+     kid:'"a dragon" → a blocky dragon to color in & remix.', adult:'Sketches a UI / level → it becomes playable. (tldraw "make real").',
+     sketch:`<div class="frame"><div class="wf" style="left:14px;top:14px">"a dragon" ⌨</div><div class="anno" style="left:50%;top:46%;transform:translate(-50%,-50%)">→ ✦ becomes real</div></div>`},
+    {num:'04',name:'Grows With You',what:'Progressive mastery. The UI reveals depth only as the maker demonstrates need — so it\'s never too simple OR too scary.',
+     kid:'Sees 2 huge tools. That\'s the whole app to them.', adult:'Same app unfolds layers, shortcuts, precision — earned, not toggled.',
+     sketch:`<div class="frame"><div class="dock" style="bottom:50px"><i style="width:26px;height:26px"></i><i style="width:26px;height:26px"></i></div><div class="dock"><i></i><i></i><i></i><i></i><i></i><i></i></div><div class="anno" style="right:16px;top:18px">depth, on demand</div></div>`},
+    {num:'05',name:'The Living Palette',what:'Stamps, brushes, creatures, palettes are generated & remixed on the fly — infinite, fresh content nobody hand-drew.',
+     kid:'A new daily creature set to play with, every morning.', adult:'Generate a coherent 16-color palette + matching brushes from a vibe.',
+     sketch:`<div class="frame"><div style="position:absolute;left:50%;top:48%;transform:translate(-50%,-50%);display:grid;grid-template-columns:repeat(4,14px);gap:5px">${CA.concat(CA.slice(0,1)).map((c,i)=>`<div style="width:14px;height:14px;border-radius:3px;background:${c};animation:poof 1s ease-in-out ${i*.12}s infinite alternate"></div>`).join('')}</div></div>`},
+    {num:'06',name:'One Surface, Many Media',what:'The same canvas becomes a drawing, a comic, an animation, a tiny game — the UI reconfigures to the medium you\'re reaching for.',
+     kid:'Adds frames → it\'s suddenly an animation, play button appears.', adult:'Same scene exported as art, sprite sheet, or playable.',
+     sketch:`<div class="frame"><div class="wf" style="left:14px;top:14px">▢ draw</div><div class="wf" style="left:14px;top:34px;color:var(--yellow)">▷ animate</div><div class="wf" style="left:14px;top:54px">◔ comic</div><div class="anno" style="right:14px;bottom:20px">one canvas →<br>many outputs</div></div>`}
+  ];
+  const host=document.getElementById('patterns');
+  PATS.forEach(p=>{
+    const el=document.createElement('div');el.className='pat';
+    el.innerHTML=`<div class="sketch">${p.sketch}</div>
+      <div class="body"><div class="num">${p.num}</div>
+        <div class="pname">${p.name}</div>
+        <div class="what">${p.what}</div>
+        <div class="ex">
+          <div class="e kid"><div class="t">KID</div><div class="d">${p.kid}</div></div>
+          <div class="e adult"><div class="t">ADULT</div><div class="d">${p.adult}</div></div>
+        </div>
+      </div>`;
+    host.appendChild(el);
+  });
+
+  // ---------- interactive summoned toolbar ----------
+  const dock=document.getElementById('dock');
+  const snote=document.getElementById('snote');
+  const SETS={
+    forest:{note:'forest tools summoned ✦',tools:['🌲','🌳','🌿','🍄']},
+    face:{note:'face tools summoned ✦',tools:['👁️','👄','👃','🎨']},
+    castle:{note:'builder tools summoned ✦',tools:['🧱','🏰','⬜','📐']},
+    animate:{note:'motion tools summoned ✦',tools:['▷','⏱️','🔁','✨']},
+    reset:{note:'',tools:[]}
+  };
+  function renderDock(key){
+    dock.innerHTML='';
+    // always-present core gesture (the spine)
+    const core=document.createElement('div');core.className='core';core.textContent='✏️';core.title='paint — always here (spine)';
+    dock.appendChild(core);
+    const set=SETS[key]||SETS.reset;
+    set.tools.forEach((t,i)=>{
+      const g=document.createElement('div');g.className='gen';g.textContent=t;g.style.animationDelay=(i*0.07)+'s';
+      g.style.background=CA[i%CA.length]+'22';g.style.border='1px solid '+CA[i%CA.length];
+      dock.appendChild(g);
+    });
+    snote.textContent=set.note;snote.style.opacity=set.note?1:0;
+    // drop a few sample pixels for flavor
+    if(key&&key!=='reset'){
+      const cv=dock.parentElement;
+      cv.querySelectorAll('.scatter-px').forEach(n=>n.remove());
+      for(let i=0;i<6;i++){const d=document.createElement('div');d.className='px scatter-px';
+        d.style.left=(20+Math.random()*60)+'%';d.style.top=(20+Math.random()*45)+'%';
+        d.style.background=CA[Math.floor(Math.random()*CA.length)];d.style.animation='summon .4s ease backwards';d.style.animationDelay=(i*.05)+'s';
+        cv.appendChild(d);}
+    } else {
+      dock.parentElement.querySelectorAll('.scatter-px').forEach(n=>n.remove());
+    }
+  }
+  document.querySelectorAll('.intent').forEach(b=>{
+    b.onclick=()=>{document.querySelectorAll('.intent').forEach(x=>x.classList.remove('on'));b.classList.add('on');renderDock(b.dataset.k);};
+  });
+  renderDock('reset');
+</script>
+</body>
+</html>
