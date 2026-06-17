@@ -152,8 +152,37 @@
   .card-device .phone-wrap{flex:0 0 auto;height:100%;display:flex;align-items:center;justify-content:center;}
   .card-device.rev{flex-direction:row-reverse;}
 
-  /* cover on orange — invert the dot */
-  .card-cover .wk-dot{background:#fff;}
+  /* cover on orange — a clear white dot */
+  .card-cover .wk-logo .wk-dot{background:#fff;width:.17em;height:.17em;margin-right:.18em;}
+
+  /* ---- share-artifact card (the weekend card you send) ---- */
+  .card-shareart{position:absolute;inset:0;display:flex;align-items:center;gap:clamp(18px,3.5vw,56px);padding:clamp(24px,4.4vw,66px);}
+  .card-shareart.rev{flex-direction:row-reverse;}
+  .card-shareart .copy{flex:1 1 0;min-width:0;}
+  .card-shareart .k{font-family:'TWKLausannePan',sans-serif;font-weight:300;font-size:clamp(11px,1vw,14px);letter-spacing:.18em;
+    text-transform:uppercase;opacity:.5;display:flex;align-items:center;gap:9px;margin-bottom:clamp(13px,1.6vw,22px);}
+  .card-shareart .k .kdot{width:6px;height:6px;border-radius:50%;background:var(--accent);}
+  .card-shareart h2{font-family:'TWKLausannePan',sans-serif;font-weight:300;font-size:clamp(25px,3.4vw,54px);line-height:1.02;letter-spacing:-0.024em;}
+  .card-shareart p{font-family:'TWKLausannePan',sans-serif;font-weight:300;font-size:clamp(13px,1.25vw,19px);line-height:1.5;opacity:.62;margin-top:clamp(13px,1.5vw,22px);max-width:32ch;}
+  .wc-wrap{flex:0 0 auto;height:100%;display:flex;align-items:center;justify-content:center;}
+  .weekend-card{position:relative;width:clamp(300px,29vw,392px);border-radius:24px;padding:clamp(22px,1.9vw,30px);
+    color:#fbf7ef;overflow:hidden;box-shadow:0 44px 90px -34px rgba(0,0,0,.55), 0 6px 18px rgba(0,0,0,.18);
+    background:radial-gradient(ellipse 90% 70% at 28% 8%, #ffd166 0%, transparent 55%), linear-gradient(160deg,#ff9a3d 0%,#c2310e 58%,#5a1606 100%);
+    transform:rotate(-1.4deg);}
+  .wc-grain{position:absolute;inset:0;opacity:.08;mix-blend-mode:overlay;pointer-events:none;
+    background-image:radial-gradient(circle at 20% 30%,#fff 0,transparent 1%),radial-gradient(circle at 75% 60%,#fff 0,transparent 1%);background-size:40px 40px,32px 32px;}
+  .wc-head{position:relative;display:flex;justify-content:space-between;align-items:baseline;gap:10px;margin-bottom:clamp(16px,1.4vw,20px);}
+  .wc-eyebrow{font-family:'Helvetica Neue',Arial,sans-serif;font-size:clamp(16px,1.4vw,20px);font-weight:700;letter-spacing:-0.02em;}
+  .wc-mode{font-family:'Helvetica Neue',Arial,sans-serif;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;opacity:.85;white-space:nowrap;}
+  .wc-list{position:relative;list-style:none;display:flex;flex-direction:column;gap:clamp(10px,0.9vw,14px);}
+  .wc-item{display:flex;align-items:center;gap:12px;}
+  .wc-thumb{position:relative;overflow:hidden;width:clamp(46px,3.5vw,56px);height:clamp(46px,3.5vw,56px);border-radius:11px;flex-shrink:0;box-shadow:0 3px 10px rgba(0,0,0,.3);}
+  .wc-thumb .g{position:absolute;inset:0;}
+  .wc-thumb img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;}
+  .wc-text{display:flex;flex-direction:column;min-width:0;font-family:'Helvetica Neue',Arial,sans-serif;}
+  .wc-title{font-size:clamp(14px,1.2vw,17px);font-weight:600;letter-spacing:-0.015em;line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .wc-when{font-size:clamp(11px,1vw,12px);opacity:.82;margin-top:2px;}
+  .wc-foot{position:relative;margin-top:clamp(16px,1.5vw,22px);font-size:10px;letter-spacing:.06em;text-transform:uppercase;opacity:.72;font-family:'Helvetica Neue',Arial,sans-serif;}
 
   /* ---- interactive weather shader card ---- */
   .card-shader{position:absolute;inset:0;overflow:hidden;background:#1a1a1a;}
@@ -532,7 +561,15 @@
     #brandmark{font-size:23px;}
     #brandmark .wk-dot{width:9px;height:9px;}
     /* keep the alternating cards in column on mobile */
-    .card-device.rev,.card-swipe.rev{flex-direction:column;}
+    .card-device.rev,.card-swipe.rev,.card-shareart.rev{flex-direction:column;}
+    /* share-artifact card: copy above the weekend card */
+    .card-shareart{flex-direction:column;align-items:stretch;gap:0;
+      padding:clamp(20px,6vw,30px) clamp(20px,6vw,30px) clamp(18px,5vw,26px);justify-content:flex-start;}
+    .card-shareart .copy{flex:0 0 auto;}
+    .card-shareart h2{font-size:clamp(23px,6.6vw,32px);line-height:1.05;}
+    .card-shareart p{font-size:14px;max-width:none;}
+    .wc-wrap{flex:1 1 auto;width:100%;min-height:0;margin-top:clamp(14px,3vh,24px);align-items:flex-start;}
+    .weekend-card{width:min(86vw,360px);}
     /* shader card fills, type scales down */
     .card-shader h2{font-size:clamp(38px,11vw,68px);}
     .card-shader .sh-sub{font-size:14px;}
@@ -688,7 +725,7 @@ const projects=[
   {kind:'shader', bg:'#1a1a1a', text:'#fff', start:'HOT', h:'Sorted by the weather.', p:'Tap a forecast — the field, the feed, and every plan shift with the sky.'},
   {kind:'swipe',  bg:'#faf8f3', text:'#1a1a1a', k:'The feed', h:'Your weekend, one swipe away.', p:"Swipe through what's on — right to save, left to skip. The weather's always in the ranking.", picks:['guns','bite','beach','bacchus','celeste']},
   {kind:'bento',  bg:'#faf8f3', text:'#1a1a1a'},
-  {kind:'device', bg:'#faf8f3', text:'#1a1a1a', side:'left', k:'Matching · 01', h:'Save a few. Share one link.', p:'No sign-up, nothing to download. The link itself is the invite.', screen:'share'},
+  {kind:'shareart', bg:'#faf8f3', text:'#1a1a1a', side:'left', k:'Matching · 01', h:'Save a few. Share one link.', p:'WKNDR builds a little card of your picks. Send it — the link is the invite.'},
   {kind:'device', bg:'#121a2e', text:'#eef2f7', k:'Matching · 02', h:'Then you swipe through theirs.', p:"Your partner's picks become your deck. Yes on the ones you're into.", screen:'matchdeck', pick:'bacchus'},
   {kind:'slamfull',bg:'accent', text:'#fff', k:'Matching · 03'},
   {kind:'device', bg:'#faf8f3', text:'#1a1a1a', side:'left', k:'Matching · 04', h:'Overlap becomes a plan.', p:'Send it back, add it to your weekend, export to your calendar. Done.', screen:'plan'},
@@ -713,64 +750,76 @@ const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
 const invlerp=(v,a,b)=>clamp((v-a)/(b-a),0,1);
 const lerp=(a,b,t)=>a+(b-a)*t;
 
-// ---- interactive weather shader (ported from the app's "A Gradient" WebGL look) ----
+// ---- interactive weather background: the app's "Auras" look (canvas orbs per weather) ----
 const SHADER_MODES=[{key:'HOT',label:'Hot'},{key:'WARM',label:'Warm'},{key:'COOL',label:'Cool'},{key:'COLD_WET',label:'Cold & wet'},{key:'VOLATILE',label:'Volatile'}];
-function hexRgb(h){h=h.replace('#','');return [parseInt(h.slice(0,2),16)/255,parseInt(h.slice(2,4),16)/255,parseInt(h.slice(4,6),16)/255];}
-function modeCols(k){const m=MODES[k]||MODES.WARM;return [m.glow,m.c1,m.c2,m.c3,m.c1].map(hexRgb);}
-const VS=`attribute vec2 aPosition;varying vec2 vUv;void main(){vUv=aPosition*0.5+0.5;gl_Position=vec4(aPosition,0.0,1.0);}`;
-const FS=`precision highp float;varying vec2 vUv;uniform vec2 uRes;uniform float uTime,uSoft,uTravel,uWarp;uniform vec3 uCol[5];
-float hash(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453);}
-float vnoise(vec2 p){vec2 i=floor(p),f=fract(p);f=f*f*(3.0-2.0*f);float a=hash(i),b=hash(i+vec2(1.0,0.0)),c=hash(i+vec2(0.0,1.0)),d=hash(i+vec2(1.0,1.0));return mix(mix(a,b,f.x),mix(c,d,f.x),f.y);}
-float fbm(vec2 p){float v=0.0,a=0.5;for(int i=0;i<4;i++){v+=a*vnoise(p);p*=2.0;a*=0.5;}return v;}
-void main(){vec2 uv=vUv;vec2 asp=vec2(uRes.x/uRes.y,1.0);float t=uTime;
-float w1=fbm(uv*2.4+vec2(0.0,t*0.08));float w2=fbm(uv*2.4+vec2(3.7,1.2)-t*0.06);
-vec2 wuv=uv+(vec2(w1,w2)-0.5)*uWarp;vec2 pts[5];
-pts[0]=vec2(0.5+uTravel*sin(t*0.23),0.5+uTravel*cos(t*0.19));
-pts[1]=vec2(0.5+uTravel*sin(t*0.17+2.1),0.5+uTravel*cos(t*0.27+1.0));
-pts[2]=vec2(0.5+uTravel*sin(t*0.21+4.0),0.5+uTravel*cos(t*0.15+3.0));
-pts[3]=vec2(0.5+uTravel*sin(t*0.13+1.5),0.5+uTravel*cos(t*0.23+5.0));
-pts[4]=vec2(0.5+uTravel*sin(t*0.19+3.5),0.5+uTravel*cos(t*0.20+2.5));
-float pulse[5];pulse[0]=0.5+0.5*sin(t*0.50);pulse[1]=0.5+0.5*sin(t*0.37+1.7);pulse[2]=0.5+0.5*sin(t*0.43+3.1);pulse[3]=0.5+0.5*sin(t*0.31+4.5);pulse[4]=0.5+0.5*sin(t*0.47+0.6);
-vec3 col=vec3(0.0);float wsum=0.0;
-for(int i=0;i<5;i++){vec2 d=(wuv-pts[i])*asp;float w=exp(-dot(d,d)/uSoft)*(0.35+0.65*pulse[i]);col+=uCol[i]*w;wsum+=w;}
-col/=max(wsum,0.0001);col+=(hash(gl_FragCoord.xy+t)-0.5)/200.0;gl_FragColor=vec4(col,1.0);}`;
+const AURA_KEY={HOT:'sun',WARM:'wind',COOL:'cloud',COLD_WET:'rain',VOLATILE:'storm'};
 function mountShader(canvas,startKey){
-  let gl=null; try{gl=canvas.getContext('webgl',{antialias:false,alpha:false});}catch(e){}
-  if(!gl){canvas.style.background=glow(startKey);return {setMode(k){canvas.style.background=glow(k);}};}
-  function sh(ty,src){const s=gl.createShader(ty);gl.shaderSource(s,src);gl.compileShader(s);return s;}
-  const prog=gl.createProgram();gl.attachShader(prog,sh(gl.VERTEX_SHADER,VS));gl.attachShader(prog,sh(gl.FRAGMENT_SHADER,FS));gl.linkProgram(prog);gl.useProgram(prog);
-  const buf=gl.createBuffer();gl.bindBuffer(gl.ARRAY_BUFFER,buf);gl.bufferData(gl.ARRAY_BUFFER,new Float32Array([-1,-1,3,-1,-1,3]),gl.STATIC_DRAW);
-  const ap=gl.getAttribLocation(prog,'aPosition');gl.enableVertexAttribArray(ap);gl.vertexAttribPointer(ap,2,gl.FLOAT,false,0,0);
-  const U={};['uRes','uTime','uSoft','uTravel','uWarp'].forEach(n=>U[n]=gl.getUniformLocation(prog,n));U.uCol=gl.getUniformLocation(prog,'uCol[0]');
-  let cur=modeCols(startKey),tgt=modeCols(startKey);
-  let w=0,h=0;
-  function size(){const r=canvas.getBoundingClientRect();const dpr=Math.min(window.devicePixelRatio||1,2);const nw=Math.max(2,Math.round(r.width*dpr)),nh=Math.max(2,Math.round(r.height*dpr));if(nw!==w||nh!==h){w=nw;h=nh;canvas.width=w;canvas.height=h;gl.viewport(0,0,w,h);}}
-  const t0=performance.now();
-  function frame(now){size();for(let i=0;i<5;i++)for(let j=0;j<3;j++)cur[i][j]+=(tgt[i][j]-cur[i][j])*0.05;
-    gl.uniform2f(U.uRes,w,h);gl.uniform1f(U.uTime,(now-t0)/1000*0.7);gl.uniform1f(U.uSoft,0.3);gl.uniform1f(U.uTravel,0.36);gl.uniform1f(U.uWarp,0.13);
-    const flat=new Float32Array(15);for(let i=0;i<5;i++){flat[i*3]=cur[i][0];flat[i*3+1]=cur[i][1];flat[i*3+2]=cur[i][2];}gl.uniform3fv(U.uCol,flat);
-    gl.drawArrays(gl.TRIANGLES,0,3);requestAnimationFrame(frame);}
+  const ctx=canvas.getContext('2d');
+  if(!ctx){canvas.style.background=glow(startKey);return {setMode(k){canvas.style.background=glow(k);}};}
+  let mode=AURA_KEY[startKey]||'sun', W=1,H=1,DPR=1, lw=0,lh=0;
+  const P={scale:1,motion:0.6};
+  function mb(a){return function(){a|=0;a=(a+0x6D2B79F5)|0;let t=Math.imul(a^(a>>>15),1|a);t=(t+Math.imul(t^(t>>>7),61|t))^t;return((t^(t>>>14))>>>0)/4294967296;};}
+  const sm=t=>t*t*(3-2*t);
+  function rgba(hex,a){hex=hex.replace('#','');return `rgba(${parseInt(hex.slice(0,2),16)},${parseInt(hex.slice(2,4),16)},${parseInt(hex.slice(4,6),16)},${a})`;}
+  function mix(a,b,t){a=a.replace('#','');b=b.replace('#','');const c=[0,2,4].map(i=>Math.round(parseInt(a.slice(i,i+2),16)*(1-t)+parseInt(b.slice(i,i+2),16)*t));return `rgb(${c[0]},${c[1]},${c[2]})`;}
+  let rng=mb(1); const rr=(a,b)=>a+rng()*(b-a); let L;
+  function layout(){rng=mb(1);
+    const veils=[];for(let i=0;i<3;i++)veils.push({x:rr(0.12,0.88),y:rr(0,1),sp:rr(0.7,1.3)});
+    const streams=[];const ns=3+(rng()<0.5?1:0);
+    for(let i=0;i<ns;i++)streams.push({x:rng()*1.5,y:0.12+(i+rr(0.1,0.5))/(ns+0.6)*0.8,len:rr(0.55,0.9),th:rr(0.08,0.18),tilt:rr(-0.07,-0.02),sp:rr(0.6,1.4),col:['#2f5c48','#5a8c6e','#8fae7a','#f6f8ec'][(rng()*4)|0],a:rr(0.6,0.9)});
+    L={sun:{cx:rr(0.34,0.52),cy:rr(0.34,0.48),r:rr(0.5,0.62),halos:2+((rng()*2)|0),hx:rr(-0.06,0.02),hy:rr(-0.06,0.02)},
+       rain:{veils,px:rr(0.38,0.62),py:rr(0.78,0.92)},
+       cloud:{cx:rr(0.42,0.58),cy:rr(0.42,0.58),ring:rr(0.92,1.1),core:rr(0.5,0.62),lean:rr(-0.04,0.04)},
+       wind:{streams},
+       storm:{edge:rr(0.35,0.55),rW:rr(1.3,1.8),cy:rr(0.45,0.6),th0:rr(0,6.28),fcx:rr(0.05,0.25),fcy:rr(0.15,0.4)}};}
+  layout();
+  function orb(x,y,r,c,aMax,p){p=p==null?0.32:p;const gr=ctx.createRadialGradient(x,y,0,x,y,r);for(let i=0;i<=18;i++){const t=i/18;const a=t<=p?aMax:aMax*(1-sm((t-p)/(1-p)));gr.addColorStop(t,rgba(c,a));}ctx.fillStyle=gr;ctx.beginPath();ctx.arc(x,y,r,0,6.2832);ctx.fill();}
+  function orbEll(x,y,rx,ry,c,aMax,p,rot){ctx.save();ctx.translate(x,y);if(rot)ctx.rotate(rot);ctx.scale(1,ry/rx);orb(0,0,rx,c,aMax,p);ctx.restore();}
+  function ringOrb(x,y,rIn,rOut,c,aMax){const gr=ctx.createRadialGradient(x,y,0,x,y,rOut);const tIn=Math.max(0.001,rIn/rOut);for(let i=0;i<=20;i++){const t=i/20;let a=0;if(t>tIn){const u=(t-tIn)/(1-tIn);a=u<0.45?aMax*sm(u/0.45):aMax*(1-sm((u-0.45)/0.55));}gr.addColorStop(t,rgba(c,a));}ctx.fillStyle=gr;ctx.beginPath();ctx.arc(x,y,rOut,0,6.2832);ctx.fill();}
+  function bgFill(top,bottom){const g=ctx.createLinearGradient(0,0,0,H);for(let i=0;i<=12;i++){const t=i/12;g.addColorStop(t,mix(top,bottom,sm(t)));}ctx.fillStyle=g;ctx.fillRect(0,0,W,H);}
+  function weather(t){const u=Math.min(W,H)*P.scale;
+    if(mode==='sun'){const s=L.sun;bgFill('#a9cde9','#c2dcee');const cx=W*s.cx,cy=H*s.cy,R=u*s.r,br=1+0.015*Math.sin(t*0.6);
+      for(let i=0;i<s.halos;i++){const ph=(t*0.12+i/s.halos)%1;const hr=R*(1.25+ph*1.1);ringOrb(cx,cy,hr*0.86,hr,'#f5b06e',0.16*(1-sm(ph)));}
+      orb(cx,cy,R*1.5*br,'#f0a0a0',0.42,0.1);orb(cx,cy,R*1.05*br,'#f57f22',0.95,0.22);orb(cx+W*s.hx,cy+H*s.hy,R*0.62*br,'#ffd24a',0.95,0.2);}
+    else if(mode==='rain'){const s=L.rain;bgFill('#6d8aa6','#33506b');for(const v of s.veils){const y=((((v.y+t*0.03*v.sp)%1.4)+1.4)%1.4-0.2)*H;orbEll(W*v.x,y,u*0.3,u*0.62,'#c9dcec',0.32,0.05);}const pb=1+0.02*Math.sin(t*0.5);orb(W*s.px,H*s.py,u*0.8,'#1d3a6e',0.85,0.15);orb(W*s.px,H*(s.py+0.03),u*0.42*pb,'#7fc4d8',0.55,0.15);}
+    else if(mode==='cloud'){const s=L.cloud;bgFill('#e9e8e3','#d4d7da');const gl2=1+0.025*Math.sin(t*0.4);const cx=W*(s.cx+s.lean*Math.sin(t*0.15)),cy=H*s.cy;ringOrb(cx,cy,u*s.ring*0.42,u*s.ring*1.08,'#76838f',0.85);orb(cx,cy,u*s.core*0.75*gl2,'#f2efe6',0.95,0.2);orb(cx+u*0.05,cy-u*0.04,u*s.core*0.4*gl2,'#ecdcb4',0.5,0.2);}
+    else if(mode==='wind'){const s=L.wind;bgFill('#c9dcc4','#e9efdd');for(const k of s.streams){const x=((((k.x+t*0.035*k.sp)%1.6)+1.6)%1.6-0.3)*W;orbEll(x,H*k.y,u*k.len,u*k.th,k.col,k.a,0.22,k.tilt);}}
+    else if(mode==='storm'){const s=L.storm;bgFill('#241c48','#0d0922');orb(W*s.fcx,H*s.fcy+H*0.02*Math.sin(t*0.3),u*0.85,'#3a2c6e',0.5,0.1);orb(W*(s.fcx-0.05),H*(s.fcy+0.5),u*0.7,'#1f4458',0.45,0.1);
+      const R=W*s.rW,cx=W*s.edge+R,cy=H*s.cy;ctx.save();ctx.beginPath();ctx.arc(cx,cy,R,0,6.2832);ctx.clip();
+      const ig=ctx.createLinearGradient(0,0,0,H);const bands=[['#1a1440',0],['#3a1e6e',0.35],['#7a2360',0.6],['#c2452a',0.82],['#f2b03a',1]];
+      for(let i=0;i<bands.length-1;i++)for(let k=0;k<=6;k++){const t2=k/6;ig.addColorStop(bands[i][1]+(bands[i+1][1]-bands[i][1])*t2,mix(bands[i][0],bands[i+1][0],sm(t2)));}
+      ctx.fillStyle=ig;ctx.fillRect(0,0,W,H);const th=s.th0+t*0.05;
+      const zone=(ang,dist,r,c,a)=>orb(cx+Math.cos(th+ang)*R*dist,cy+Math.sin(th+ang)*R*dist,r*R,c,a,0.2);
+      zone(2.6,0.7,0.55,'#2336b0',0.55);zone(3.6,0.75,0.45,'#d8336e',0.5);zone(4.4,0.7,0.5,'#ffd24a',0.45);ctx.restore();
+      ringOrb(cx,cy,R*0.965,R*1.035,'#f08a1d',0.6+0.2*Math.sin(t*1.7));ringOrb(cx,cy,R*0.985,R*1.012,'#ffe45e',0.55+0.25*Math.sin(t*2.3+1));}}
+  function size(){const r=canvas.getBoundingClientRect();DPR=Math.min(1.5,window.devicePixelRatio||1);W=Math.max(2,r.width);H=Math.max(2,r.height);
+    if(W!==lw||H!==lh){lw=W;lh=H;canvas.width=Math.floor(W*DPR);canvas.height=Math.floor(H*DPR);}}
+  const t0=performance.now(); let lastDraw=0;
+  function frame(now){if(now-lastDraw>33){lastDraw=now;size();ctx.setTransform(DPR,0,0,DPR,0,0);weather((now-t0)/1000*P.motion);}requestAnimationFrame(frame);}
   requestAnimationFrame(frame);
-  return {setMode(k){tgt=modeCols(k);}};
+  return {setMode(k){const nk=AURA_KEY[k]||'sun';if(nk===mode)return;canvas.style.transition='opacity .3s ease';canvas.style.opacity='0';setTimeout(()=>{mode=nk;canvas.style.opacity='1';},180);}};
 }
 
-// ---- bare-card swipe close-up ----
+// ---- bare-card swipe close-up (cards built once, recycled by ring index — no reload flicker) ----
 function mountSwipe(stackEl,ctrls,keys){
-  let order=keys.slice(),busy=false,timer=0;
-  function render(){stackEl.innerHTML='';order.slice(0,3).forEach((pk,i)=>{const pk0=P[pk];
-    const c=document.createElement('div');c.className='bc-card'+(i===0?' top':'');c.style.zIndex=30-i;
-    c.style.transform=`translateY(${i*16}px) scale(${1-i*0.055}) rotate(${i===0?0:(i%2?-2.5:2.5)}deg)`;
+  const cards=keys.map((pk)=>{const pk0=P[pk];const c=document.createElement('div');c.className='bc-card';
     c.innerHTML=`${photo(pk0)}<div class="bc-when">&#128339; ${pk0.when.split('·')[0].trim()}</div><div class="bc-pill">${fitPill(pk0.fit)}</div><div class="bc-plus">+</div><div class="bc-body"><div class="bc-title">${pk0.t}</div><div class="bc-ven">${pk0.v}</div></div>`;
-    stackEl.appendChild(c);});}
-  function advance(dir){if(busy)return;busy=true;const top=stackEl.querySelector('.bc-card.top');
-    if(top){top.style.transition='transform .45s cubic-bezier(.5,0,.2,1),opacity .45s';top.style.transform=`translate(${dir>0?125:-125}%,-6%) rotate(${dir>0?16:-16}deg)`;top.style.opacity='0';}
-    setTimeout(()=>{order.push(order.shift());render();busy=false;},380);}
+    stackEl.appendChild(c);return c;});
+  const n=cards.length; let pos=0,busy=false,timer=0;
+  function place(){for(let d=0;d<n;d++){const c=cards[(pos+d)%n];c.style.transition='transform .32s cubic-bezier(.4,0,.2,1)';
+    c.classList.toggle('top',d===0);
+    if(d>2){c.style.opacity='0';c.style.zIndex='1';c.style.transform='translateY(46px) scale(0.84)';}
+    else{c.style.opacity='1';c.style.zIndex=String(30-d);c.style.transform=`translateY(${d*16}px) scale(${1-d*0.055}) rotate(${d===0?0:(d%2?-2.5:2.5)}deg)`;}}}
+  function advance(dir){if(busy)return;busy=true;const top=cards[pos];
+    top.style.transition='transform .42s cubic-bezier(.5,0,.2,1),opacity .42s';
+    top.style.transform=`translate(${dir>0?128:-128}%,-7%) rotate(${dir>0?17:-17}deg)`;top.style.opacity='0';
+    setTimeout(()=>{pos=(pos+1)%n;place();busy=false;},340);}
   function loop(){timer=setTimeout(()=>{advance(1);loop();},5200);}
   function kick(){clearTimeout(timer);loop();}
   ctrls.querySelector('.nope').addEventListener('click',(e)=>{e.stopPropagation();kick();advance(-1);});
   ctrls.querySelector('.save').addEventListener('click',(e)=>{e.stopPropagation();kick();advance(1);});
   stackEl.addEventListener('click',()=>{kick();advance(1);});
-  render();loop();
+  place();loop();
 }
 
 const deck=document.getElementById('deck');
@@ -796,6 +845,9 @@ projects.forEach((c)=>{
   } else if(c.kind==='swipe'){
     media.innerHTML=`<div class="card-swipe${c.side==='left'?' rev':''}"><div class="copy"><div class="k"><span class="kdot"></span>${c.k}</div><h2>${c.h}</h2><p>${c.p}</p></div><div class="bc-wrap"><div class="bc-stack"></div><div class="bc-ctrls"><button class="bc-b nope">&#10005;</button><button class="bc-b save">&#9733;</button></div></div></div>`;
     inits.push(()=>{ mountSwipe(media.querySelector('.bc-stack'), media.querySelector('.bc-ctrls'), c.picks); });
+  } else if(c.kind==='shareart'){
+    const items=['guns','bite','beach','bacchus','celeste'].map(id=>{const pk=P[id];return `<li class="wc-item"><span class="wc-thumb">${photo(pk)}</span><span class="wc-text"><span class="wc-title">${pk.t}</span><span class="wc-when">${pk.when.split('·')[0].trim()}</span></span></li>`;}).join('');
+    media.innerHTML=`<div class="card-shareart${c.side==='left'?' rev':''}"><div class="copy"><div class="k"><span class="kdot"></span>${c.k}</div><h2>${c.h}</h2><p>${c.p}</p></div><div class="wc-wrap"><div class="weekend-card"><div class="wc-grain"></div><div class="wc-head"><span class="wc-eyebrow">My weekend · Amsterdam</span><span class="wc-mode">Hot · 26°</span></div><ul class="wc-list">${items}</ul><div class="wc-foot">WKNDR · weather-ranked for the weekend</div></div></div></div>`;
   } else if(c.kind==='slamfull'){
     media.innerHTML=`<div class="card-slamfull"><div class="sf-inner"><div class="sf-av"><span class="av you">You</span><span class="av spark">&#10022;</span><span class="av them">N</span></div><div class="sf-eyebrow">${c.k}</div><div class="sf-h">It's a match.</div><div class="sf-card"><span class="thumb">${photo(P.beach)}</span><div><div class="sf-cat">${P.beach.cat} · this weekend</div><div class="sf-t">${P.beach.t}</div><div class="sf-both">You both want to go here</div></div></div><button class="sf-cta">Keep swiping · 2 matched</button></div></div>`;
   } else if(c.kind==='bento'){
