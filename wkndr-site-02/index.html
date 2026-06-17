@@ -375,15 +375,90 @@
   #social.open a{opacity:1;transform:translateY(0) scale(1);}
   #social a:hover{transform:translateY(-3px) scale(1.08);}
 
+  /* ================= MOTION — how the app behaves ================= */
+  @keyframes silkPan{0%{background-position:0% 0%;}100%{background-position:100% 100%;}}
+  .scr-hot{background-size:165% 165%;animation:silkPan 17s ease-in-out infinite alternate;}
+
+  /* feed: a card auto-swipes away on a loop */
+  @keyframes swipeLoop{
+    0%,40%{transform:translateX(0) rotate(0deg);opacity:1;}
+    54%{transform:translateX(64%) rotate(11deg);opacity:1;}
+    60%{transform:translateX(64%) rotate(11deg);opacity:0;}
+    61%{transform:translateX(0) rotate(0deg);opacity:0;}
+    73%,100%{transform:translateX(0) rotate(0deg);opacity:1;}
+  }
+  .wk-card.auto{animation:swipeLoop 4.8s cubic-bezier(.5,0,.2,1) infinite;}
+  @keyframes stampPop{
+    0%,40%{opacity:0;transform:rotate(-12deg) scale(.7);}
+    50%,56%{opacity:1;transform:rotate(-12deg) scale(1);}
+    62%,100%{opacity:0;transform:rotate(-12deg) scale(1);}
+  }
+  .wk-stamp{position:absolute;top:17cqh;left:7cqw;z-index:4;
+    border:0.6cqh solid #46c37a;color:#46c37a;font-weight:800;font-size:4.2cqh;letter-spacing:.06em;
+    padding:.4cqh 2.4cqw;border-radius:1.6cqh;text-transform:uppercase;background:rgba(8,30,18,0.18);opacity:0;
+    animation:stampPop 4.8s ease infinite;}
+
+  /* floating notification fragment (McLane/Pulse style), slides in over the phone */
+  .frag-notif{position:absolute;top:3%;left:-14%;z-index:8;background:#fff;border-radius:18px;
+    padding:11px 15px 11px 12px;display:flex;align-items:center;gap:11px;max-width:230px;
+    box-shadow:0 18px 40px -16px rgba(0,0,0,.45);font-family:'Helvetica Neue',Arial,sans-serif;
+    animation:notifIn 6.8s ease infinite;}
+  .frag-notif .ico{width:32px;height:32px;border-radius:10px;background:var(--accent);color:#fff;
+    display:flex;align-items:center;justify-content:center;font-size:15px;flex:0 0 auto;}
+  .frag-notif .tx b{display:block;font-size:13px;font-weight:700;letter-spacing:-.01em;line-height:1.1;}
+  .frag-notif .tx span{font-size:11px;color:#8b8a82;}
+  @keyframes notifIn{
+    0%{opacity:0;transform:translateY(-16px) scale(.94);}
+    8%,44%{opacity:1;transform:translateY(0) scale(1);}
+    54%,100%{opacity:0;transform:translateY(-16px) scale(.94);}
+  }
+
+  /* slam comes alive */
+  @keyframes twinkle{0%,100%{transform:scale(1) rotate(0);opacity:.78;}50%{transform:scale(1.35) rotate(45deg);opacity:1;}}
+  @keyframes breathe{0%,100%{transform:scale(1);}50%{transform:scale(1.04);}}
+  .scr-slam .spark{animation:twinkle 2.6s ease-in-out infinite;}
+  .scr-slam .slam-h{animation:breathe 3.2s ease-in-out infinite;}
+
+  /* ---- "your weekend is ready" photo-tour screen (McLane reference) ---- */
+  .ready-grid{position:absolute;top:14cqh;left:8cqw;right:8cqw;display:grid;grid-template-columns:1fr 1fr;gap:3cqw;}
+  .ready-grid .rc{aspect-ratio:1;border-radius:3cqh;overflow:hidden;position:relative;}
+  .ready-grid .rc img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;}
+  .ready-h{position:absolute;left:5cqw;right:5cqw;bottom:18cqh;text-align:center;
+    font-size:3.5cqh;font-weight:700;letter-spacing:-0.015em;color:var(--ink);}
+  .ready-cta{position:absolute;left:5cqw;right:5cqw;bottom:5.5cqh;background:#1a1a1a;color:#fff;border:none;
+    border-radius:3cqh;padding:2.7cqh;font-family:'Helvetica Neue',Arial,sans-serif;font-weight:700;font-size:2.2cqh;text-align:center;}
+
+  @media (prefers-reduced-motion: reduce){
+    .scr-hot,.wk-card.auto,.wk-stamp,.frag-notif,.scr-slam .spark,.scr-slam .slam-h{animation:none;}
+    .frag-notif{opacity:1;transform:none;}
+  }
+
+  /* ================= MOBILE — tall portrait, near-fullscreen ================= */
   @media(max-width:768px){
     #headline{font-size:25px;line-height:1.14;letter-spacing:-0.01em;max-width:90vw;}
     .closing-text{max-width:90vw;}
-    .card-device{gap:14px;padding:18px;}
-    .card-device .copy h2{font-size:19px;}
-    .card-device .copy p{display:none;}
-    .card-device .k{margin-bottom:8px;font-size:9px;}
-    .card-huge h2{font-size:34px;}
     #early{display:none;}
+    /* deck becomes a tall portrait panel that fills the phone */
+    #deck{width:92vw;max-width:92vw;height:min(80vh,660px);aspect-ratio:auto;}
+    /* device cards: short headline stacked above a LARGE phone */
+    .card-device{flex-direction:column;align-items:stretch;gap:0;
+      padding:clamp(20px,6vw,30px) clamp(20px,6vw,30px) clamp(18px,5vw,26px);justify-content:flex-start;}
+    .card-device .copy{flex:0 0 auto;}
+    .card-device .k{margin-bottom:10px;font-size:11px;}
+    .card-device h2{font-size:clamp(23px,6.6vw,32px);line-height:1.05;}
+    .card-device p{display:block;font-size:14px;margin-top:9px;max-width:none;opacity:.6;}
+    .card-device .phone-wrap{flex:1 1 auto;width:100%;min-height:0;margin-top:clamp(14px,3vh,24px);}
+    .phone{height:100%;width:auto;max-width:80vw;}
+    .frag-notif{display:none;}
+    .card-huge{padding:clamp(24px,8vw,40px);}
+    .card-huge h2{font-size:clamp(34px,11vw,62px);}
+    .card-huge .sub{font-size:14px;}
+    .card-cover .tag{font-size:clamp(16px,4.5vw,22px);}
+    /* bento → 2 columns */
+    .bento-grid{grid-template-columns:repeat(2,1fr);grid-template-rows:none;grid-auto-rows:1fr;}
+    .bento-cell.feat{grid-column:span 2;grid-row:auto;}
+    .bento-head{flex-direction:column;align-items:flex-start;gap:10px;}
+    .bento-head .htxt h3{font-size:23px;}
   }
 </style>
 </head>
@@ -456,10 +531,11 @@ const photo=(p,cls)=>`<div class="g g-${p.cat}" style="background:${glow(p.fit[0
 
 // WKNDR app screens (mirrored chrome, real photos)
 const SCREENS={
-  stack:(p)=>`<div class="screen scr-hot"><div class="island"></div>
+  stack:(p,o)=>`<div class="screen scr-hot"><div class="island"></div>
     <div class="wk-top"><span class="wk-logo app"><span class="wk-dot"></span>WKNDR</span><span class="vr"></span><span class="wk-wx"><b>20–21 Jun</b><span>26°</span></span><span class="sp"></span><span class="wk-ic">&#9734;</span><span class="wk-ic burger"><i></i><i></i></span></div>
-    <div class="wk-card behind">${photo(P.guns)}</div>
-    <div class="wk-card">${photo(p)}
+    <div class="wk-card behind">${photo(P.guns)}<div class="wk-cardbody"><div class="wk-title">${P.guns.t}</div></div></div>
+    <div class="wk-card ${o&&o.anim?'auto':''}">${photo(p)}
+      ${o&&o.anim?'<div class="wk-stamp">Yes</div>':''}
       <div class="wk-when">&#9788; ${p.when}</div>
       <div class="wk-plus">+</div>
       <div class="wk-pill">Perfect this weekend</div>
@@ -467,6 +543,13 @@ const SCREENS={
     </div>
     <div class="wk-ctrls"><span class="wk-cb nope">&#10005;</span><span class="wk-cb save">&#9733;</span></div>
     <div class="wk-shuffle">Not feeling these? <b>Shuffle for more</b></div>
+  </div>`,
+
+  ready:()=>`<div class="screen"><div class="island"></div>
+    <div class="wk-top"><span class="wk-logo app"><span class="wk-dot"></span>WKNDR</span><span class="vr"></span><span class="wk-wx"><b>This weekend</b><span>set &#10003;</span></span><span class="sp"></span><span class="wk-ic burger"><i></i><i></i></span></div>
+    <div class="ready-grid"><div class="rc">${photo(P.bite)}</div><div class="rc">${photo(P.guns)}</div><div class="rc">${photo(P.beach)}</div><div class="rc">${photo(P.bacchus)}</div></div>
+    <div class="ready-h">Your weekend is ready!</div>
+    <button class="ready-cta">Check it out</button>
   </div>`,
 
   share:()=>`<div class="screen"><div class="island"></div>
@@ -512,12 +595,13 @@ const SCREENS={
 const projects=[
   {kind:'cover', bg:'#faf8f3', text:'#1a1a1a'},
   {kind:'huge',  bg:'#faf8f3', text:'#1a1a1a'},
-  {kind:'device',bg:'#143f3c', text:'#eafaf6', k:'The feed', h:'Swipe a few cards. Get a weekend.', p:"Every pick is ranked against Saturday's forecast — the best plan floats to the top.", screen:'stack', pick:'bite'},
+  {kind:'device',bg:'#143f3c', text:'#eafaf6', k:'The feed', h:'Swipe a few cards. Get a weekend.', p:"Every pick is ranked against Saturday's forecast — the best plan floats to the top.", screen:'stack', pick:'bite', anim:true, notif:{ico:'&#9829;', b:'Plan these together', s:'3 saved · tap to Match'}},
   {kind:'bento', bg:'#faf8f3', text:'#1a1a1a'},
   {kind:'device',bg:'#faf8f3', text:'#1a1a1a', k:'Matching · 01', h:'Save a few. Share one link.', p:'No sign-up, nothing to download. The link itself is the invite.', screen:'share'},
   {kind:'device',bg:'#121a2e', text:'#eef2f7', k:'Matching · 02', h:'Then you swipe through theirs.', p:"Your partner's picks become your deck. Yes on the ones you're into.", screen:'matchdeck', pick:'bacchus'},
   {kind:'device',bg:'accent',  text:'#ffffff', k:'Matching · 03', h:'When you both say yes.', p:"Overlap triggers the match — the one plan you'll both actually show up for.", screen:'slam', pick:'beach'},
   {kind:'device',bg:'#faf8f3', text:'#1a1a1a', k:'Matching · 04', h:'Overlap becomes a plan.', p:'Send it back, add it to your weekend, export to your calendar. Done.', screen:'plan'},
+  {kind:'device',bg:'#1f3a36', text:'#eafaf6', k:'The payoff', h:"Your weekend's set.", p:"Two matches, a live forecast, and a plan you'll both actually keep.", screen:'ready'},
 ];
 
 const timeline=[
@@ -559,8 +643,9 @@ projects.forEach((c)=>{
     const cells=order.map((id,i)=>{const pk=P[id];return `<div class="bento-cell ${i===0?'feat':''}">${photo(pk)}<span class="fit">${fitPill(pk.fit)}</span><div class="lbl"><div class="t">${pk.t}</div><div class="m">${pk.v} · ${pk.when.split('·')[0].trim()}</div></div></div>`;}).join('');
     media.innerHTML=`<div class="card-bento"><div class="bento-head"><div class="htxt"><h3>This weekend, already sorted.</h3><p>59 picks across the city — re-ranked for warm, dry Saturday.</p></div><span class="chip"><span class="dot"></span>26°<span class="mode">Hot</span></span></div><div class="bento-grid">${cells}</div></div>`;
   } else {
-    const screen=SCREENS[c.screen](c.pick?P[c.pick]:undefined);
-    media.innerHTML=`<div class="card-device"><div class="copy"><div class="k"><span class="kdot"></span>${c.k}</div><h2>${c.h}</h2><p>${c.p}</p></div><div class="phone-wrap"><div class="phone">${screen}</div></div></div>`;
+    const screen=SCREENS[c.screen](c.pick?P[c.pick]:undefined,{anim:c.anim});
+    const notif=c.notif?`<div class="frag-notif"><span class="ico">${c.notif.ico}</span><div class="tx"><b>${c.notif.b}</b><span>${c.notif.s}</span></div></div>`:'';
+    media.innerHTML=`<div class="card-device"><div class="copy"><div class="k"><span class="kdot"></span>${c.k}</div><h2>${c.h}</h2><p>${c.p}</p></div><div class="phone-wrap" style="position:relative">${notif}<div class="phone">${screen}</div></div></div>`;
   }
   card.appendChild(media); deck.appendChild(card); cardEls.push(card);
 });
