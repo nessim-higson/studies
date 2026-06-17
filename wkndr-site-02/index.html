@@ -598,6 +598,25 @@
     .bento-head{flex-direction:column;align-items:flex-start;gap:10px;}
     .bento-head .htxt h3{font-size:23px;}
   }
+  /* ===== mobile performance: kill repaints, blur, and heavy shadows ===== */
+  @media(max-width:768px){
+    /* animating background-position repaints every frame — drop it (field still drifts via the canvas card) */
+    .scr-hot{animation:none;background-size:100% 100%;}
+    /* backdrop-filter blur is the most expensive thing to composite while scrolling */
+    .sh-pill,.sh-look,.frag-notif,.wk-when,.wk-plus,.bc-when,.bc-plus,.chip,.wk-top,.get-in-touch{
+      backdrop-filter:none !important;-webkit-backdrop-filter:none !important;}
+    .sh-pill{background:rgba(255,255,255,.2);} .sh-look{background:rgba(255,255,255,.2);}
+    .wk-when{background:rgba(18,18,18,.62);} .bc-when{background:rgba(18,18,18,.62);}
+    /* shrink the big blurred shadows that re-composite on every scroll frame */
+    .phone{box-shadow:0 18px 38px -16px rgba(0,0,0,.4);}
+    .bc-card{box-shadow:0 16px 34px -16px rgba(0,0,0,.5);}
+    .weekend-card{box-shadow:0 18px 42px -18px rgba(0,0,0,.45);}
+    .wk-card{box-shadow:none;}
+    .card{box-shadow:none;}
+  }
+  @media (prefers-reduced-motion: reduce){
+    .scr-hot,.sh-canvas,.wk-card.auto,.wk-stamp,.frag-notif{animation:none !important;}
+  }
 </style>
 </head>
 <body>
@@ -770,6 +789,12 @@ function _rgba(hex,a){hex=hex.replace('#','');return `rgba(${parseInt(hex.slice(
 function _mix(a,b,t){a=a.replace('#','');b=b.replace('#','');const c=[0,2,4].map(i=>Math.round(parseInt(a.slice(i,i+2),16)*(1-t)+parseInt(b.slice(i,i+2),16)*t));return `rgb(${c[0]},${c[1]},${c[2]})`;}
 function _hexRgb(h){h=h.replace('#','');return [parseInt(h.slice(0,2),16)/255,parseInt(h.slice(2,4),16)/255,parseInt(h.slice(4,6),16)/255];}
 function _fade(canvas,fn){canvas.style.transition='opacity .32s ease';canvas.style.opacity='0';setTimeout(()=>{fn();canvas.style.opacity='1';},170);}
+// perf: only run the weather field when its card is the active one (set by the deck loop) + on a low-res buffer on mobile
+const _MOB=window.innerWidth<768;
+let SHADER_VIS=false;
+const _2DPR=()=>Math.min(_MOB?0.7:1.1,window.devicePixelRatio||1);  // 2D looks: cheap upscaled buffer
+const _GLDPR=()=>Math.min(_MOB?1.1:1.5,window.devicePixelRatio||1);
+const _CAP=_MOB?44:32;
 
 // ---- AURAS (orbs per weather; snow falls, wind streams flow) ----
 function mountAuras(canvas,startKey){
@@ -814,9 +839,10 @@ function mountAuras(canvas,startKey){
     else if(mode==='snow'){const s=L.snow;bgFill('#eef2f7','#dde7f0');const br=1+0.01*Math.sin(t*0.4);
       orb(W*s.bx,H*s.by,u*0.95,'#7fa8d0',0.5,0.05);orb(W*s.ax,H*s.ay,u*0.85*br,'#ffffff',0.95,0.15);orb(W*s.wx,H*s.wy,u*0.6,'#f0b48a',0.34,0.05);orb(W*(s.ax+0.05),H*(s.ay+0.3),u*0.5*br,'#ffffff',0.6,0.1);
       ctx.fillStyle='rgba(255,255,255,0.92)';for(const f of s.flakes){const y=(((f.y+t*0.06*f.sp)%1)+1)%1,x=(((f.x+0.025*Math.sin(t*f.sw+f.y*9))%1)+1)%1;ctx.beginPath();ctx.arc(x*W,y*H,f.r*Math.min(W,H),0,6.2832);ctx.fill();}}}
-  function size(){const r=canvas.getBoundingClientRect();DPR=Math.min(1.5,window.devicePixelRatio||1);W=Math.max(2,r.width);H=Math.max(2,r.height);if(W!==lw||H!==lh){lw=W;lh=H;canvas.width=Math.floor(W*DPR);canvas.height=Math.floor(H*DPR);}}
+  function size(){const r=canvas.getBoundingClientRect();DPR=_2DPR();W=Math.max(2,r.width);H=Math.max(2,r.height);if(W!==lw||H!==lh){lw=W;lh=H;canvas.width=Math.floor(W*DPR);canvas.height=Math.floor(H*DPR);}}
   const t0=performance.now();let lastDraw=0;
-  function frame(now){if(now-lastDraw>32){lastDraw=now;size();ctx.setTransform(DPR,0,0,DPR,0,0);weather((now-t0)/1000*P.motion);}raf=requestAnimationFrame(frame);}
+  function frame(now){raf=requestAnimationFrame(frame);if(!SHADER_VIS||document.hidden)return;if(now-lastDraw>_CAP){lastDraw=now;size();ctx.setTransform(DPR,0,0,DPR,0,0);weather((now-t0)/1000*P.motion);}}
+  size();ctx.setTransform(DPR,0,0,DPR,0,0);weather(0); // one frame so it's never blank when scrolled into view
   raf=requestAnimationFrame(frame);
   return {setMode(k){const nk=W2L[k]||'sun';if(nk!==mode)_fade(canvas,()=>mode=nk);},stop(){cancelAnimationFrame(raf);}};
 }
@@ -861,9 +887,10 @@ function mountForms(canvas,startKey){
     ctx.restore();}
   function rainLines(m,t){ctx.globalCompositeOperation='multiply';const n=Math.round(20+P.shapes*6);for(let i=0;i<n;i++){const x=rng()*W,dot=rng()<0.5;ctx.strokeStyle=rgba(pick(m.cols),rr(0.12,0.35));ctx.lineWidth=rr(0.6,1.4)*DPR;if(dot){ctx.setLineDash([rr(2,6)*DPR,rr(6,18)*DPR]);ctx.lineDashOffset=-t*85*DPR;}else ctx.setLineDash([]);ctx.beginPath();ctx.moveTo(x,rr(-0.1,0.2)*H);ctx.lineTo(x,rr(0.7,1.1)*H);ctx.stroke();}ctx.setLineDash([]);ctx.globalCompositeOperation='source-over';}
   function draw(t){rng=_mb(seed);const m=MF[mode];const forms=buildForms(m);ctx.setTransform(DPR,0,0,DPR,0,0);ctx.globalCompositeOperation='source-over';ctx.fillStyle=m.bg;ctx.fillRect(0,0,W,H);for(const s of forms)drawForm(s,t,m);if(m.rainLines)rainLines(m,t);}
-  function size(){const r=canvas.getBoundingClientRect();DPR=Math.min(1.5,window.devicePixelRatio||1);W=Math.max(2,r.width);H=Math.max(2,r.height);if(W!==lw||H!==lh){lw=W;lh=H;canvas.width=Math.floor(W*DPR);canvas.height=Math.floor(H*DPR);}}
+  function size(){const r=canvas.getBoundingClientRect();DPR=_2DPR();W=Math.max(2,r.width);H=Math.max(2,r.height);if(W!==lw||H!==lh){lw=W;lh=H;canvas.width=Math.floor(W*DPR);canvas.height=Math.floor(H*DPR);}}
   const t0=performance.now();let lastDraw=0;
-  function frame(now){if(now-lastDraw>32){lastDraw=now;size();draw((now-t0)/1000*P.motion);}raf=requestAnimationFrame(frame);}
+  function frame(now){raf=requestAnimationFrame(frame);if(!SHADER_VIS||document.hidden)return;if(now-lastDraw>_CAP){lastDraw=now;size();draw((now-t0)/1000*P.motion);}}
+  size();draw(0); // initial frame
   raf=requestAnimationFrame(frame);
   return {setMode(k){const nk=W2L[k]||'sun';if(nk!==mode)_fade(canvas,()=>mode=nk);},stop(){cancelAnimationFrame(raf);}};
 }
@@ -903,15 +930,17 @@ function _glLook(canvas,startKey,FS){
   const ap=gl.getAttribLocation(prog,'p');gl.enableVertexAttribArray(ap);gl.vertexAttribPointer(ap,2,gl.FLOAT,false,0,0);
   const U={};['uRes','uTime','uA','uB','uC','uD'].forEach(n=>U[n]=gl.getUniformLocation(prog,n));
   const pal=k=>{const m=MODES[k]||MODES.WARM;return [m.glow,m.c1,m.c2,m.c3].map(_hexRgb);};
-  let cur=pal(startKey),tgt=pal(startKey),raf=0,W=0,H=0;
-  function size(){const r=canvas.getBoundingClientRect();const dpr=Math.min(window.devicePixelRatio||1,2);const nw=Math.max(2,Math.round(r.width*dpr)),nh=Math.max(2,Math.round(r.height*dpr));if(nw!==W||nh!==H){W=nw;H=nh;canvas.width=W;canvas.height=H;gl.viewport(0,0,W,H);}}
-  const t0=performance.now();
-  function frame(now){size();for(let i=0;i<4;i++)for(let j=0;j<3;j++)cur[i][j]+=(tgt[i][j]-cur[i][j])*0.06;
+  let cur=pal(startKey),tgt=pal(startKey),raf=0,W=0,H=0,lastDraw=0;
+  function size(){const r=canvas.getBoundingClientRect();const dpr=_GLDPR();const nw=Math.max(2,Math.round(r.width*dpr)),nh=Math.max(2,Math.round(r.height*dpr));if(nw!==W||nh!==H){W=nw;H=nh;canvas.width=W;canvas.height=H;gl.viewport(0,0,W,H);}}
+  const t0=performance.now();const gcap=_MOB?32:0;
+  function frame(now){raf=requestAnimationFrame(frame);if(!SHADER_VIS||document.hidden)return;if(now-lastDraw<gcap)return;lastDraw=now;
+    size();for(let i=0;i<4;i++)for(let j=0;j<3;j++)cur[i][j]+=(tgt[i][j]-cur[i][j])*0.06;
     gl.uniform2f(U.uRes,W,H);gl.uniform1f(U.uTime,(now-t0)/1000);
     gl.uniform3fv(U.uA,cur[0]);gl.uniform3fv(U.uB,cur[1]);gl.uniform3fv(U.uC,cur[2]);gl.uniform3fv(U.uD,cur[3]);
-    gl.drawArrays(gl.TRIANGLES,0,3);raf=requestAnimationFrame(frame);}
+    gl.drawArrays(gl.TRIANGLES,0,3);}
+  size();gl.uniform2f(U.uRes,W,H);gl.uniform1f(U.uTime,0);gl.uniform3fv(U.uA,cur[0]);gl.uniform3fv(U.uB,cur[1]);gl.uniform3fv(U.uC,cur[2]);gl.uniform3fv(U.uD,cur[3]);gl.drawArrays(gl.TRIANGLES,0,3); // initial frame
   raf=requestAnimationFrame(frame);
-  return {setMode(k){tgt=pal(k);},stop(){cancelAnimationFrame(raf);}};
+  return {setMode(k){tgt=pal(k);},stop(){cancelAnimationFrame(raf);const e=gl.getExtension('WEBGL_lose_context');if(e)e.loseContext();}};
 }
 function mountSilk(c,k){return _glLook(c,k,_FS_SILK);}
 function mountAGradient(c,k){return _glLook(c,k,_FS_AGRAD);}
@@ -1063,50 +1092,60 @@ function springStep(dt){const steps=Math.max(1,Math.ceil(dt/0.004));const h=dt/s
   for(let i=0;i<steps;i++){const f=(-SPR.k*(m-p)-SPR.c*mv)/SPR.m;mv+=f*h;m+=mv*h;}
   if(Math.abs(m-p)<0.001&&Math.abs(mv)<0.01){m=p;mv=0;}}
 
-let last=null;
+const _shaderIdx=projects.findIndex(c=>c.kind==='shader');
+let last=null,_lastM=-99999,_lastSocial=null;
 function frame(ts){
   if(introStart===null)introStart=ts;
   if(last===null)last=ts;
   let dt=(ts-last)/1000;last=ts;dt=Math.min(dt,1/30);
   springStep(dt);
   const tSec=(ts-introStart)/1000;
-  {const t=invlerp(tSec,0.3,0.3+1.4);cOff=lerp(cInit,0,easeIntro(t));}
-  {const t=invlerp(tSec,0.1,0.1+1.6);dMaster=lerp(0,1,easeIntro(t));}
-  if(!ready&&tSec>0.05)ready=true;
-  const f=Math.max(0,m-L);
-  const introY=lerp(introYStart,0,invlerp(m,0,L));
-  const rot=lerp(2,0,invlerp(m,0,L))*(isMobile?0:1);
-  deck.style.transform=`translateY(calc(${introY}vh + ${cOff}px)) rotate(${rot}deg)`+(isMobile?' scale(0.97)':'');
-  const x=lerp(1,0,invlerp(f,(TOTAL-2)*L,(TOTAL-1)*L));
-  headlineWrap.style.opacity=dMaster*x;
-  brandmark.style.opacity=dMaster*0.85;
-  earlyLink.style.opacity=dMaster*0.85;
-  earlyLink.style.pointerEvents=dMaster>0.5?'auto':'none';
-  for(let e=0;e<TOTAL;e++){
-    const h=(e*L-f)/L+1;
-    const y=h<1?-(1-h)*L:(h-1)*18;
-    const sc=h<1?1:1-(h-1)*0.04;
-    const dSign=(e===TOTAL-1||e%2===0)?-1:1;
-    const ro=(!isMobile&&h>0&&h<1)?(1-h)*3*dSign:(isMobile&&e===0&&h>0)?1.5*Math.min(1,h):0;
-    const op=(h<-0.5||h>VISIBLE+1)?0:(h>VISIBLE?1-(h-VISIBLE):1);
-    const el=cardEls[e];
-    el.style.transform=`translateY(${y}px) scale(${sc}) rotate(${ro}deg)`;
-    el.style.opacity=op;el.style.zIndex=Math.round(TOTAL-h+1);
-    el.style.pointerEvents=h<0.1?'none':'auto';
+  const introActive=tSec<2.0;
+  // only repaint the deck when something actually moved — idle frames are nearly free
+  if(introActive||Math.abs(m-_lastM)>0.04||Math.abs(mv)>0.03){
+    _lastM=m;
+    {const t=invlerp(tSec,0.3,0.3+1.4);cOff=lerp(cInit,0,easeIntro(t));}
+    {const t=invlerp(tSec,0.1,0.1+1.6);dMaster=lerp(0,1,easeIntro(t));}
+    if(!ready&&tSec>0.05)ready=true;
+    const f=Math.max(0,m-L);
+    const introY=lerp(introYStart,0,invlerp(m,0,L));
+    const rot=lerp(2,0,invlerp(m,0,L))*(isMobile?0:1);
+    deck.style.transform=`translateY(calc(${introY}vh + ${cOff}px)) rotate(${rot}deg)`+(isMobile?' scale(0.97)':'');
+    const x=lerp(1,0,invlerp(f,(TOTAL-2)*L,(TOTAL-1)*L));
+    headlineWrap.style.opacity=dMaster*x;
+    brandmark.style.opacity=dMaster*0.85;
+    earlyLink.style.opacity=dMaster*0.85;
+    earlyLink.style.pointerEvents=dMaster>0.5?'auto':'none';
+    for(let e=0;e<TOTAL;e++){
+      const h=(e*L-f)/L+1;
+      const y=h<1?-(1-h)*L:(h-1)*18;
+      const sc=h<1?1:1-(h-1)*0.04;
+      const dSign=(e===TOTAL-1||e%2===0)?-1:1;
+      const ro=(!isMobile&&h>0&&h<1)?(1-h)*3*dSign:(isMobile&&e===0&&h>0)?1.5*Math.min(1,h):0;
+      const op=(h<-0.5||h>VISIBLE+1)?0:(h>VISIBLE?1-(h-VISIBLE):1);
+      const el=cardEls[e];
+      el.style.transform=`translateY(${y}px) scale(${sc}) rotate(${ro}deg)`;
+      el.style.opacity=op;el.style.zIndex=Math.round(TOTAL-h+1);
+      el.style.pointerEvents=h<0.1?'none':'auto';
+      if(e===_shaderIdx)SHADER_VIS=(h>-0.7&&h<1.7);
+    }
+    const b=(TOTAL-1)*L;
+    const T=invlerp(f,b+0.3*L,b+0.7*L);
+    closing.style.opacity=ready?T:0;
+    closing.style.zIndex=(T>0.01)?9999:0;
+    closing.style.pointerEvents=T>0.3?'auto':'none';
   }
-  const b=(TOTAL-1)*L;
-  const T=invlerp(f,b+0.3*L,b+0.7*L);
-  closing.style.opacity=ready?T:0;
-  closing.style.zIndex=(T>0.01)?9999:0;
-  closing.style.pointerEvents=T>0.3?'auto':'none';
-  backdrop.style.backdropFilter=socialOpen?'blur(8px)':'blur(0px)';
-  backdrop.style.webkitBackdropFilter=socialOpen?'blur(8px)':'blur(0px)';
-  backdrop.style.background=socialOpen?'rgba(0,0,0,0.05)':'transparent';
-  backdrop.style.zIndex=socialOpen?9998:-1;
-  social.style.opacity=socialOpen?1:0;
-  social.style.pointerEvents=socialOpen?'auto':'none';
-  social.style.transform=socialOpen?'translate(-50%,-50%) scale(0.8)':'translate(-50%,-50%) scale(0.55)';
-  social.classList.toggle('open',socialOpen);
+  if(socialOpen!==_lastSocial){
+    _lastSocial=socialOpen;
+    backdrop.style.backdropFilter=socialOpen?'blur(8px)':'blur(0px)';
+    backdrop.style.webkitBackdropFilter=socialOpen?'blur(8px)':'blur(0px)';
+    backdrop.style.background=socialOpen?'rgba(0,0,0,0.05)':'transparent';
+    backdrop.style.zIndex=socialOpen?9998:-1;
+    social.style.opacity=socialOpen?1:0;
+    social.style.pointerEvents=socialOpen?'auto':'none';
+    social.style.transform=socialOpen?'translate(-50%,-50%) scale(0.8)':'translate(-50%,-50%) scale(0.55)';
+    social.classList.toggle('open',socialOpen);
+  }
   requestAnimationFrame(frame);
 }
 requestAnimationFrame(frame);
