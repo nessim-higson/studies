@@ -150,6 +150,82 @@
     margin-top:clamp(13px,1.5vw,22px);max-width:32ch;
   }
   .card-device .phone-wrap{flex:0 0 auto;height:100%;display:flex;align-items:center;justify-content:center;}
+  .card-device.rev{flex-direction:row-reverse;}
+
+  /* cover on orange — invert the dot */
+  .card-cover .wk-dot{background:#fff;}
+
+  /* ---- interactive weather shader card ---- */
+  .card-shader{position:absolute;inset:0;overflow:hidden;background:#1a1a1a;}
+  .card-shader .sh-canvas{position:absolute;inset:0;width:100%;height:100%;display:block;}
+  .card-shader .sh-overlay{position:absolute;inset:0;display:flex;flex-direction:column;justify-content:flex-end;
+    padding:clamp(28px,5vw,72px);pointer-events:none;background:linear-gradient(to top, rgba(0,0,0,.42), transparent 44%);}
+  .card-shader h2{font-family:'TWKLausannePan',sans-serif;font-weight:300;color:#fff;
+    font-size:clamp(38px,7vw,112px);line-height:0.95;letter-spacing:-0.035em;max-width:16ch;text-shadow:0 4px 40px rgba(0,0,0,.4);}
+  .card-shader .sh-sub{color:rgba(255,255,255,.9);font-family:'TWKLausannePan',sans-serif;font-weight:300;
+    font-size:clamp(13px,1.3vw,19px);margin-top:14px;max-width:42ch;text-shadow:0 2px 18px rgba(0,0,0,.35);}
+  .sh-pills{display:flex;flex-wrap:wrap;gap:8px;margin-top:clamp(18px,2.4vw,30px);pointer-events:auto;}
+  .sh-pill{font-family:'Helvetica Neue',Arial,sans-serif;font-size:clamp(11px,1vw,14px);font-weight:700;letter-spacing:.03em;
+    color:#fff;background:rgba(255,255,255,.15);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
+    border:1px solid rgba(255,255,255,.35);border-radius:100px;padding:9px 17px;cursor:pointer;transition:background .2s,transform .15s,color .2s;}
+  .sh-pill:hover{transform:translateY(-2px);}
+  .sh-pill.on{background:#fff;color:#1a1a1a;border-color:#fff;}
+  .sh-hint{position:absolute;top:clamp(24px,4vw,48px);left:clamp(28px,5vw,72px);z-index:2;color:rgba(255,255,255,.92);
+    font-family:'Helvetica Neue',Arial,sans-serif;font-size:12px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;
+    display:flex;align-items:center;gap:9px;pointer-events:none;text-shadow:0 2px 12px rgba(0,0,0,.4);}
+  .sh-hint .wk-dot{width:8px;height:8px;border-radius:50%;background:#fff;animation:hintPulse 1.8s ease-in-out infinite;}
+  @keyframes hintPulse{0%,100%{opacity:1;transform:scale(1);}50%{opacity:.4;transform:scale(1.5);}}
+
+  /* ---- bare-card swipe close-up ---- */
+  .card-swipe{position:absolute;inset:0;display:flex;align-items:center;gap:clamp(18px,3.5vw,56px);padding:clamp(24px,4.4vw,66px);}
+  .card-swipe.rev{flex-direction:row-reverse;}
+  .card-swipe .copy{flex:1 1 0;min-width:0;}
+  .card-swipe .k{font-family:'TWKLausannePan',sans-serif;font-weight:300;font-size:clamp(11px,1vw,14px);letter-spacing:.18em;
+    text-transform:uppercase;opacity:.5;display:flex;align-items:center;gap:9px;margin-bottom:clamp(13px,1.6vw,22px);}
+  .card-swipe .k .kdot{width:6px;height:6px;border-radius:50%;background:var(--accent);}
+  .card-swipe h2{font-family:'TWKLausannePan',sans-serif;font-weight:300;font-size:clamp(25px,3.4vw,54px);line-height:1.02;letter-spacing:-0.024em;}
+  .card-swipe p{font-family:'TWKLausannePan',sans-serif;font-weight:300;font-size:clamp(13px,1.25vw,19px);line-height:1.5;opacity:.62;margin-top:clamp(13px,1.5vw,22px);max-width:32ch;}
+  .bc-wrap{flex:0 0 auto;height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:clamp(14px,1.8vw,24px);}
+  .bc-stack{position:relative;height:74%;aspect-ratio:0.76;}
+  .bc-card{position:absolute;inset:0;border-radius:clamp(14px,1.8vw,26px);overflow:hidden;background:#222;color:#fff;
+    box-shadow:0 36px 70px -30px rgba(0,0,0,.6);will-change:transform;}
+  .bc-card .g{position:absolute;inset:0;z-index:0;}
+  .bc-card img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;z-index:1;}
+  .bc-card::after{content:'';position:absolute;inset:0;z-index:2;background:linear-gradient(to top,rgba(0,0,0,.7),transparent 50%);}
+  .bc-when{position:absolute;top:14px;left:14px;z-index:3;display:flex;align-items:center;gap:6px;
+    background:rgba(20,20,20,.5);backdrop-filter:blur(8px);font-size:13px;font-weight:600;padding:6px 11px;border-radius:100px;}
+  .bc-pill{position:absolute;top:50px;left:14px;z-index:3;background:rgba(255,255,255,.92);color:#1a1a1a;
+    font-size:10.5px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;padding:5px 10px;border-radius:100px;}
+  .bc-plus{position:absolute;top:14px;right:14px;z-index:3;width:34px;height:34px;border-radius:50%;
+    background:rgba(255,255,255,.22);backdrop-filter:blur(6px);display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:300;}
+  .bc-body{position:absolute;left:18px;right:18px;bottom:18px;z-index:3;}
+  .bc-title{font-size:clamp(20px,1.9vw,30px);font-weight:700;line-height:1.05;letter-spacing:-.02em;}
+  .bc-ven{font-size:13px;opacity:.9;margin-top:5px;}
+  .bc-ctrls{display:flex;gap:clamp(16px,1.8vw,24px);}
+  .bc-b{width:clamp(50px,4vw,62px);height:clamp(50px,4vw,62px);border-radius:50%;background:#fff;border:1px solid var(--line);
+    box-shadow:0 12px 26px -10px rgba(0,0,0,.4);display:flex;align-items:center;justify-content:center;font-size:22px;cursor:pointer;transition:transform .15s;}
+  .bc-b:hover{transform:translateY(-3px);}
+  .bc-b.nope{color:#444;} .bc-b.save{color:var(--accent);}
+
+  /* ---- full-bleed "it's a match" close-up ---- */
+  .card-slamfull{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#fff;padding:clamp(28px,5vw,72px);}
+  .sf-inner{display:flex;flex-direction:column;align-items:center;text-align:center;width:100%;max-width:520px;}
+  .sf-av{display:flex;align-items:center;justify-content:center;margin-bottom:clamp(16px,2.4vw,30px);}
+  .sf-av .av{width:clamp(60px,8vw,108px);height:clamp(60px,8vw,108px);border-radius:50%;border:4px solid var(--paper);
+    display:flex;align-items:center;justify-content:center;font-weight:700;font-size:clamp(15px,1.6vw,22px);box-shadow:0 16px 40px -12px rgba(0,0,0,.4);overflow:hidden;flex:0 0 auto;}
+  .sf-av .you{background:#4a716b;margin-right:-14px;} .sf-av .them{background:#1a1a1a;margin-left:-14px;}
+  .sf-av .spark{font-size:clamp(28px,3vw,46px);color:#ffe08a;z-index:2;text-shadow:0 0 24px rgba(255,224,138,.8);animation:twinkle 2.6s ease-in-out infinite;}
+  .sf-eyebrow{font-family:'Helvetica Neue',Arial,sans-serif;font-size:clamp(11px,1vw,13px);font-weight:700;letter-spacing:.18em;text-transform:uppercase;opacity:.8;margin-bottom:14px;}
+  .sf-h{font-family:'TWKLausannePan',sans-serif;font-weight:300;font-size:clamp(44px,7.5vw,104px);letter-spacing:-0.035em;line-height:0.96;margin-bottom:clamp(20px,3vw,38px);animation:breathe 3.2s ease-in-out infinite;}
+  .sf-card{background:#fff;color:#1a1a1a;border-radius:20px;padding:clamp(12px,1.4vw,18px);display:flex;align-items:center;gap:16px;width:100%;max-width:440px;box-shadow:0 30px 60px -24px rgba(0,0,0,.4);text-align:left;}
+  .sf-card .thumb{width:clamp(56px,5vw,76px);height:clamp(56px,5vw,76px);border-radius:14px;overflow:hidden;position:relative;flex:0 0 auto;}
+  .sf-card .thumb img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;}
+  .sf-card>div{min-width:0;}
+  .sf-cat{font-size:11px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--accent-deep);}
+  .sf-t{font-size:clamp(17px,1.7vw,24px);font-weight:700;line-height:1.05;margin-top:3px;}
+  .sf-both{font-size:13px;color:var(--accent-deep);font-weight:600;margin-top:4px;}
+  .sf-cta{margin-top:clamp(18px,2.4vw,32px);background:#fff;color:var(--accent-deep);border:none;border-radius:100px;
+    padding:14px 30px;font-family:'Helvetica Neue',Arial,sans-serif;font-weight:700;font-size:clamp(14px,1.2vw,16px);box-shadow:0 14px 30px -10px rgba(0,0,0,.3);}
 
   /* ---- bento gallery card (real photos) ---- */
   .card-bento{position:absolute;inset:0;display:flex;flex-direction:column;background:var(--paper);}
@@ -450,10 +526,25 @@
     .card-device .phone-wrap{flex:1 1 auto;width:100%;min-height:0;margin-top:clamp(14px,3vh,24px);}
     .phone{height:100%;width:auto;max-width:80vw;}
     .frag-notif{display:none;}
-    .card-huge{padding:clamp(24px,8vw,40px);}
-    .card-huge h2{font-size:clamp(34px,11vw,62px);}
-    .card-huge .sub{font-size:14px;}
     .card-cover .tag{font-size:clamp(16px,4.5vw,22px);}
+    /* bigger logo on mobile */
+    .card-cover .wk-logo{font-size:clamp(64px,17vw,150px);}
+    #brandmark{font-size:23px;}
+    #brandmark .wk-dot{width:9px;height:9px;}
+    /* keep the alternating cards in column on mobile */
+    .card-device.rev,.card-swipe.rev{flex-direction:column;}
+    /* shader card fills, type scales down */
+    .card-shader h2{font-size:clamp(38px,11vw,68px);}
+    .card-shader .sh-sub{font-size:14px;}
+    /* swipe card: headline above a big bare-card stack */
+    .card-swipe{flex-direction:column;align-items:stretch;gap:0;
+      padding:clamp(20px,6vw,30px) clamp(20px,6vw,30px) clamp(18px,5vw,26px);justify-content:flex-start;}
+    .card-swipe .copy{flex:0 0 auto;}
+    .card-swipe h2{font-size:clamp(23px,6.6vw,32px);line-height:1.05;}
+    .card-swipe p{font-size:14px;max-width:none;}
+    .bc-wrap{flex:1 1 auto;width:100%;min-height:0;margin-top:clamp(12px,2.4vh,22px);}
+    .bc-stack{height:auto;flex:1 1 auto;max-height:78%;width:auto;max-width:74vw;aspect-ratio:0.76;}
+    .sf-h{font-size:clamp(46px,13vw,80px);}
     /* bento → 2 columns */
     .bento-grid{grid-template-columns:repeat(2,1fr);grid-template-rows:none;grid-auto-rows:1fr;}
     .bento-cell.feat{grid-column:span 2;grid-row:auto;}
@@ -593,15 +684,15 @@ const SCREENS={
 
 // the deck
 const projects=[
-  {kind:'cover', bg:'#faf8f3', text:'#1a1a1a'},
-  {kind:'huge',  bg:'#faf8f3', text:'#1a1a1a'},
-  {kind:'device',bg:'#143f3c', text:'#eafaf6', k:'The feed', h:'Swipe a few cards. Get a weekend.', p:"Every pick is ranked against Saturday's forecast — the best plan floats to the top.", screen:'stack', pick:'bite', anim:true, notif:{ico:'&#9829;', b:'Plan these together', s:'3 saved · tap to Match'}},
-  {kind:'bento', bg:'#faf8f3', text:'#1a1a1a'},
-  {kind:'device',bg:'#faf8f3', text:'#1a1a1a', k:'Matching · 01', h:'Save a few. Share one link.', p:'No sign-up, nothing to download. The link itself is the invite.', screen:'share'},
-  {kind:'device',bg:'#121a2e', text:'#eef2f7', k:'Matching · 02', h:'Then you swipe through theirs.', p:"Your partner's picks become your deck. Yes on the ones you're into.", screen:'matchdeck', pick:'bacchus'},
-  {kind:'device',bg:'accent',  text:'#ffffff', k:'Matching · 03', h:'When you both say yes.', p:"Overlap triggers the match — the one plan you'll both actually show up for.", screen:'slam', pick:'beach'},
-  {kind:'device',bg:'#faf8f3', text:'#1a1a1a', k:'Matching · 04', h:'Overlap becomes a plan.', p:'Send it back, add it to your weekend, export to your calendar. Done.', screen:'plan'},
-  {kind:'device',bg:'#1f3a36', text:'#eafaf6', k:'The payoff', h:"Your weekend's set.", p:"Two matches, a live forecast, and a plan you'll both actually keep.", screen:'ready'},
+  {kind:'cover',  bg:'accent', text:'#ffffff'},
+  {kind:'shader', bg:'#1a1a1a', text:'#fff', start:'HOT', h:'Sorted by the weather.', p:'Tap a forecast — the field, the feed, and every plan shift with the sky.'},
+  {kind:'swipe',  bg:'#faf8f3', text:'#1a1a1a', k:'The feed', h:'Your weekend, one swipe away.', p:"Swipe through what's on — right to save, left to skip. The weather's always in the ranking.", picks:['guns','bite','beach','bacchus','celeste']},
+  {kind:'bento',  bg:'#faf8f3', text:'#1a1a1a'},
+  {kind:'device', bg:'#faf8f3', text:'#1a1a1a', side:'left', k:'Matching · 01', h:'Save a few. Share one link.', p:'No sign-up, nothing to download. The link itself is the invite.', screen:'share'},
+  {kind:'device', bg:'#121a2e', text:'#eef2f7', k:'Matching · 02', h:'Then you swipe through theirs.', p:"Your partner's picks become your deck. Yes on the ones you're into.", screen:'matchdeck', pick:'bacchus'},
+  {kind:'slamfull',bg:'accent', text:'#fff', k:'Matching · 03'},
+  {kind:'device', bg:'#faf8f3', text:'#1a1a1a', side:'left', k:'Matching · 04', h:'Overlap becomes a plan.', p:'Send it back, add it to your weekend, export to your calendar. Done.', screen:'plan'},
+  {kind:'device', bg:'#1f3a36', text:'#eafaf6', k:'The payoff', h:"Your weekend's set.", p:"Two matches, a live forecast, and a plan you'll both actually keep.", screen:'ready'},
 ];
 
 const timeline=[
@@ -622,8 +713,69 @@ const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
 const invlerp=(v,a,b)=>clamp((v-a)/(b-a),0,1);
 const lerp=(a,b,t)=>a+(b-a)*t;
 
+// ---- interactive weather shader (ported from the app's "A Gradient" WebGL look) ----
+const SHADER_MODES=[{key:'HOT',label:'Hot'},{key:'WARM',label:'Warm'},{key:'COOL',label:'Cool'},{key:'COLD_WET',label:'Cold & wet'},{key:'VOLATILE',label:'Volatile'}];
+function hexRgb(h){h=h.replace('#','');return [parseInt(h.slice(0,2),16)/255,parseInt(h.slice(2,4),16)/255,parseInt(h.slice(4,6),16)/255];}
+function modeCols(k){const m=MODES[k]||MODES.WARM;return [m.glow,m.c1,m.c2,m.c3,m.c1].map(hexRgb);}
+const VS=`attribute vec2 aPosition;varying vec2 vUv;void main(){vUv=aPosition*0.5+0.5;gl_Position=vec4(aPosition,0.0,1.0);}`;
+const FS=`precision highp float;varying vec2 vUv;uniform vec2 uRes;uniform float uTime,uSoft,uTravel,uWarp;uniform vec3 uCol[5];
+float hash(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453);}
+float vnoise(vec2 p){vec2 i=floor(p),f=fract(p);f=f*f*(3.0-2.0*f);float a=hash(i),b=hash(i+vec2(1.0,0.0)),c=hash(i+vec2(0.0,1.0)),d=hash(i+vec2(1.0,1.0));return mix(mix(a,b,f.x),mix(c,d,f.x),f.y);}
+float fbm(vec2 p){float v=0.0,a=0.5;for(int i=0;i<4;i++){v+=a*vnoise(p);p*=2.0;a*=0.5;}return v;}
+void main(){vec2 uv=vUv;vec2 asp=vec2(uRes.x/uRes.y,1.0);float t=uTime;
+float w1=fbm(uv*2.4+vec2(0.0,t*0.08));float w2=fbm(uv*2.4+vec2(3.7,1.2)-t*0.06);
+vec2 wuv=uv+(vec2(w1,w2)-0.5)*uWarp;vec2 pts[5];
+pts[0]=vec2(0.5+uTravel*sin(t*0.23),0.5+uTravel*cos(t*0.19));
+pts[1]=vec2(0.5+uTravel*sin(t*0.17+2.1),0.5+uTravel*cos(t*0.27+1.0));
+pts[2]=vec2(0.5+uTravel*sin(t*0.21+4.0),0.5+uTravel*cos(t*0.15+3.0));
+pts[3]=vec2(0.5+uTravel*sin(t*0.13+1.5),0.5+uTravel*cos(t*0.23+5.0));
+pts[4]=vec2(0.5+uTravel*sin(t*0.19+3.5),0.5+uTravel*cos(t*0.20+2.5));
+float pulse[5];pulse[0]=0.5+0.5*sin(t*0.50);pulse[1]=0.5+0.5*sin(t*0.37+1.7);pulse[2]=0.5+0.5*sin(t*0.43+3.1);pulse[3]=0.5+0.5*sin(t*0.31+4.5);pulse[4]=0.5+0.5*sin(t*0.47+0.6);
+vec3 col=vec3(0.0);float wsum=0.0;
+for(int i=0;i<5;i++){vec2 d=(wuv-pts[i])*asp;float w=exp(-dot(d,d)/uSoft)*(0.35+0.65*pulse[i]);col+=uCol[i]*w;wsum+=w;}
+col/=max(wsum,0.0001);col+=(hash(gl_FragCoord.xy+t)-0.5)/200.0;gl_FragColor=vec4(col,1.0);}`;
+function mountShader(canvas,startKey){
+  let gl=null; try{gl=canvas.getContext('webgl',{antialias:false,alpha:false});}catch(e){}
+  if(!gl){canvas.style.background=glow(startKey);return {setMode(k){canvas.style.background=glow(k);}};}
+  function sh(ty,src){const s=gl.createShader(ty);gl.shaderSource(s,src);gl.compileShader(s);return s;}
+  const prog=gl.createProgram();gl.attachShader(prog,sh(gl.VERTEX_SHADER,VS));gl.attachShader(prog,sh(gl.FRAGMENT_SHADER,FS));gl.linkProgram(prog);gl.useProgram(prog);
+  const buf=gl.createBuffer();gl.bindBuffer(gl.ARRAY_BUFFER,buf);gl.bufferData(gl.ARRAY_BUFFER,new Float32Array([-1,-1,3,-1,-1,3]),gl.STATIC_DRAW);
+  const ap=gl.getAttribLocation(prog,'aPosition');gl.enableVertexAttribArray(ap);gl.vertexAttribPointer(ap,2,gl.FLOAT,false,0,0);
+  const U={};['uRes','uTime','uSoft','uTravel','uWarp'].forEach(n=>U[n]=gl.getUniformLocation(prog,n));U.uCol=gl.getUniformLocation(prog,'uCol[0]');
+  let cur=modeCols(startKey),tgt=modeCols(startKey);
+  let w=0,h=0;
+  function size(){const r=canvas.getBoundingClientRect();const dpr=Math.min(window.devicePixelRatio||1,2);const nw=Math.max(2,Math.round(r.width*dpr)),nh=Math.max(2,Math.round(r.height*dpr));if(nw!==w||nh!==h){w=nw;h=nh;canvas.width=w;canvas.height=h;gl.viewport(0,0,w,h);}}
+  const t0=performance.now();
+  function frame(now){size();for(let i=0;i<5;i++)for(let j=0;j<3;j++)cur[i][j]+=(tgt[i][j]-cur[i][j])*0.05;
+    gl.uniform2f(U.uRes,w,h);gl.uniform1f(U.uTime,(now-t0)/1000*0.7);gl.uniform1f(U.uSoft,0.3);gl.uniform1f(U.uTravel,0.36);gl.uniform1f(U.uWarp,0.13);
+    const flat=new Float32Array(15);for(let i=0;i<5;i++){flat[i*3]=cur[i][0];flat[i*3+1]=cur[i][1];flat[i*3+2]=cur[i][2];}gl.uniform3fv(U.uCol,flat);
+    gl.drawArrays(gl.TRIANGLES,0,3);requestAnimationFrame(frame);}
+  requestAnimationFrame(frame);
+  return {setMode(k){tgt=modeCols(k);}};
+}
+
+// ---- bare-card swipe close-up ----
+function mountSwipe(stackEl,ctrls,keys){
+  let order=keys.slice(),busy=false,timer=0;
+  function render(){stackEl.innerHTML='';order.slice(0,3).forEach((pk,i)=>{const pk0=P[pk];
+    const c=document.createElement('div');c.className='bc-card'+(i===0?' top':'');c.style.zIndex=30-i;
+    c.style.transform=`translateY(${i*16}px) scale(${1-i*0.055}) rotate(${i===0?0:(i%2?-2.5:2.5)}deg)`;
+    c.innerHTML=`${photo(pk0)}<div class="bc-when">&#128339; ${pk0.when.split('·')[0].trim()}</div><div class="bc-pill">${fitPill(pk0.fit)}</div><div class="bc-plus">+</div><div class="bc-body"><div class="bc-title">${pk0.t}</div><div class="bc-ven">${pk0.v}</div></div>`;
+    stackEl.appendChild(c);});}
+  function advance(dir){if(busy)return;busy=true;const top=stackEl.querySelector('.bc-card.top');
+    if(top){top.style.transition='transform .45s cubic-bezier(.5,0,.2,1),opacity .45s';top.style.transform=`translate(${dir>0?125:-125}%,-6%) rotate(${dir>0?16:-16}deg)`;top.style.opacity='0';}
+    setTimeout(()=>{order.push(order.shift());render();busy=false;},380);}
+  function loop(){timer=setTimeout(()=>{advance(1);loop();},5200);}
+  function kick(){clearTimeout(timer);loop();}
+  ctrls.querySelector('.nope').addEventListener('click',(e)=>{e.stopPropagation();kick();advance(-1);});
+  ctrls.querySelector('.save').addEventListener('click',(e)=>{e.stopPropagation();kick();advance(1);});
+  stackEl.addEventListener('click',()=>{kick();advance(1);});
+  render();loop();
+}
+
 const deck=document.getElementById('deck');
 const cardEls=[];
+const inits=[];
 projects.forEach((c)=>{
   const card=document.createElement('div'); card.className='card';
   const media=document.createElement('div'); media.className='media';
@@ -632,12 +784,20 @@ projects.forEach((c)=>{
 
   if(c.kind==='cover'){
     media.innerHTML=`<div class="card-cover"><div class="wk-logo"><span class="wk-dot"></span>WKNDR</div><div class="tag">Tinder your events.</div><div class="sub">Weather-ranked plans · match with friends</div></div>`;
-  } else if(c.kind==='huge'){
-    media.innerHTML=`<div class="card-huge">
-      <span class="chip"><span class="dot"></span>Right now in Amsterdam · 26°<span class="mode">Hot</span></span>
-      <h2>Your weekend, sorted by the <span class="swap">weather</span>.</h2>
-      <p class="sub">WKNDR reads the whole city, learns your taste, and re-ranks it for this weekend's sky.</p>
-    </div>`;
+  } else if(c.kind==='shader'){
+    media.innerHTML=`<div class="card-shader"><canvas class="sh-canvas"></canvas><div class="sh-hint"><span class="wk-dot"></span>Tap a forecast</div><div class="sh-overlay"><h2>${c.h}</h2><div class="sh-sub">${c.p}</div><div class="sh-pills"></div></div></div>`;
+    inits.push(()=>{
+      const ctrl=mountShader(media.querySelector('.sh-canvas'), c.start);
+      const wrap=media.querySelector('.sh-pills');
+      SHADER_MODES.forEach(sm=>{const b=document.createElement('button');b.className='sh-pill'+(sm.key===c.start?' on':'');b.textContent=sm.label;
+        b.addEventListener('click',(e)=>{e.stopPropagation();ctrl.setMode(sm.key);wrap.querySelectorAll('.sh-pill').forEach(x=>x.classList.remove('on'));b.classList.add('on');});
+        wrap.appendChild(b);});
+    });
+  } else if(c.kind==='swipe'){
+    media.innerHTML=`<div class="card-swipe${c.side==='left'?' rev':''}"><div class="copy"><div class="k"><span class="kdot"></span>${c.k}</div><h2>${c.h}</h2><p>${c.p}</p></div><div class="bc-wrap"><div class="bc-stack"></div><div class="bc-ctrls"><button class="bc-b nope">&#10005;</button><button class="bc-b save">&#9733;</button></div></div></div>`;
+    inits.push(()=>{ mountSwipe(media.querySelector('.bc-stack'), media.querySelector('.bc-ctrls'), c.picks); });
+  } else if(c.kind==='slamfull'){
+    media.innerHTML=`<div class="card-slamfull"><div class="sf-inner"><div class="sf-av"><span class="av you">You</span><span class="av spark">&#10022;</span><span class="av them">N</span></div><div class="sf-eyebrow">${c.k}</div><div class="sf-h">It's a match.</div><div class="sf-card"><span class="thumb">${photo(P.beach)}</span><div><div class="sf-cat">${P.beach.cat} · this weekend</div><div class="sf-t">${P.beach.t}</div><div class="sf-both">You both want to go here</div></div></div><button class="sf-cta">Keep swiping · 2 matched</button></div></div>`;
   } else if(c.kind==='bento'){
     const order=['guns','beach','bacchus','zee','yumna'];
     const cells=order.map((id,i)=>{const pk=P[id];return `<div class="bento-cell ${i===0?'feat':''}">${photo(pk)}<span class="fit">${fitPill(pk.fit)}</span><div class="lbl"><div class="t">${pk.t}</div><div class="m">${pk.v} · ${pk.when.split('·')[0].trim()}</div></div></div>`;}).join('');
@@ -645,10 +805,11 @@ projects.forEach((c)=>{
   } else {
     const screen=SCREENS[c.screen](c.pick?P[c.pick]:undefined,{anim:c.anim});
     const notif=c.notif?`<div class="frag-notif"><span class="ico">${c.notif.ico}</span><div class="tx"><b>${c.notif.b}</b><span>${c.notif.s}</span></div></div>`:'';
-    media.innerHTML=`<div class="card-device"><div class="copy"><div class="k"><span class="kdot"></span>${c.k}</div><h2>${c.h}</h2><p>${c.p}</p></div><div class="phone-wrap" style="position:relative">${notif}<div class="phone">${screen}</div></div></div>`;
+    media.innerHTML=`<div class="card-device${c.side==='left'?' rev':''}"><div class="copy"><div class="k"><span class="kdot"></span>${c.k}</div><h2>${c.h}</h2><p>${c.p}</p></div><div class="phone-wrap" style="position:relative">${notif}<div class="phone">${screen}</div></div></div>`;
   }
   card.appendChild(media); deck.appendChild(card); cardEls.push(card);
 });
+inits.forEach(fn=>fn());
 
 // weather chips + hover labels
 const iconRow=document.getElementById('icon-row');
