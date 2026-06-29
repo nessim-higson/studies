@@ -613,6 +613,8 @@
     .weekend-card{box-shadow:0 18px 42px -18px rgba(0,0,0,.45);}
     .wk-card{box-shadow:none;}
     .card{box-shadow:none;}
+    /* decorative infinite animations run every frame even off-screen — drop them on mobile */
+    .sf-h,.scr-slam .slam-h,.scr-slam .spark,.sf-av .spark,.sh-hint .wk-dot{animation:none !important;}
   }
   @media (prefers-reduced-motion: reduce){
     .scr-hot,.sh-canvas,.wk-card.auto,.wk-stamp,.frag-notif{animation:none !important;}
@@ -768,7 +770,10 @@ const timeline=[
 
 const isMobile=window.innerWidth<768;
 const L=isMobile?300:800, HFAC=isMobile?1.8:0.8, TOTAL=projects.length;
-const UMAX=L+(TOTAL-1)*L+L*HFAC, VISIBLE=3;
+const UMAX=L+(TOTAL-1)*L+L*HFAC, VISIBLE=isMobile?2:3;
+// how far a dismissing card actually RISES in px. On mobile the cards are tall (~deck height)
+// but L is small (300) — so tie the rise to the viewport so a card fully clears the one behind it.
+const RISE=isMobile?Math.round(Math.min(window.innerHeight*0.80,660)+90):L;
 const introYStart=isMobile?50:72, cInit=isMobile?150:300;
 const SPR=isMobile?{k:120,c:35,m:0.3}:{k:200,c:40,m:0.5};
 
@@ -790,9 +795,9 @@ function _fade(canvas,fn){canvas.style.transition='opacity .32s ease';canvas.sty
 // perf: only run the weather field when its card is the active one (set by the deck loop) + on a low-res buffer on mobile
 const _MOB=window.innerWidth<768;
 let SHADER_VIS=false;
-const _2DPR=()=>Math.min(_MOB?0.7:1.1,window.devicePixelRatio||1);  // 2D looks: cheap upscaled buffer
-const _GLDPR=()=>Math.min(_MOB?1.1:1.5,window.devicePixelRatio||1);
-const _CAP=_MOB?44:32;
+const _2DPR=()=>Math.min(_MOB?0.6:1.1,window.devicePixelRatio||1);  // 2D looks: cheap upscaled buffer
+const _GLDPR=()=>Math.min(_MOB?1.0:1.5,window.devicePixelRatio||1);
+const _CAP=_MOB?52:32;
 
 // ---- AURAS (orbs per weather; snow falls, wind streams flow) ----
 function mountAuras(canvas,startKey){
@@ -1116,7 +1121,7 @@ function frame(ts){
     earlyLink.style.pointerEvents=dMaster>0.5?'auto':'none';
     for(let e=0;e<TOTAL;e++){
       const h=(e*L-f)/L+1;
-      const y=h<1?-(1-h)*L:(h-1)*18;
+      const y=h<1?-(1-h)*RISE:(h-1)*18;
       const sc=h<1?1:1-(h-1)*0.04;
       const dSign=(e===TOTAL-1||e%2===0)?-1:1;
       // tilt as the card slides up — and KEEP tilting past the top (h<1, not h>0) so it never snaps back to straight
@@ -1125,6 +1130,8 @@ function frame(ts){
       const el=cardEls[e];
       el.style.transform=`translateY(${y}px) scale(${sc}) rotate(${ro}deg)`;
       el.style.opacity=op;el.style.zIndex=Math.round(TOTAL-h+1);
+      // fully-occluded cards (op 0) cost nothing to composite when hidden — big mobile win
+      el.style.visibility=op>0?'visible':'hidden';
       el.style.pointerEvents=h<0.1?'none':'auto';
       if(e===_shaderIdx)SHADER_VIS=(h>-0.7&&h<1.7);
     }
