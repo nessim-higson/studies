@@ -1118,7 +1118,9 @@ function frame(ts){
       const h=(e*L-f)/L+1;
       const y=h<1?-(1-h)*L:(h-1)*18;
       const sc=h<1?1:1-(h-1)*0.04;
-      const ro=0; // cards rise straight up — no side-tilt on dismiss
+      const dSign=(e===TOTAL-1||e%2===0)?-1:1;
+      // tilt as the card slides up — and KEEP tilting past the top (h<1, not h>0) so it never snaps back to straight
+      const ro=(!isMobile&&h<1)?(1-h)*3*dSign:(isMobile&&e===0&&h>0)?1.5*Math.min(1,h):0;
       const op=(h<-0.5||h>VISIBLE+1)?0:(h>VISIBLE?1-(h-VISIBLE):1);
       const el=cardEls[e];
       el.style.transform=`translateY(${y}px) scale(${sc}) rotate(${ro}deg)`;
