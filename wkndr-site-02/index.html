@@ -1118,8 +1118,7 @@ function frame(ts){
       const h=(e*L-f)/L+1;
       const y=h<1?-(1-h)*L:(h-1)*18;
       const sc=h<1?1:1-(h-1)*0.04;
-      const dSign=(e===TOTAL-1||e%2===0)?-1:1;
-      const ro=(!isMobile&&h>0&&h<1)?(1-h)*3*dSign:(isMobile&&e===0&&h>0)?1.5*Math.min(1,h):0;
+      const ro=0; // cards rise straight up — no side-tilt on dismiss
       const op=(h<-0.5||h>VISIBLE+1)?0:(h>VISIBLE?1-(h-VISIBLE):1);
       const el=cardEls[e];
       el.style.transform=`translateY(${y}px) scale(${sc}) rotate(${ro}deg)`;
@@ -1128,10 +1127,10 @@ function frame(ts){
       if(e===_shaderIdx)SHADER_VIS=(h>-0.7&&h<1.7);
     }
     const b=(TOTAL-1)*L;
-    const T=invlerp(f,b+0.3*L,b+0.7*L);
-    closing.style.opacity=ready?T:0;
-    closing.style.zIndex=(T>0.01)?9999:0;
-    closing.style.pointerEvents=T>0.3?'auto':'none';
+    // reveal (no fade): closing sits behind the last card at full opacity; the rising card uncovers it
+    closing.style.opacity=(ready&&f>b-0.6*L)?1:0;
+    closing.style.zIndex=0;
+    closing.style.pointerEvents=(f>b+0.45*L)?'auto':'none';
   }
   if(socialOpen!==_lastSocial){
     _lastSocial=socialOpen;
