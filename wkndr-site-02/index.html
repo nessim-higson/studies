@@ -72,7 +72,7 @@
   }
   .card{
     position:absolute;inset:0;
-    border-radius:clamp(8px,2vw,22px);
+    border-radius:22px; /* match the real app card curve (Card.css / CardDetail.css = 22px) */
     border:0.5px solid rgba(0,0,0,0.06);
     overflow:hidden;transform-origin:center bottom;will-change:transform;
   }
@@ -226,7 +226,7 @@
   .card-swipe p{font-family:'TWKLausannePan',sans-serif;font-weight:300;font-size:clamp(13px,1.25vw,19px);line-height:1.5;opacity:.62;margin-top:clamp(13px,1.5vw,22px);max-width:32ch;}
   .bc-wrap{flex:0 0 auto;height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:clamp(14px,1.8vw,24px);}
   .bc-stack{position:relative;height:74%;aspect-ratio:0.76;}
-  .bc-card{position:absolute;inset:0;border-radius:clamp(14px,1.8vw,26px);overflow:hidden;background:#222;color:#fff;
+  .bc-card{position:absolute;inset:0;border-radius:22px;overflow:hidden;background:#222;color:#fff;
     box-shadow:0 36px 70px -30px rgba(0,0,0,.6);will-change:transform;}
   .bc-card .g{position:absolute;inset:0;z-index:0;}
   .bc-card img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;z-index:1;}
@@ -554,7 +554,7 @@
     .closing-text{max-width:90vw;}
     #early{display:none;}
     /* deck becomes a tall portrait panel that fills the phone */
-    #deck{width:92vw;max-width:92vw;height:min(80vh,660px);aspect-ratio:auto;}
+    #deck{width:92vw;max-width:92vw;height:min(66vh,560px);aspect-ratio:auto;}
     /* device cards: short headline stacked above a LARGE phone */
     .card-device{flex-direction:column;align-items:stretch;gap:0;
       padding:clamp(20px,6vw,30px) clamp(20px,6vw,30px) clamp(18px,5vw,26px);justify-content:flex-start;}
@@ -773,7 +773,7 @@ const L=isMobile?300:800, HFAC=isMobile?1.8:0.8, TOTAL=projects.length;
 const UMAX=L+(TOTAL-1)*L+L*HFAC, VISIBLE=isMobile?2:3;
 // how far a dismissing card actually RISES in px. On mobile the cards are tall (~deck height)
 // but L is small (300) — so tie the rise to the viewport so a card fully clears the one behind it.
-const RISE=isMobile?Math.round(Math.min(window.innerHeight*0.80,660)+90):L;
+const RISE=isMobile?Math.round(Math.min(window.innerHeight*0.66,560)+80):L;
 const introYStart=isMobile?50:72, cInit=isMobile?150:300;
 const SPR=isMobile?{k:120,c:35,m:0.3}:{k:200,c:40,m:0.5};
 
