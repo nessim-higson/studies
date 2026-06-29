@@ -751,7 +751,7 @@ const SCREENS={
 // the deck
 const projects=[
   {kind:'cover',  bg:'accent', text:'#ffffff'},
-  {kind:'shader', bg:'#1a1a1a', text:'#fff', start:'HOT', h:'Sorted by the weather.', p:'Tap a forecast — the field, the feed, and every plan shift with the sky.'},
+  {kind:'shader', bg:'#1a1a1a', text:'#fff', start:'HOT', look:'forms', h:'Sorted by the weather.', p:'Tap a forecast — the field, the feed, and every plan shift with the sky.'},
   {kind:'swipe',  bg:'#faf8f3', text:'#1a1a1a', k:'The feed', h:'Your weekend, one swipe away.', p:"Swipe through what's on — right to save, left to skip. The weather's always in the ranking.", picks:['guns','bite','beach','bacchus','celeste']},
   {kind:'bento',  bg:'#faf8f3', text:'#1a1a1a'},
   {kind:'shareart', bg:'#faf8f3', text:'#1a1a1a', side:'left', k:'Matching · 01', h:'Save a few. Share one link.', p:'They swipe your picks, you swipe theirs — no app, no sign-up. The overlap is the plan.'},
@@ -1018,7 +1018,7 @@ projects.forEach((c)=>{
     media.innerHTML=`<div class="card-slamfull"><div class="sf-inner"><div class="sf-av"><span class="av you">You</span><span class="av spark">&#10022;</span><span class="av them">N</span></div><div class="sf-eyebrow">${c.k}</div><div class="sf-h">It's a match.</div><div class="sf-card"><span class="thumb">${photo(P.beach)}</span><div><div class="sf-cat">${P.beach.cat} · this weekend</div><div class="sf-t">${P.beach.t}</div><div class="sf-both">You both want to go here</div></div></div><button class="sf-cta">Keep swiping · 2 matched</button></div></div>`;
   } else if(c.kind==='bento'){
     const order=['guns','beach','bacchus','zee','yumna'];
-    const cells=order.map((id,i)=>{const pk=P[id];return `<div class="bento-cell ${i===0?'feat':''}">${photo(pk)}<span class="fit">${fitPill(pk.fit)}</span><div class="lbl"><div class="t">${pk.t}</div><div class="m">${pk.v} · ${pk.when.split('·')[0].trim()}</div></div></div>`;}).join('');
+    const cells=order.map((id,i)=>{const pk=P[id];return `<div class="bento-cell ${i===0?'feat':''}">${photo(pk)}<span class="fit">${fitPill(pk.fit)}</span><div class="lbl"><div class="t">${pk.t}</div><div class="m">${pk.v}</div></div></div>`;}).join('');
     media.innerHTML=`<div class="card-bento"><div class="bento-head"><div class="htxt"><h3>This weekend, already sorted.</h3><p>59 picks across the city — re-ranked for warm, dry Saturday.</p></div><span class="chip"><span class="dot"></span>26°<span class="mode">Hot</span></span></div><div class="bento-grid">${cells}</div></div>`;
   } else {
     const screen=SCREENS[c.screen](c.pick?P[c.pick]:undefined,{anim:c.anim});
