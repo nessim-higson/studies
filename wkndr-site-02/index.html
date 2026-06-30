@@ -75,6 +75,10 @@
     border-radius:22px; /* match the real app card curve (Card.css / CardDetail.css = 22px) */
     border:0.5px solid rgba(0,0,0,0.06);
     overflow:hidden;transform-origin:center bottom;will-change:transform;
+    /* layered elevation — the promoted layer translates with its shadow, so it stays cheap */
+    box-shadow:0 1px 2px rgba(40,30,20,.05),
+               0 10px 22px -8px rgba(40,30,20,.16),
+               0 34px 60px -28px rgba(40,30,20,.30);
   }
   .card>.media{width:100%;height:100%;position:relative;}
 
@@ -612,7 +616,8 @@
     .bc-card{box-shadow:0 16px 34px -16px rgba(0,0,0,.5);}
     .weekend-card{box-shadow:0 18px 42px -18px rgba(0,0,0,.45);}
     .wk-card{box-shadow:none;}
-    .card{box-shadow:none;}
+    /* keep a real shadow on mobile but a single cheap layer (no multi-layer re-composite) */
+    .card{box-shadow:0 10px 26px -10px rgba(40,30,20,.30);}
     /* decorative infinite animations run every frame even off-screen — drop them on mobile */
     .sf-h,.scr-slam .slam-h,.scr-slam .spark,.sf-av .spark,.sh-hint .wk-dot{animation:none !important;}
   }
@@ -1063,12 +1068,19 @@ const brandmark=document.getElementById('brandmark');
 const earlyLink=document.getElementById('early');
 
 window.addEventListener('wheel',(e)=>{e.preventDefault();p=clamp(p+1.5*e.deltaY,0,UMAX);},{passive:false});
-let tStartY=0,tStartP=0,tBlocked=false;
+// mobile = snap pagination: each swipe deals exactly ONE card (no flinging the whole stack off)
+let tStartY=0,tBaseIdx=0,tBaseP=0,tMoved=0,tBlocked=false;
 stage.addEventListener('touchstart',(e)=>{const tgt=e.target;
   tBlocked=!!(tgt.closest('.get-in-touch')||tgt.closest('.icon-wiggle')||tgt.closest('button')||tgt.closest('a'));
-  tStartY=e.touches[0].clientY;tStartP=p;},{passive:true});
+  tStartY=e.touches[0].clientY;tBaseIdx=Math.round(p/L);tBaseP=tBaseIdx*L;tMoved=0;},{passive:true});
 stage.addEventListener('touchmove',(e)=>{if(tBlocked)return;e.preventDefault();
-  const dy=tStartY-e.touches[0].clientY;p=clamp(tStartP+2*dy,0,UMAX);},{passive:false});
+  tMoved=tStartY-e.touches[0].clientY;             // finger px (up = positive)
+  // drag tracks the finger but is capped to ±one card, so you can never pull more than one at a time
+  p=clamp(clamp(tBaseP+1.4*tMoved,(tBaseIdx-1)*L,(tBaseIdx+1)*L),0,UMAX);},{passive:false});
+stage.addEventListener('touchend',()=>{if(tBlocked)return;
+  // commit one card in the swipe direction past a small threshold, else snap back
+  const TH=52,dir=tMoved>TH?1:tMoved<-TH?-1:0;
+  p=clamp((tBaseIdx+dir)*L,0,UMAX);},{passive:true});
 
 let socialOpen=false;
 function openSocial(o){socialOpen=o;}
