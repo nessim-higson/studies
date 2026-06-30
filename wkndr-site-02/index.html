@@ -482,6 +482,24 @@
   @keyframes wiggle{0%{transform:rotate(-2deg);}50%{transform:rotate(2deg);}to{transform:rotate(-2deg);}}
   .icon-wiggle:hover,.icon-wiggle.wiggling{animation:.3s ease-in-out infinite wiggle;}
 
+  /* ---- waitlist qualifying capture ---- */
+  .wl{display:flex;flex-direction:column;gap:9px;width:min(360px,82vw);margin-top:4px;}
+  .wl input{width:100%;font-family:'TWKLausannePan',sans-serif;font-weight:300;font-size:15px;color:var(--ink);
+    background:#fff;border:0.5px solid rgba(0,0,0,0.18);border-radius:12px;padding:11px 14px;outline:none;
+    transition:border-color .18s ease,box-shadow .18s ease;-webkit-appearance:none;}
+  .wl input::placeholder{color:#a8a69d;}
+  .wl input:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(255,77,31,0.12);}
+  .wl input.bad{border-color:#d8442c;box-shadow:0 0 0 3px rgba(216,68,44,.14);}
+  .wl .wl-two{display:flex;gap:9px;}
+  .wl .wl-two input{flex:1 1 0;min-width:0;}
+  .wl .wl-submit{margin-top:4px;width:100%;justify-content:center;}
+  .wl-note{font-family:'TWKLausannePan',sans-serif;font-weight:300;font-size:12px;color:var(--ink-3);text-align:center;margin-top:1px;}
+  .wl-done{display:none;flex-direction:column;align-items:center;gap:7px;text-align:center;}
+  .wl-done.show{display:flex;}
+  .wl-done .wl-done-h{font-family:var(--display);font-weight:600;font-size:21px;color:var(--ink);letter-spacing:-0.01em;}
+  .wl-done .wl-done-h .spark{color:var(--accent);}
+  .wl-done .wl-done-s{font-family:'TWKLausannePan',sans-serif;font-weight:300;font-size:14px;color:var(--ink-3);max-width:300px;line-height:1.45;}
+
   #backdrop{position:fixed;top:-50px;left:0;right:0;bottom:-50px;
     backdrop-filter:blur(0px);-webkit-backdrop-filter:blur(0px);background:transparent;
     transition:backdrop-filter .3s ease,-webkit-backdrop-filter .3s ease,background .3s ease;pointer-events:none;z-index:-1;}
@@ -556,6 +574,13 @@
   @media(max-width:768px){
     #headline{font-size:25px;line-height:1.14;letter-spacing:-0.01em;max-width:90vw;}
     .closing-text{max-width:90vw;}
+    /* closing capture: tighten so the form fits the shorter mobile card */
+    #closing{padding:24px;}
+    .closing-logo{margin-bottom:14px;}
+    #icon-row{margin-bottom:14px;}
+    .closing-text{font-size:15px;line-height:1.35;margin-bottom:6px;}
+    .wl{gap:8px;width:86vw;}
+    .wl input{padding:10px 13px;font-size:14px;border-radius:11px;}
     #early{display:none;}
     /* deck becomes a tall portrait panel that fills the phone */
     #deck{width:92vw;max-width:92vw;height:min(66vh,560px);aspect-ratio:auto;}
@@ -630,7 +655,7 @@
 <div id="stage">
 
   <div id="brandmark"><span class="wk-dot"></span>WKNDR</div>
-  <a id="early" href="#" onclick="document.getElementById('git')&&document.getElementById('git').click();return false;">Get early access</a>
+  <a id="early" href="#">Get early access</a>
 
   <div id="headline-wrap">
     <h1 id="headline">Your weekend, ranked by the weather — match events with people you would actually go with</h1>
@@ -642,17 +667,22 @@
         <div class="closing-logo"><span class="wk-dot"></span>WKNDR</div>
         <div id="icon-row"><!-- weather chips injected by JS --></div>
         <p class="closing-text">
-          <span class="mclane-link" id="mclane-link">WKNDR</span> reads the forecast, ranks every plan against it, and lets you match the ones you'd both show up for — no sign-up, no app to download. Save a few, share one link, find your weekend together.
+          <span class="mclane-link" id="mclane-link">WKNDR</span> ranks your weekend by the forecast — and matches it with the people you'd actually go with.
         </p>
-        <span class="git-wrap">
-          <span style="position:relative;display:inline-block">
-            <button type="button" class="get-in-touch" id="git" aria-label="Copy email address">Get early access<span class="git-arrow"><span class="git-arrow-out">→</span><span class="git-arrow-in">→</span></span></button>
-            <span class="touched" id="touched">You're on the list</span>
-          </span>
-        </span>
-        <span style="display:block;margin-top:16px;text-align:center">
-          <span class="copied-toast" id="copied">Email copied</span>
-        </span>
+        <form id="wl-form" class="wl" novalidate>
+          <input id="wl-email" type="email" inputmode="email" autocomplete="email" required placeholder="you@email.com" aria-label="Email" />
+          <div class="wl-two">
+            <input id="wl-city" type="text" autocomplete="address-level2" placeholder="Your city" aria-label="City" />
+            <input id="wl-crew" type="text" placeholder="Who'd you go with?" aria-label="Who would you go with" />
+          </div>
+          <input id="wl-now" type="text" placeholder="How do you plan weekends now?" aria-label="How do you plan weekends now" />
+          <button type="submit" class="get-in-touch wl-submit" id="wl-go">Request early access<span class="git-arrow"><span class="git-arrow-out">→</span><span class="git-arrow-in">→</span></span></button>
+          <span class="wl-note">No spam — just your first weekend, ranked.</span>
+        </form>
+        <div class="wl-done" id="wl-done">
+          <span class="wl-done-h">You're on the list <span class="spark">✦</span></span>
+          <span class="wl-done-s">We'll send your first weekend, ranked by the forecast. Pull in a friend you'd actually go with.</span>
+        </div>
       </div>
     </div>
     <!-- cards injected by JS -->
@@ -1061,9 +1091,9 @@ const closing=document.getElementById('closing');
 const backdrop=document.getElementById('backdrop');
 const social=document.getElementById('social');
 const mclaneLink=document.getElementById('mclane-link');
-const gitBtn=document.getElementById('git');
-const touchedEl=document.getElementById('touched');
-const copiedEl=document.getElementById('copied');
+const wlForm=document.getElementById('wl-form');
+const wlDone=document.getElementById('wl-done');
+const wlEmail=document.getElementById('wl-email');
 const brandmark=document.getElementById('brandmark');
 const earlyLink=document.getElementById('early');
 
@@ -1071,7 +1101,7 @@ window.addEventListener('wheel',(e)=>{e.preventDefault();p=clamp(p+1.5*e.deltaY,
 // mobile = snap pagination: each swipe deals exactly ONE card (no flinging the whole stack off)
 let tStartY=0,tBaseIdx=0,tBaseP=0,tMoved=0,tBlocked=false;
 stage.addEventListener('touchstart',(e)=>{const tgt=e.target;
-  tBlocked=!!(tgt.closest('.get-in-touch')||tgt.closest('.icon-wiggle')||tgt.closest('button')||tgt.closest('a'));
+  tBlocked=!!(tgt.closest('.get-in-touch')||tgt.closest('.icon-wiggle')||tgt.closest('button')||tgt.closest('a')||tgt.closest('input')||tgt.closest('#wl-form'));
   tStartY=e.touches[0].clientY;tBaseIdx=Math.round(p/L);tBaseP=tBaseIdx*L;tMoved=0;},{passive:true});
 stage.addEventListener('touchmove',(e)=>{if(tBlocked)return;e.preventDefault();
   tMoved=tStartY-e.touches[0].clientY;             // finger px (up = positive)
@@ -1090,14 +1120,36 @@ social.addEventListener('mouseenter',()=>openSocial(true));
 social.addEventListener('mouseleave',()=>openSocial(false));
 if(isMobile){social.style.left='50%';social.style.top='50%';}
 
-let emailCopied=false;
-gitBtn.addEventListener('click',()=>{if(emailCopied)return;
-  const ta=document.createElement('textarea');ta.value='hello@wkndr.app';ta.style.position='fixed';ta.style.opacity='0';
-  document.body.appendChild(ta);ta.focus();ta.select();try{document.execCommand('copy');}catch(_){}document.body.removeChild(ta);
-  emailCopied=true;gitBtn.style.opacity='0';touchedEl.style.opacity='1';
-  setTimeout(()=>{copiedEl.style.opacity='1';copiedEl.style.transform='translateY(0) rotate(0deg)';},500);
-  setTimeout(()=>{copiedEl.style.opacity='0';copiedEl.style.transform='translateY(6px) rotate(-3deg)';},2500);
-  setTimeout(()=>{emailCopied=false;gitBtn.style.opacity='1';touchedEl.style.opacity='0';},2500);});
+// ===== waitlist qualifying capture =====
+// Where responses land. Paste a Formspree form ID to go live — https://formspree.io (free, ~2 min, no
+// backend, no code): create a form, copy its endpoint, drop it in below. Tally/Google Forms/Getform
+// all work too (any URL that accepts a POST). Empty = stores a local backup + shows success (no remote send).
+const WAITLIST_ENDPOINT=''; // e.g. 'https://formspree.io/f/xxxxxxxx'
+function wlBackup(rec){try{const k='wkndr_waitlist',a=JSON.parse(localStorage.getItem(k)||'[]');a.push(rec);localStorage.setItem(k,JSON.stringify(a));}catch(_){}}
+function wlSuccess(){wlForm.style.display='none';wlDone.classList.add('show');}
+let wlSent=false;
+wlForm.addEventListener('submit',(e)=>{e.preventDefault();if(wlSent)return;
+  const email=(wlEmail.value||'').trim();
+  if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)){wlEmail.classList.add('bad');wlEmail.focus();return;}
+  wlEmail.classList.remove('bad');
+  const rec={email,
+    city:(document.getElementById('wl-city').value||'').trim(),
+    crew:(document.getElementById('wl-crew').value||'').trim(),
+    plans_now:(document.getElementById('wl-now').value||'').trim(),
+    site:'wkndr-site-02',at:new Date().toISOString(),referrer:document.referrer||''};
+  wlBackup(rec);
+  const go=document.getElementById('wl-go');go.style.opacity='0.6';go.style.pointerEvents='none';wlSent=true;
+  if(WAITLIST_ENDPOINT){
+    fetch(WAITLIST_ENDPOINT,{method:'POST',headers:{'Content-Type':'application/json',Accept:'application/json'},body:JSON.stringify(rec)})
+      .then(()=>wlSuccess())
+      .catch(()=>{console.warn('[wkndr] waitlist POST failed — saved locally',rec);wlSuccess();});
+  }else{
+    console.info('[wkndr] waitlist (no endpoint set — saved locally only):',rec);
+    wlSuccess();
+  }
+});
+// top-right link → deal to the end and focus the form
+earlyLink.addEventListener('click',(e)=>{e.preventDefault();p=UMAX;setTimeout(()=>{try{wlEmail.focus({preventScroll:true});}catch(_){}},680);});
 
 function cubicBezier(p1x,p1y,p2x,p2y){function bz(t,a,b){return 3*(1-t)*(1-t)*t*a+3*(1-t)*t*t*b+t*t*t;}
   return function(x){let lo=0,hi=1,t=x;for(let i=0;i<18;i++){t=(lo+hi)/2;const xx=bz(t,p1x,p2x);if(xx<x)lo=t;else hi=t;}return bz(t,p1y,p2y);};}
