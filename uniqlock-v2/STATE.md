@@ -31,7 +31,24 @@ subdivide @ 60 BPM — at the minimal beat (1 voice) repack shows **one full-scr
 the crna** on it (`placeMinBeat` + `fire` no longer early-returns for repack at 1 voice), instead of
 the morph engine's crossfade. The MAIN `comps/orchestra` is separate (r63 crna).
 
-**Current main build:** `r66-rigid-reframe-switch` (commit `a29b314`, 2026-06-17) — the main
+**Current main build:** `r69-reframe-no-cross` (2026-07-02, REVERTED back to from r70) —
+user preferred the morphing motion after all: r70 replaced all position tweens with
+fade-throughs and was rolled back same-day (kept frozen at `versions/r70-reframe-no-slide`
+as the rejected experiment). Current = r69: **REFRAME is the default
+engine** (user preference) and its per-bar re-roll **no longer shuffles column order**: with
+monotonic slot order, morphs only re-weight columns / re-stack in place — tiles can never
+travel across the screen sliding under one another (the distracting crossing). Prior:
+
+`r68-scale-drama` — RIGID's scaffold now builds a
+**HERO + shrinking satellites** instead of uniform tiles: one dominant image holds ~half the
+frame (rule-of-thirds placement, never relocated) while satellite tiles decay in size per rank
+AND shrink further as more voices join — so the scale contrast between biggest and smallest
+image GROWS as the track gets more sophisticated (at 6 voices the hero:smallest area ratio is
+~19:1 vs ~5:1 at 3). Answer to "it feels too rigid as the beat builds": energy now maps to
+scale drama, not just tile count. r67 added the iOS mobile-audio fix (audioSession 'playback' +
+webkit fallback + gesture unlock). Prior build below:
+
+`r66-rigid-reframe-switch` (commit `a29b314`, 2026-06-17) — the main
 `comps/orchestra` now **combines both repack engines** behind a **RIGID/REFRAME switch** (the
 `#styleChip`, key `r`): **RIGID** = the fixed-tile collage (r52 bones, AR-matched tiles, relocate-
 by-fade, big black negative space); **REFRAME** = the morph columns (dynamic re-roll every bar, the
