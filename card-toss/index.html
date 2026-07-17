@@ -1,0 +1,1440 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Card Toss — card stack study</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  html, body {
+    height: 100%;
+    overflow: hidden;
+    font-family: -apple-system, BlinkMacSystemFont, "Inter", "Helvetica Neue", sans-serif;
+    -webkit-font-smoothing: antialiased;
+    background: #4a7ab5;
+  }
+
+  /* ---- blurred desktop backdrop ---- */
+  .backdrop {
+    position: fixed;
+    inset: -10%;
+    background:
+      radial-gradient(42% 55% at 12% 18%, #f3ecd2 0%, rgba(243,236,210,0) 100%),
+      radial-gradient(50% 60% at 85% 12%, #a8d8f0 0%, rgba(168,216,240,0) 100%),
+      radial-gradient(45% 50% at 70% 75%, #0b2f9e 0%, rgba(11,47,158,0) 100%),
+      radial-gradient(60% 55% at 25% 85%, #1a5ecc 0%, rgba(26,94,204,0) 100%),
+      radial-gradient(35% 45% at 50% 40%, #7db8e8 0%, rgba(125,184,232,0) 100%),
+      linear-gradient(160deg, #6fa8d8 0%, #3d6db5 55%, #1a3a8f 100%);
+    filter: blur(48px) saturate(1.15);
+    transform: scale(1.1);
+  }
+
+  /* ---- the app panel ---- */
+  .panel {
+    position: fixed;
+    left: 7.6%; right: 7.6%;
+    top: 12.9%; bottom: 12.9%;
+    background: #fff;
+    border-radius: 12px;
+    box-shadow: 0 60px 140px -20px rgba(4, 16, 60, 0.45), 0 20px 50px rgba(4, 16, 60, 0.25);
+    overflow: hidden;
+  }
+
+  .chrome {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    z-index: 500;
+  }
+
+  .chrome header {
+    position: absolute;
+    top: 22px; left: 24px; right: 24px;
+    display: flex;
+    justify-content: space-between;
+    font-size: 13px;
+    letter-spacing: 0.01em;
+  }
+  .chrome header .who  { color: #1d1d1f; font-weight: 500; }
+  .chrome header .what { color: #b9b9bd; font-weight: 400; }
+
+  /* opening a card scrolls the whole page up — the header rides out with it */
+  .chrome header { transition: transform .6s cubic-bezier(.16, 1, .3, 1), opacity .4s ease; }
+  body.takeover-on .chrome header { transform: translateY(-64px); opacity: 0; }
+
+  .chrome footer {
+    position: absolute;
+    bottom: 18px; left: 24px; right: 18px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 13px;
+  }
+  .hint { color: #b9b9bd; transition: opacity .3s; }
+
+  .hud {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    pointer-events: auto;
+  }
+  .counter { color: #b9b9bd; font-variant-numeric: tabular-nums; }
+  .counter b { color: #1d1d1f; font-weight: 600; }
+
+  .modes {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    padding: 3px;
+    border: 1px solid #ececee;
+    border-radius: 99px;
+    background: #fff;
+  }
+  .modes button {
+    width: 30px; height: 30px;
+    border: 0;
+    border-radius: 99px;
+    background: transparent;
+    color: #c5c5c9;
+    display: grid;
+    place-items: center;
+    cursor: pointer;
+    transition: background .25s, color .25s;
+  }
+  .modes button:hover { color: #7a7a7f; }
+  .modes button.on { background: #1d1d1f; color: #fff; }
+  .modes svg { width: 14px; height: 14px; display: block; }
+
+  /* ---- stage & cards ---- */
+  .stage {
+    position: absolute;
+    inset: 0;
+    overflow: hidden;
+  }
+
+  .card {
+    position: absolute;
+    left: 50%; top: 50%;
+    width: 480px; height: 320px;
+    margin: -160px 0 0 -240px;
+    border-radius: 14px;
+    overflow: hidden;
+    background: #fff;
+    /* only the top card throws real shade — buried cards whisper, so the
+       pile doesn't compound into a black mush. Tiers snap (no transition):
+       animated blurred shadows repaint every frame and cost real jank. */
+    box-shadow: 0 24px 55px -12px rgba(10, 12, 40, var(--sh, 0.35));
+    cursor: grab;
+    user-select: none;
+    -webkit-user-select: none;
+    touch-action: none;
+    will-change: transform;
+  }
+
+  /* depth dimming lives on a composited overlay, not filter: brightness —
+     opacity blends on the GPU; filters re-rasterise card + shadow per frame */
+  .shade {
+    position: absolute;
+    inset: 0;
+    background: #000;
+    opacity: 0;
+    pointer-events: none;
+    will-change: opacity;
+  }
+  .card.grabbing { cursor: grabbing; }
+
+  .cover { position: absolute; left: 0; right: 0; top: 0; height: 100%; overflow: hidden; }
+  .art {
+    position: absolute;
+    left: 0; top: 50%;
+    width: 480px; height: 320px;
+    transform: translateY(-50%) scale(var(--k, 1));
+    transform-origin: left center;
+  }
+
+  /* opaque white wash — the "faded" entry look without any see-through */
+  .veil {
+    position: absolute;
+    inset: 0;
+    background: #fff;
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  .meta {
+    position: absolute;
+    left: 16px; bottom: 13px; right: 52px;
+    color: #fff;
+    pointer-events: none;
+    text-shadow: 0 1px 8px rgba(0,0,0,.12);
+  }
+  .meta h3 { font-size: 14px; font-weight: 600; line-height: 1.35; }
+  .meta p  { font-size: 13.5px; font-weight: 400; opacity: .75; line-height: 1.35; }
+  .card.ink .meta { color: #1d1d1f; text-shadow: none; }
+  .card.ink .meta p { opacity: .55; }
+
+  .expand {
+    position: absolute;
+    top: 12px; right: 12px;
+    width: 30px; height: 30px;
+    border: 0;
+    border-radius: 99px;
+    display: grid;
+    place-items: center;
+    background: rgba(255,255,255,0);
+    color: #fff;
+    cursor: pointer;
+    transition: background .2s;
+  }
+  .expand:hover { background: rgba(255,255,255,.18); }
+  .card.ink .expand { color: #1d1d1f; }
+  .card.ink .expand:hover { background: rgba(0,0,0,.07); }
+  .expand svg { width: 14px; height: 14px; }
+
+  /* little loading ring that rides the top card's edge (as on Marvin's site) */
+  .loader {
+    position: absolute;
+    width: 16px; height: 16px;
+    margin: -8px 0 0 -8px;
+    border-radius: 50%;
+    border: 2px solid rgba(29,29,31,.16);
+    border-top-color: rgba(29,29,31,.5);
+    animation: spin .8s linear infinite;
+    opacity: 0;
+    transition: opacity .3s;
+    z-index: 600;
+    pointer-events: none;
+  }
+  .loader.on { opacity: 1; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .expand .ic-close { display: none; }
+
+  /* ===== app-store takeover ===== */
+
+  .scrim {
+    position: absolute;
+    inset: 0;
+    background: rgba(252, 252, 253, 0.62);
+    backdrop-filter: blur(16px) saturate(1.1);
+    -webkit-backdrop-filter: blur(16px) saturate(1.1);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity .5s ease;
+    z-index: 540;
+  }
+  .scrim.on { opacity: 1; pointer-events: auto; }
+
+  /* the morph: frame, position and radius ride one curve — no margin
+     animation, no compounding transform scale: width/height/translate only */
+  .card.anim {
+    transition:
+      width .65s cubic-bezier(.16, 1, .3, 1),
+      height .65s cubic-bezier(.16, 1, .3, 1),
+      transform .65s cubic-bezier(.16, 1, .3, 1),
+      border-radius .65s cubic-bezier(.16, 1, .3, 1),
+      box-shadow .65s cubic-bezier(.16, 1, .3, 1);
+  }
+  .card.anim .cover { transition: height .65s cubic-bezier(.16, 1, .3, 1); }
+  .card.anim .art   { transition: transform .65s cubic-bezier(.16, 1, .3, 1); }
+  /* no crossfading of information: meta returns only after the frame is home… */
+  .card.anim .meta  { transition: opacity .22s ease .3s; }
+
+  .card.takeover {
+    border-radius: 12px 12px 0 0;
+    box-shadow: 0 40px 90px -18px rgba(6, 12, 45, 0.45);
+    cursor: default;
+  }
+  .card.takeover .cover { height: 50%; }
+  /* …and vanishes instantly on the way up */
+  .card.takeover .meta { opacity: 0; transition: opacity .1s ease; }
+  .card.takeover .expand .ic-open  { display: none; }
+  .card.takeover .expand .ic-close { display: block; }
+  .card.takeover .expand,
+  .card.ink.takeover .expand {
+    width: 34px; height: 34px;
+    top: 14px; right: 14px;
+    background: rgba(28, 28, 30, 0.42);
+    color: #fff;
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+  }
+  .card.takeover .expand:hover { background: rgba(28, 28, 30, 0.62); }
+
+  /* the page beneath the hero — a long editorial scroll that rises in
+     once the frame has mostly landed */
+  .page {
+    position: absolute;
+    inset: 0;
+    background: transparent;
+    opacity: 0;
+    transform: translateY(14px);
+    pointer-events: none;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    transition: opacity .16s ease, transform .3s cubic-bezier(.16, 1, .3, 1);   /* out: quick and clean */
+  }
+  .page .hero-gap { height: 50%; }      /* the hero shows through here and scrolls away with the sheet */
+  .page .sheet { background: #fff; min-height: 60%; }
+  .card.takeover .page {
+    opacity: 1;
+    transform: none;
+    pointer-events: auto;
+    /* in: rises only once the frame has mostly landed — no mid-morph crossfade */
+    transition: opacity .35s ease .26s, transform .5s cubic-bezier(.16, 1, .3, 1) .26s;
+  }
+  .page::-webkit-scrollbar { width: 10px; }
+  .page::-webkit-scrollbar-thumb { background: #e3e3e6; border-radius: 99px; border: 3px solid #fff; }
+  .page::-webkit-scrollbar-track { background: transparent; }
+
+  .page .inner {
+    max-width: 640px;
+    margin: 0 auto;
+    padding: 40px 42px 80px;
+  }
+  .page h2 { font-size: 30px; font-weight: 650; letter-spacing: -0.02em; color: #1d1d1f; }
+  .page .kicker { font-size: 15.5px; color: #a0a0a5; margin-top: 5px; }
+  .page .para { margin-top: 18px; font-size: 15px; line-height: 1.7; color: #6b6b70; }
+  .page h3 {
+    margin-top: 44px;
+    font-size: 12px; font-weight: 600;
+    letter-spacing: .14em; text-transform: uppercase;
+    color: #b4b4b9;
+  }
+  .page .specs {
+    display: flex; flex-wrap: wrap;
+    gap: 10px 34px;
+    margin-top: 26px;
+    padding: 18px 0;
+    border-top: 1px solid #f0f0f2;
+    border-bottom: 1px solid #f0f0f2;
+    font-size: 13px;
+  }
+  .page .specs b { display: block; font-weight: 600; color: #1d1d1f; }
+  .page .specs span { color: #a0a0a5; }
+  .page blockquote {
+    margin: 40px 0 0;
+    font-size: 21px; line-height: 1.45;
+    font-weight: 500; letter-spacing: -0.01em;
+    color: #1d1d1f;
+  }
+  .page blockquote footer { margin-top: 10px; font-size: 13px; font-weight: 400; color: #a0a0a5; }
+  .page .ph {
+    margin-top: 26px;
+    aspect-ratio: 16 / 9;
+    border-radius: 10px;
+    background: linear-gradient(150deg, #f4f4f6, #e9e9ee);
+    display: grid;
+    place-items: center;
+  }
+  .page .ph span {
+    font-size: 11.5px; font-weight: 500;
+    letter-spacing: .12em; text-transform: uppercase;
+    color: #b6b6bc;
+  }
+
+  .chrome footer { transition: opacity .35s ease; }
+  body.takeover-on .chrome footer,
+  body.peek-on .chrome footer { opacity: 0; }
+
+  /* ===== the peek: an intermediate landing before the full dive ===== */
+  .card.takeover.peek {
+    border-radius: 14px;
+    cursor: pointer;
+    box-shadow: 0 34px 70px -16px rgba(6, 12, 45, 0.4);
+  }
+  .card.peek .page { overflow: hidden; cursor: pointer; }
+  .card.peek .page::after {
+    content: '';
+    position: absolute;
+    left: 0; right: 0; bottom: 0;
+    height: 96px;
+    background: linear-gradient(rgba(255,255,255,0), #fff 72%);
+    pointer-events: none;
+  }
+  .page .more {
+    display: none;
+    margin-top: 24px;
+    padding: 11px 22px;
+    border: 0;
+    border-radius: 99px;
+    background: #1d1d1f;
+    color: #fff;
+    font-family: inherit;
+    font-size: 13.5px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background .2s;
+    position: relative;
+    z-index: 2;              /* rides above the truncation fade */
+  }
+  .page .more:hover { background: #3a3a3e; }
+  .card.peek .page .more { display: inline-block; }
+
+  /* ================= 12 original covers ================= */
+
+  .cv-northstar { background: linear-gradient(165deg, #1a35f0 0%, #0a1499 78%); }
+  .cv-northstar .mark {
+    position: absolute; inset: 0;
+    display: flex; align-items: center; justify-content: center;
+    color: #c9d2f2;
+    font-size: 44px; font-weight: 700; letter-spacing: -0.03em;
+  }
+  .cv-northstar .mark span { color: #8fa0e8; }
+
+  .cv-market { background: linear-gradient(180deg, #fafafa 0%, #ececef 100%); }
+  .cv-market .wordmark {
+    position: absolute; left: 50%; top: 46%;
+    transform: translate(-50%, -50%);
+    font-size: 34px; font-weight: 700; letter-spacing: -0.04em;
+    color: #4b3df0;
+  }
+  .cv-market .tile {
+    position: absolute;
+    border-radius: 10px;
+    background: #fff;
+    box-shadow: 0 6px 18px rgba(20,20,40,.10);
+  }
+
+  .cv-fieldnotes { background: linear-gradient(170deg, #c01822 0%, #8f0e18 100%); }
+  .cv-fieldnotes .masthead {
+    position: absolute; inset: 34px;
+    color: #f6e8d4;
+    font-family: Georgia, "Times New Roman", serif;
+    text-align: center;
+  }
+  .cv-fieldnotes .masthead h2 { font-size: 33px; font-weight: 500; font-style: italic; line-height: 1.18; }
+  .cv-fieldnotes .masthead small { display:block; margin-top: 14px; font-size: 12px; letter-spacing: .28em; text-transform: uppercase; opacity:.7; }
+
+  .cv-index { background: linear-gradient(175deg, #e8c229 0%, #d4a91a 100%); }
+  .cv-index .numeral {
+    position: absolute; left: 40px; bottom: 44px;
+    font-size: 110px; font-weight: 200; letter-spacing: -.05em;
+    color: #3a3208;
+    font-family: Georgia, serif;
+  }
+  .cv-index .chip {
+    position: absolute;
+    border-radius: 8px;
+    background: rgba(255,252,235,.85);
+    box-shadow: 0 4px 12px rgba(90,70,0,.18);
+  }
+
+  .cv-resonance { background: radial-gradient(75% 95% at 50% 42%, #8b4dd8 0%, #3d1178 70%, #250a52 100%); }
+  .cv-resonance .figure {
+    position: absolute; left: 50%; top: 55%;
+    transform: translate(-50%, -50%);
+  }
+
+  .cv-loudspeaker { background: #101012; }
+  .cv-loudspeaker .bar {
+    position: absolute; left: 26px; right: 26px; top: 55%;
+    height: 44px; border-radius: 6px;
+    background: linear-gradient(90deg, #37e831, #78f26e);
+    box-shadow: 0 0 34px rgba(70, 230, 60, .35);
+  }
+  .cv-loudspeaker .wordmark {
+    position: absolute; right: 34px; top: 26%;
+    color: #f2f2f2;
+    font-size: 26px; font-weight: 800; font-style: italic; letter-spacing: .06em;
+  }
+  .cv-loudspeaker .copy {
+    position: absolute; left: 28px; top: 20%;
+    color: #cfcfd4;
+    font-size: 11px; line-height: 1.5; width: 150px;
+  }
+
+  .cv-posters { background: #17171a; }
+  .cv-posters .half { position: absolute; top: 26px; bottom: 26px; width: calc(50% - 34px); border-radius: 8px; }
+  .cv-posters .half.a { left: 26px; background: linear-gradient(180deg, #3d7bf5, #2451c9); }
+  .cv-posters .half.b { right: 26px; background: linear-gradient(180deg, #7a2bc9, #4d1191); }
+  .cv-posters .half span {
+    position: absolute; left: 14px; top: 12px;
+    color: #fff; font-size: 15px; font-weight: 800; letter-spacing: .04em;
+    text-transform: uppercase; line-height: 1.15;
+  }
+
+  .cv-weather { background: linear-gradient(180deg, #b8d8f2 0%, #e8f2fa 55%, #f7f2e6 100%); }
+  .cv-weather .cloud { position: absolute; border-radius: 99px; background: rgba(255,255,255,.92); filter: blur(7px); }
+
+  .cv-oneline { background: #fcfcfa; }
+  .cv-oneline svg { position: absolute; inset: 0; width: 100%; height: 100%; }
+
+  .cv-pocket { background: #141416; }
+  .cv-pocket .phone {
+    position: absolute; top: 42px; bottom: 42px; width: 21.5%;
+    border-radius: 12px;
+    background: #232327;
+    border: 1px solid #333338;
+  }
+  .cv-pocket .phone i {
+    position: absolute; left: 12%; right: 12%;
+    border-radius: 3px; background: #3c3c44;
+  }
+
+  .cv-monument { background: linear-gradient(170deg, #9a958c 0%, #6e6a62 100%); }
+  .cv-monument .m {
+    position: absolute; inset: 0;
+    display: grid; place-items: center;
+    color: #edeae2;
+    font-family: Georgia, serif;
+    font-size: 96px; font-weight: 500;
+  }
+
+  .cv-sunset { background: linear-gradient(175deg, #f7c5d8 0%, #f2a0b8 60%, #e88f9e 100%); }
+  .cv-sunset .sun {
+    position: absolute; left: 50%; top: 44%;
+    width: 120px; height: 120px;
+    transform: translate(-50%, -50%);
+    border-radius: 50%;
+    background: radial-gradient(circle at 42% 38%, #ffb347, #f2711c);
+    box-shadow: 0 12px 60px rgba(242, 113, 28, .5);
+  }
+</style>
+</head>
+<body>
+
+<div class="backdrop"></div>
+
+<div class="panel">
+  <div class="stage" id="stage"><div class="scrim" id="scrim"></div><div class="loader" id="loader"></div></div>
+  <div class="chrome">
+    <header>
+      <span class="who">Card Toss</span>
+      <span class="what">after Marvin Schwaibold — card stack study</span>
+    </header>
+    <footer>
+      <span class="hint" id="hint">Scroll — or grab the top card and throw it</span>
+      <span class="hud">
+        <span class="counter"><b id="cNow">01</b> <span style="color:#d3d3d6">/</span> 12</span>
+        <span class="modes" id="modes">
+          <button data-mode="stack" class="on" title="Stack" aria-label="Stack view">
+            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="2.5" width="10" height="7.5" rx="1.5"/><path d="M4 12h8M5 14.5h6" stroke-linecap="round"/></svg>
+          </button>
+          <button data-mode="grid" title="Grid" aria-label="Grid view">
+            <svg viewBox="0 0 16 16" fill="currentColor"><rect x="2" y="2" width="5.2" height="5.2" rx="1.2"/><rect x="8.8" y="2" width="5.2" height="5.2" rx="1.2"/><rect x="2" y="8.8" width="5.2" height="5.2" rx="1.2"/><rect x="8.8" y="8.8" width="5.2" height="5.2" rx="1.2"/></svg>
+          </button>
+          <button data-mode="row" title="Carousel" aria-label="Carousel view">
+            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="4.5" y="3" width="7" height="10" rx="1.5"/><path d="M1.5 5v6M14.5 5v6" stroke-linecap="round"/></svg>
+          </button>
+        </span>
+      </span>
+    </footer>
+  </div>
+</div>
+
+<script>
+/* ============================================================
+   CARD TOSS — a rebuild of Marvin Schwaibold's card-stack study
+   deck physics · throwable cards · stack / grid / row morphing
+   ============================================================ */
+
+const DATA = [
+  { t: 'Northstar',      s: 'A new home for design systems',        c: 'northstar',
+    p: 'A single source of truth for tokens, patterns and voice — built so every team ships from the same place. The system covers web, native and email, and reviews itself: every merged component is checked against the canon nightly.' },
+  { t: 'Market',         s: 'Everything shopping, in one place',    c: 'market', ink: true,
+    p: 'One search bar in front of every storefront. Market folds catalogues, reviews and checkout into a single surface, so buying something takes exactly as many taps as deciding you want it.' },
+  { t: 'Field Notes',    s: 'Essays from the studio floor',         c: 'fieldnotes',
+    p: 'A slow journal about fast work. Twelve essays a volume, set in one serif, on what actually happens between the brief and the thing — the dead ends, the lucky accidents, the weather.' },
+  { t: 'August Index',   s: 'A quarterly of small wonders',         c: 'index', ink: true,
+    p: 'Every quarter, one hundred small things worth your attention — objects, interfaces, corners of the internet — ranked by nothing but delight. Issue 08 shipped with a fold-out chart of all eight hundred so far.' },
+  { t: 'Resonance',      s: 'An instrument for the browser',        c: 'resonance',
+    p: 'A synth that lives at a URL. No install, no manual — the page is the instrument, your cursor is the bow. Built on the Web Audio API with a physics layer that makes every gesture ring true.' },
+  { t: 'Loudspeaker',    s: 'A campaign system in one bar',         c: 'loudspeaker',
+    p: 'An identity reduced to a single element: one acid-green bar that can be a headline underline, a progress meter, a billboard, or the entire ad. The less it does, the louder it gets.' },
+  { t: 'Speaker Series', s: 'Posters for a season of talks',        c: 'posters',
+    p: 'Two colours per night, one grid for the year. Each talk gets a poster generated from its transcript — the type size follows how fast the speaker talked.' },
+  { t: 'Weather Room',   s: 'A calmer forecast',                    c: 'weather', ink: true,
+    p: 'A weather app with no radar, no alerts, no percentages. Just tomorrow, told gently, in a room of soft clouds. Reads like a note from someone who already looked outside for you.' },
+  { t: 'One Line',       s: 'Drawings from the creative internet',  c: 'oneline', ink: true,
+    p: 'A collection of drawings made without lifting the pen — one continuous line each. The archive holds four hundred and grows by one a day, whatever that day was like.' },
+  { t: 'Pocket Studio',  s: 'Three screens, one flow',              c: 'pocket',
+    p: 'A capture-to-publish pipeline that fits in a coat pocket. Shoot on the first screen, arrange on the second, ship from the third — nothing ever asks you to sit down at a desk.' },
+  { t: 'Monument',       s: 'An identity cut in granite',           c: 'monument',
+    p: 'A foundation that plans in centuries asked for a mark that would outlive its founders. One letter, one stone, one rule: nothing added that time could remove.' },
+  { t: 'Sunset Club',    s: 'A social for golden hour',             c: 'sunset', ink: true,
+    p: 'Open one hour a day, wherever the sun is setting. Post a photo of your sky, see everyone else’s, then it closes. No feed to catch up on — just this evening, shared.' },
+];
+
+const COVERS = {
+  northstar: `<div class="mark">north<span>&#9733;</span>studio</div>`,
+  market: `
+    <div class="tile" style="left:8%;  top:12%; width:64px; height:88px;"></div>
+    <div class="tile" style="left:26%; top:8%;  width:56px; height:56px; background:#e05a2b;"></div>
+    <div class="tile" style="right:9%; top:14%; width:70px; height:60px;"></div>
+    <div class="tile" style="left:11%; bottom:12%; width:58px; height:74px; background:#2d2d33;"></div>
+    <div class="tile" style="left:38%; bottom:8%;  width:84px; height:56px; background:#c9dfae;"></div>
+    <div class="tile" style="right:12%; bottom:11%; width:52px; height:80px; background:#f0d648;"></div>
+    <div class="wordmark">market</div>`,
+  fieldnotes: `
+    <div class="masthead">
+      <h2>World Views,<br>Theses &amp; Weather</h2>
+      <small>Vol. 02 &mdash; Field Notes</small>
+    </div>`,
+  index: `
+    <div class="chip" style="right:36px; top:34px;  width:74px; height:52px;"></div>
+    <div class="chip" style="right:52px; top:100px; width:46px; height:46px;"></div>
+    <div class="chip" style="right:130px; top:52px; width:40px; height:64px;"></div>
+    <div class="numeral">08</div>`,
+  resonance: `
+    <svg class="figure" width="200" height="200" viewBox="0 0 200 200">
+      <path d="M100 40 C 70 60, 60 100, 78 130 C 90 150, 120 156, 138 140 C 122 148, 96 144, 88 122 C 78 96, 88 66, 112 50 Z" fill="#120425"/>
+      <circle cx="128" cy="52" r="14" fill="#120425"/>
+    </svg>`,
+  loudspeaker: `
+    <div class="copy">We will make your idea unmissable, as soon as it is audible.</div>
+    <div class="wordmark">LOUD</div>
+    <div class="bar"></div>`,
+  posters: `
+    <div class="half a"><span>Spring<br>Talks</span></div>
+    <div class="half b"><span>Gala<br>Nights</span></div>`,
+  weather: `
+    <div class="cloud" style="left:12%; top:22%; width:150px; height:44px;"></div>
+    <div class="cloud" style="right:14%; top:40%; width:190px; height:52px;"></div>
+    <div class="cloud" style="left:24%; bottom:20%; width:120px; height:38px;"></div>`,
+  oneline: `
+    <svg viewBox="0 0 480 320" fill="none">
+      <path d="M70 230 C 90 160, 150 140, 185 165 C 205 180, 200 210, 230 212 C 270 214, 275 170, 315 168 C 355 166, 370 200, 400 190 C 420 183, 418 158, 398 152 C 380 147, 368 166, 382 176"
+        stroke="#1d1d1f" stroke-width="3.5" stroke-linecap="round"/>
+      <circle cx="352" cy="140" r="4" fill="#1d1d1f"/>
+    </svg>`,
+  pocket: `
+    <div class="phone" style="left:12%;">  <i style="top:14px; height:34%;"></i><i style="top:52%; height:8px;"></i><i style="top:62%; height:8px; right:34%;"></i></div>
+    <div class="phone" style="left:39.5%;"><i style="top:14px; height:20%; background:#4d6df0;"></i><i style="top:40%; height:8px;"></i><i style="top:50%; height:8px;"></i><i style="top:60%; height:8px; right:40%;"></i></div>
+    <div class="phone" style="right:12%;"> <i style="top:14px; height:48%; background:#2e2e34;"></i><i style="top:70%; height:10px; border-radius:99px; background:#4d6df0;"></i></div>`,
+  monument: `<div class="m">M</div>`,
+  sunset: `<div class="sun"></div>`,
+};
+
+/* ---------- takeover page: long-form placeholder content ---------- */
+const ROLES = ['Design & build', 'Identity & system', 'Direction & prototype', 'Design & engineering'];
+const SCOPES = ['Brand, web, motion', 'Product & identity', 'Web experience', 'System & tooling'];
+
+function pageHTML(d, i) {
+  return `
+  <div class="hero-gap"></div>
+  <div class="sheet">
+  <div class="inner">
+    <h2>${d.t}</h2>
+    <p class="kicker">${d.s}</p>
+    <p class="para">${d.p}</p>
+    <button class="more">Read the case study</button>
+
+    <div class="specs">
+      <div><b>Year</b><span>2026</span></div>
+      <div><b>Role</b><span>${ROLES[i % ROLES.length]}</span></div>
+      <div><b>Scope</b><span>${SCOPES[i % SCOPES.length]}</span></div>
+      <div><b>Status</b><span>Shipped</span></div>
+    </div>
+
+    <h3>The brief</h3>
+    <p class="para">Like most good briefs, this one arrived as a complaint, not a request. The team behind ${d.t} knew exactly what was wrong with the current thing — slow to explain, slower to use, invisible in a crowded field — and had no fixed opinion about what should replace it. That gap between a sharp problem and an open solution is where the interesting work lives.</p>
+    <p class="para">We spent the first two weeks refusing to design anything. Instead: interviews, screen recordings, a teardown of every adjacent product we could find, and one long wall of printouts that slowly sorted itself into three piles — things people loved, things people tolerated, and things nobody had ever noticed.</p>
+
+    <div class="ph"><span>Fig. 01 — Early exploration</span></div>
+
+    <h3>Process</h3>
+    <p class="para">The first prototypes were deliberately too plain. Stripping the idea to its skeleton made it obvious which bones were load-bearing: the moment we removed the part everyone assumed was decorative, the whole thing stopped making sense — so it stayed, and became the centre of the system.</p>
+    <p class="para">From there the work was mostly subtraction. Each week we shipped a build to a small circle of users and removed whatever they didn't mention. What survived four rounds of that is what you see here: fewer moves, harder working ones, and a visual language that holds together at every size we could break it at.</p>
+
+    <blockquote>
+      “The best version of ${d.t} was the third one — the one where we finally stopped adding.”
+      <footer>— from the project retro</footer>
+    </blockquote>
+
+    <div class="ph"><span>Fig. 02 — The system in use</span></div>
+
+    <p class="para">Motion carried more of the weight than usual. Because the interface itself stays quiet, the transitions do the explaining: where things come from, where they go, what belongs to what. Every animation in the final build runs on a single shared curve, which is most of why it feels like one object rather than a set of screens.</p>
+
+    <h3>Outcome</h3>
+    <p class="para">${d.t} shipped on schedule and did the thing launches rarely do: the numbers moved in the direction the story predicted. Time-to-first-action halved. The support queue went quiet on the topics the redesign touched. And the team now describes the product in one sentence — the same sentence, every time, unprompted.</p>
+
+    <div class="ph"><span>Fig. 03 — Detail</span></div>
+
+    <p class="para">The system is documented, handed over, and — the real test — has already survived two quarters of changes made by people who weren't in the room. Nothing drifted. That's the outcome we're proudest of: not the launch, but the fact that it still looks like itself.</p>
+  </div>
+  </div>`;
+}
+
+/* ---------- build DOM ---------- */
+const stage = document.getElementById('stage');
+const N = DATA.length;
+
+const cards = DATA.map((d, i) => {
+  const el = document.createElement('div');
+  el.className = 'card' + (d.ink ? ' ink' : '');
+  el.innerHTML = `
+    <div class="cover cv-${d.c}"><div class="art">${COVERS[d.c]}</div></div>
+    <div class="page">${pageHTML(d, i)}</div>
+    <div class="meta"><h3>${d.t}</h3><p>${d.s}</p></div>
+    <div class="veil"></div>
+    <div class="shade"></div>
+    <button class="expand" aria-label="Expand">
+      <svg class="ic-open" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M4 10 L10 4 M5 4 h5 v5"/>
+      </svg>
+      <svg class="ic-close" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round">
+        <path d="M4 4 L10 10 M10 4 L4 10"/>
+      </svg>
+    </button>`;
+  el.style.opacity = '0';   // invisible until the engine's first write — no pre-intro flash
+  stage.appendChild(el);
+  const card = {
+    i, el, veil: el.querySelector('.veil'), page: el.querySelector('.page'),
+    cover: el.querySelector('.cover'), shade: el.querySelector('.shade'),
+    // physical state (springs)
+    x: 0, y: -1200, r: -20 + Math.random() * 40, s: 1, o: 1, b: 1, wsh: 0,
+    vx: 0, vy: 0, vr: 0, vs: 0, vo: 0, vb: 0,
+    // targets
+    tx: 0, ty: -1200, tr: 0, ts: 1, to: 1, tb: 1, twsh: 0,
+    flying: false, dragging: false, entering: false,
+  };
+  // the hero rides the scroll 1:1 — one surface, App Store style
+  card.page.addEventListener('scroll', () => {
+    if (takeoverC === card) card.cover.style.transform = `translateY(${-card.page.scrollTop}px)`;
+  }, { passive: true });
+  return card;
+});
+
+/* ---------- state ---------- */
+let mode = 'stack';        // stack | grid | row
+let cursor = 0;            // index of the current/top card
+let takeoverC = null;      // card currently expanded app-store style
+let peek = false;          // top card is being lifted — brighten the one beneath
+let introHold = true;      // under-deck stays hidden until the first card lands
+
+/* time-machine scrub: scroll drives the top card along an exit path —
+   always upward past the camera, but every throw leans its own way */
+const scrub = { t: 0, lastWheel: 0, recallAt: 0, lastCommit: 0, dirX: -0.16, dirR: -12 };
+function newScrubDir() {
+  const side = Math.random() < 0.5 ? -1 : 1;
+  scrub.dirX = side * (0.05 + Math.random() * 0.24);
+  scrub.dirR = side * (5 + Math.random() * 11);
+}
+
+/* coverflow: the strip position is continuous — it glides with the wheel
+   and snaps magnetically to the nearest card when you let go */
+const flow = { pos: 0, target: 0, lastWheel: 0 };
+function scrubPose(t) {
+  return {
+    x: panelW * scrub.dirX * t,
+    y: -panelH * 0.55 * t,
+    r: scrub.dirR * t,
+    s: RS * (1 + 0.42 * t),
+    o: t < 0.65 ? 1 : Math.max(0, 1 - (t - 0.65) / 0.35),
+  };
+}
+let gridScroll = 0, gridScrollT = 0, gridMax = 0;
+let panelW = 0, panelH = 0, CW = 480, CH = 320;
+let wheelAcc = 0, wheelLock = false;
+
+const hintEl = document.getElementById('hint');
+const cNow = document.getElementById('cNow');
+const modesEl = document.getElementById('modes');
+
+const HINTS = {
+  stack: 'Scroll — or grab the top card and throw it',
+  grid:  'Scroll to browse — click a card to open it',
+  row:   'Scroll to flip through the deck — click to open',
+};
+
+const BW = 480, BH = 320;   // cards are laid out at base size, scaled by transform
+let RS = 1;                 // responsive scale
+const STACK_DY = 10.5;      // px each buried card peeks out below the one above
+const STACK_DS = 0.012;     // scale shed per depth — strips run nearly full width
+const STACK_N  = 6;         // visible strips below the top card
+
+/* the pile: near-full-width strips whose gaps compress with depth,
+   like a real deck seen slightly from above */
+const stackY = d => RS * STACK_DY * d * (1 - d * 0.045);
+const stackS = d => RS * (1 - d * STACK_DS);
+const stackB = d => d === 0 ? 1 : Math.max(0.3, 0.6 - d * 0.075);
+
+function measure() {
+  const rect = stage.getBoundingClientRect();
+  panelW = rect.width; panelH = rect.height;
+  RS = Math.min(1, (panelW * 0.42) / BW, (panelH * 0.55) / BH);
+  CW = BW * RS;
+  CH = BH * RS;
+}
+measure();
+addEventListener('resize', () => { measure(); setTargets(); });
+
+const mod = (a, n) => ((a % n) + n) % n;
+
+/* shadow strength changes rarely — never re-write an unchanged value */
+function setSh(c, v) {
+  if (c._sh !== v) { c.el.style.setProperty('--sh', v); c._sh = v; }
+}
+
+/* ---------- layout targets per mode ---------- */
+function setTargets() {
+  const cur = mod(cursor, N);
+
+  cards.forEach(c => {
+    if (c.flying || c.dragging || c === takeoverC) return;
+
+    if (mode === 'stack') {
+      const d = mod(c.i - cur, N);
+      c.tx = 0;
+      c.ty = stackY(d);
+      c.tr = 0;
+      c.ts = stackS(d);
+      // "covered" dimming: strips shade under the pile but stay paper, not void —
+      // the card directly beneath brightens the moment the top card moves away
+      c.tb = (d === 1 && peek) ? 1 : stackB(d);
+      c.to = (introHold && d > 0) ? 0 : (d > STACK_N ? 0 : 1);
+      c.el.style.zIndex = 100 + (N - d);
+      setSh(c, d === 0 ? 0.35 : 0.08);
+    }
+
+    else if (mode === 'grid') {
+      const pad = 14, gap = 12;
+      const colW = (panelW - pad * 2 - gap * 2) / 3;
+      const scale = colW / BW;
+      const rowH = BH * scale + gap;
+      const col = c.i % 3, row = (c.i / 3) | 0;
+      c.tx = pad + colW * col + gap * col + colW / 2 - panelW / 2;
+      c.ty = 64 + rowH * row + (BH * scale) / 2 - panelH / 2 - gridScroll;
+      c.tr = 0;
+      c.ts = scale;
+      c.tb = 1; c.to = 1;
+      c.el.style.zIndex = 100 + c.i;
+      setSh(c, 0.2);
+      gridMax = Math.max(0, 64 + rowH * 4 - gap + 60 - panelH);
+    }
+
+    else if (mode === 'row') {
+      // coverflow: everything is a smooth function of distance from the
+      // continuous strip position — cards swell as they pass centre
+      const off = c.i - flow.pos;
+      const a = Math.min(1, Math.abs(off));
+      c.tx = off * CW * 1.2;
+      c.ty = 0;
+      c.tr = 0;
+      c.ts = RS * (1.22 - 0.22 * a);
+      c.tb = 1 - 0.1 * a;
+      c.to = Math.abs(off) > 3 ? 0 : 1;
+      c.el.style.zIndex = 100 + (N - Math.round(Math.abs(off)));
+      setSh(c, +(0.3 - 0.12 * a).toFixed(2));
+    }
+
+    // the deck behind a takeover stays exactly as it is — the scrim does the
+    // separating, so nothing has to resettle when the card comes back
+  });
+
+  cNow.textContent = String(mod(cursor, N) + 1).padStart(2, '0');
+  hintEl.textContent = HINTS[mode];
+  document.body.dataset.mode = mode;
+}
+
+/* ---------- motion engine ----------
+   Matched to Marvin's site:
+   · layout spring  — stiffness 720, damping 46, mass 0.52  (ζ ≈ 1.19: overdamped, zero bounce)
+   · view morphs    — duration tweens on cubic-bezier(.16, 1, .3, 1), 0.82s / 0.58s
+   Velocities are px/s and deg/s; fixed 60Hz integration step. */
+const ST = 720, DA = 46, MA = 0.52;
+const KM = ST / MA, CM = DA / MA;
+const DT = 1 / 60;
+
+/* cubic-bezier(.16, 1, .3, 1) — expo-out flavoured */
+function cubicBezier(x1, y1, x2, y2) {
+  const cx = 3 * x1, bx = 3 * (x2 - x1) - cx, ax = 1 - cx - bx;
+  const cy = 3 * y1, by = 3 * (y2 - y1) - cy, ay = 1 - cy - by;
+  const fx = t => ((ax * t + bx) * t + cx) * t;
+  const fy = t => ((ay * t + by) * t + cy) * t;
+  return x => {
+    if (x <= 0) return 0; if (x >= 1) return 1;
+    let t = x;
+    for (let i = 0; i < 6; i++) {              // Newton–Raphson on x(t)
+      const dx = fx(t) - x;
+      const d = (3 * ax * t + 2 * bx) * t + cx;
+      if (Math.abs(d) < 1e-6) break;
+      t -= dx / d;
+    }
+    return fy(Math.min(1, Math.max(0, t)));
+  };
+}
+const EASE = cubicBezier(.16, 1, .3, 1);
+const EASE_DROP = cubicBezier(.4, .55, .2, 1);   // the intro fall: travels, then settles
+const MORPH_LONG = 0.82, MORPH_SHORT = 0.58;
+
+/* hand a card to the tween layer (used for view morphs) */
+function tweenTo(c, dur, ease) {
+  if (c.flying || c.dragging || c.takeover) return;
+  c.tw = { t: 0, dur, ease: ease || EASE, from: { x: c.x, y: c.y, r: c.r, s: c.s, b: c.b, o: c.o, w: c.wsh } };
+  c.vx = c.vy = c.vr = c.vs = 0;
+}
+
+function spring(c, p, v, t) {
+  const a = KM * (c[t] - c[p]) - CM * c[v];
+  c[v] += a * DT;
+  c[p] += c[v] * DT;
+}
+
+function step() {
+  if (panelW < 10) { measure(); setTargets(); }   // layout can land after first script run
+
+  // time-machine pre-pass: while a scrub is live, the top card's targets ride the path
+  if (mode === 'stack' && scrub.t > 0.001) {
+    const top = cards[mod(cursor, N)];
+    if (!top.flying && !top.dragging && !top.frozen) {
+      const shouldPeek = scrub.t > 0.04;
+      if (shouldPeek !== peek) { peek = shouldPeek; setTargets(); }
+      const p = scrubPose(scrub.t);
+      top.tx = p.x; top.ty = p.y; top.tr = p.r; top.ts = p.s; top.to = p.o;
+      top.el.style.zIndex = 400;
+      // rubber-band: the wheel went quiet before the point of no return —
+      // generous window so mid-gesture event gaps never cause a bounce
+      if (performance.now() - scrub.lastWheel > 260) {
+        scrub.t *= 0.88;
+        if (scrub.t < 0.02) { scrub.t = 0; peek = false; setTargets(); }
+      }
+    }
+  }
+
+  // coverflow pre-pass: glide toward the wheel, snap magnetically when it rests
+  if (mode === 'row') {
+    if (performance.now() - flow.lastWheel > 140) {
+      flow.target += (Math.round(flow.target) - flow.target) * 0.12;
+    }
+    const before = flow.pos;
+    flow.pos += (flow.target - flow.pos) * 0.16;
+    const cur = Math.max(0, Math.min(N - 1, Math.round(flow.target)));
+    if (cur !== cursor) cursor = cur;
+    if (Math.abs(flow.pos - before) > 0.00004) setTargets();
+  }
+
+  cards.forEach(c => {
+    if (c === takeoverC) return;   // CSS owns the expanded card
+
+    if (c.frozen) { /* hold pose; render only */ }
+
+    else if (c.dragging) {
+      // position is pointer-driven; rotation glides through the spring for fluid tilt
+      spring(c, 'r', 'vr', 'tr');
+    }
+
+    else if (c.flying) {
+      // ballistic flight until fully off-panel (or faded past the camera)
+      c.x += c.vx * DT; c.y += c.vy * DT; c.r += c.vr * DT;
+      if (c.vs) c.s += c.vs * DT;
+      if (c.fadeOut) c.o = Math.max(0, c.o - 2.8 * DT);
+      c.vx *= 0.998; c.vy *= 0.998;
+      const gone = Math.abs(c.x) > panelW / 2 + CW || Math.abs(c.y) > panelH / 2 + CH
+                || (c.fadeOut && c.o <= 0.01);
+      if (gone) { c.flying = false; parkAtBack(c); }
+    }
+
+    else if (c.tw) {
+      c.tw.t += DT;
+      const k = c.tw.ease(Math.min(1, c.tw.t / c.tw.dur));
+      const f = c.tw.from;
+      c.x = f.x + (c.tx - f.x) * k;
+      c.y = f.y + (c.ty - f.y) * k;
+      c.r = f.r + (c.tr - f.r) * k;
+      c.s = f.s + (c.ts - f.s) * k;
+      c.b = f.b + (c.tb - f.b) * k;
+      c.o = f.o + (c.to - f.o) * Math.min(1, k * 3.2);  // opacity resolves early — the wash carries the fade
+      c.wsh = f.w + (c.twsh - f.w) * k;
+      if (c.tw.t >= c.tw.dur) c.tw = null;
+    }
+
+    else {
+      spring(c, 'x', 'vx', 'tx');
+      spring(c, 'y', 'vy', 'ty');
+      spring(c, 'r', 'vr', 'tr');
+      spring(c, 's', 'vs', 'ts');
+      c.b += (c.tb - c.b) * 0.16;
+      c.o += (c.to - c.o) * 0.18;
+      c.wsh += (c.twsh - c.wsh) * 0.14;
+    }
+
+    // write-on-change: filter/opacity/shadow writes force repaints, so only
+    // touch the DOM when a quantised value actually moved
+    const tf = `translate(${c.x.toFixed(1)}px, ${c.y.toFixed(1)}px) rotate(${c.r.toFixed(2)}deg) scale(${Math.max(0.01, c.s).toFixed(4)})`;
+    if (tf !== c._tf) { c.el.style.transform = tf; c._tf = tf; }
+    const sd = (1 - Math.min(1, Math.max(0.1, c.b))).toFixed(3);
+    if (sd !== c._sd) { c.shade.style.opacity = sd; c._sd = sd; }
+    const op = Math.min(1, Math.max(0, c.o)).toFixed(3);
+    if (op !== c._op) { c.el.style.opacity = op; c._op = op; }
+    const vo = Math.min(1, Math.max(0, c.wsh)).toFixed(3);
+    if (vo !== c._vo) { c.veil.style.opacity = vo; c._vo = vo; }
+  });
+
+  // smooth grid scroll
+  if (mode === 'grid') {
+    gridScroll += (gridScrollT - gridScroll) * 0.14;
+    if (Math.abs(gridScrollT - gridScroll) > 0.1) setTargets();
+  }
+
+  // the loading ring rides the top edge of the current card
+  const top = cards[mod(cursor, N)];
+  const lx = Math.round(panelW / 2 + top.x) + 'px';
+  const ly = Math.round(panelH / 2 + top.y - (BH / 2) * top.s + 2) + 'px';
+  if (lx !== step._lx) { loaderEl.style.left = lx; step._lx = lx; }
+  if (ly !== step._ly) { loaderEl.style.top = ly; step._ly = ly; }
+}
+
+const loaderEl = document.getElementById('loader');
+let loaderT = null;
+function loaderPulse(ms = 750) {
+  loaderEl.classList.add('on');
+  clearTimeout(loaderT);
+  loaderT = setTimeout(() => loaderEl.classList.remove('on'), ms);
+}
+
+function tick() { step(); requestAnimationFrame(tick); }
+requestAnimationFrame(tick);
+
+/* headless-verification helper: run physics to rest synchronously */
+window.__settle = (n = 400) => { for (let i = 0; i < n; i++) step(); return mode + ' @ ' + cNow.textContent; };
+
+/* after a throw, the card teleports to the back of the deck */
+function parkAtBack(c) {
+  const d = mod(c.i - cursor, N);
+  c.tw = null; c.fadeOut = false; c.wsh = 0;
+  c.x = 0; c.y = stackY(d); c.r = 0;
+  c.s = stackS(d); c.b = 0.16; c.o = mode === 'stack' && d > STACK_N ? 0 : 1;
+  c.vx = c.vy = c.vr = c.vs = 0;
+  setTargets();
+}
+
+/* ---------- throwing ---------- */
+function throwTop(dirX, dirY) {
+  if (mode !== 'stack') return;
+  const c = cards[mod(cursor, N)];
+  if (c.flying || c.frozen) return;
+  c.flying = true; c.tw = null; c.fadeOut = false; c.vs = 0;
+  c.el.style.zIndex = 400;
+  const speed = 1450 + Math.random() * 300;          // px/s — an unhurried exit, ~0.5s to leave frame
+  const len = Math.hypot(dirX, dirY) || 1;
+  c.vx = (dirX / len) * speed;
+  c.vy = (dirY / len) * speed;
+  c.vr = c.vx * 0.05 + (Math.random() - 0.5) * 50;   // deg/s — a gentle drift, not a spin
+  cursor++;
+  peek = false;
+  setTargets();
+  loaderPulse();
+}
+
+/* ---------- app-store takeover ----------
+   The card's FRAME morphs (width/height/margin/radius on one expo-out
+   curve) rather than blowing up a scale — the cover becomes a hero band,
+   the page rises in beneath it, everything else recedes behind a scrim. */
+const scrimEl = document.getElementById('scrim');
+const TOP_GAP = 48;
+let takeoverTimer = null;
+let takeoverSeq = 0;        // bumped on every open AND close — stale frames bail
+let takeoverStage = null;   // 'peek' (the intermediate landing) | 'full'
+let peekAcc = 0;
+
+function stageGeom(stage) {
+  if (stage === 'full') {
+    const w = panelW, h = panelH - TOP_GAP;
+    return { w, h, tx: BW / 2 - panelW / 2, ty: TOP_GAP - panelH / 2 + BH / 2 };
+  }
+  // peek: a taller mid-size card — hero on top, intro + button below
+  const w = Math.min(620, panelW * 0.62);
+  const h = Math.min(panelH * 0.82, w * 1.02);
+  return { w, h, tx: BW / 2 - w / 2, ty: BH / 2 - h / 2 };
+}
+
+function applyStage(c, stage) {
+  const g = stageGeom(stage);
+  c.el.style.width = g.w + 'px';
+  c.el.style.height = g.h + 'px';
+  c.el.style.borderRadius = stage === 'full' ? '12px 12px 0 0' : '14px';
+  c.el.style.transform = `translate(${g.tx}px, ${g.ty}px) rotate(0deg) scale(1)`;
+  c.el.style.setProperty('--k', g.w / BW);
+  c._sh = null;   // takeover shadow is class-driven; forget the cached tier
+}
+
+/* the engine renders cards as a scaled 480×320; for the morph we bake that
+   scale into real width/height so only width/height/translate animate —
+   one curve, no compounding, no margin layout-thrash */
+function bakePose(c) {
+  const s = Math.max(0.01, c.s);
+  const el = c.el;
+  el.style.width = (BW * s) + 'px';
+  el.style.height = (BH * s) + 'px';
+  // the transform-scaled card shows 14px × s of curvature — keep exactly that
+  el.style.borderRadius = (14 * s).toFixed(2) + 'px';
+  el.style.transform =
+    `translate(${c.x + (BW / 2) * (1 - s)}px, ${c.y + (BH / 2) * (1 - s)}px) rotate(${c.r}deg) scale(1)`;
+  el.style.setProperty('--k', s);
+}
+
+function openTakeover(c) {
+  if (takeoverC || c.flying || c.frozen) return;
+  clearTimeout(takeoverTimer);        // a pending close-finalizer must not outlive this open
+  const seq = ++takeoverSeq;
+  takeoverC = c;
+  c.takeover = true;
+  takeoverStage = 'peek';
+  peekAcc = 0;
+  document.body.classList.add('peek-on');
+  scrimEl.classList.add('on');
+  setTargets();                       // the rest of the deck recedes
+
+  const el = c.el;
+  bakePose(c);
+  el.style.opacity = 1;
+  c.shade.style.opacity = 0;
+  el.style.zIndex = 550;
+  c.page.scrollTop = 0;
+  c.cover.style.transform = '';
+  c._sd = c._op = c._tf = null;       // inline overrides invalidate the render cache
+
+  requestAnimationFrame(() => requestAnimationFrame(() => {
+    if (takeoverC !== c || seq !== takeoverSeq) return;   // closed before the first frame
+    el.classList.add('anim', 'takeover', 'peek');
+    applyStage(c, 'peek');
+  }));
+}
+
+/* the second decision: from the peek, dive into the full case study */
+function goFull() {
+  const c = takeoverC;
+  if (!c || takeoverStage !== 'peek') return;
+  takeoverStage = 'full';
+  c.el.classList.remove('peek');
+  document.body.classList.remove('peek-on');
+  document.body.classList.add('takeover-on');   // now the whole page scrolls up
+  applyStage(c, 'full');
+}
+
+function closeTakeover() {
+  const c = takeoverC;
+  if (!c) return;
+  const seq = ++takeoverSeq;          // invalidate any open still waiting on a frame
+  const el = c.el;
+
+  c.page.scrollTop = 0;               // the page-fade masks the reset
+  c.cover.style.transform = '';
+  el.classList.remove('takeover', 'peek');   // page sinks, hero un-crops, ✕ becomes ↗
+  takeoverStage = null;
+  peekAcc = 0;
+  bakePose(c);                        // transition carries it back to its slot
+  scrimEl.classList.remove('on');
+  document.body.classList.remove('takeover-on', 'peek-on');
+
+  const done = () => {
+    // bail if a newer open/close superseded this close — never nuke a fresh takeover
+    if (takeoverC !== c || seq !== takeoverSeq) return;
+    clearTimeout(takeoverTimer);
+    el.classList.remove('anim', 'takeover', 'peek');   // belt & braces vs stale frames
+    el.style.width = el.style.height = el.style.borderRadius = '';
+    el.style.removeProperty('--k');
+    c.takeover = false;
+    takeoverC = null;
+    setTargets();                     // the deck breathes back to full size
+  };
+  el.addEventListener('transitionend', function h(e) {
+    if (e.target === el && e.propertyName === 'width') {
+      el.removeEventListener('transitionend', h);
+      done();
+    }
+  });
+  takeoverTimer = setTimeout(done, 750);   // headless / throttled-tab fallback
+}
+
+/* commit the scrub: the card sails on past the camera, growing and fading */
+function commitScrub() {
+  const c = cards[mod(cursor, N)];
+  if (c.flying || c.frozen) return;
+  if (scrub.t === 0) newScrubDir();    // direct commits get their own lean too
+  c.flying = true; c.tw = null; c.fadeOut = true;
+  const k = 2.3;                       // path-units per second — ~0.45s to pass you
+  c.vx = panelW * scrub.dirX * k;
+  c.vy = -panelH * 0.55 * k;
+  c.vr = scrub.dirR * k;
+  c.vs = RS * 0.42 * k;
+  c.el.style.zIndex = 400;
+  cursor++;
+  peek = false;
+  scrub.t = 0;
+  setTargets();
+  loaderPulse();
+}
+
+/* scroll back: the previous card returns from the past — large, high and
+   to the left, translucent — shrinking back down onto the deck */
+function recallPrev() {
+  if (mode !== 'stack') return;
+  const now = performance.now();
+  if (now - scrub.recallAt < 450) return;
+  scrub.recallAt = now;
+  newScrubDir();                       // returns from a fresh direction each time
+  cursor--;
+  const c = cards[mod(cursor, N)];
+  c.flying = false; c.dragging = false; c.tw = null; c.fadeOut = false; c.vs = 0;
+  const p = scrubPose(1);
+  c.x = p.x; c.y = p.y; c.r = p.r; c.s = p.s;
+  c.o = 1; c.wsh = 0.8; c.b = 1;   // washes in solid — never see-through
+  c.vx = c.vy = c.vr = 0;
+  c.el.style.zIndex = 400;
+  setTargets();
+  loaderPulse();
+  setTimeout(setTargets, 600); // restore z-order after landing
+}
+
+/* ---------- pointer: grab & throw ---------- */
+let drag = null;
+
+stage.addEventListener('pointerdown', e => {
+  if (takeoverC) return;             // the takeover is modal; scrim handles outside-clicks
+  if (e.target.closest('.expand')) return;
+  const hit = e.target.closest('.card');
+  if (!hit) return;
+  const c = cards.find(k => k.el === hit);
+
+  if (mode === 'stack') {
+    if (c.i !== mod(cursor, N) || c.flying || c.frozen) return;
+    c.dragging = true; c.tw = null;
+    scrub.t = 0;                 // your hand overrides the wheel
+    // (the card beneath brightens only once the hand actually MOVES —
+    //  a plain click must not pulse the deck)
+    c.el.classList.add('grabbing');
+    c.el.style.zIndex = 400;
+    drag = { c, sx: e.clientX, sy: e.clientY, ox: c.x, oy: c.y, hist: [], moved: false };
+    stage.setPointerCapture(e.pointerId);
+  }
+});
+
+stage.addEventListener('pointermove', e => {
+  if (!drag) return;
+  const dx = e.clientX - drag.sx, dy = e.clientY - drag.sy;
+  if (!drag.moved && Math.hypot(dx, dy) > 4) {
+    drag.moved = true;
+    peek = true; setTargets();   // NOW the card beneath brightens
+  }
+  const c = drag.c;
+  c.x = drag.ox + dx;
+  c.y = drag.oy + dy;
+  // tilt is a spring TARGET, not a snap — the card leans into the move and eases out of it
+  c.tr = Math.max(-16, Math.min(16, dx * 0.045));
+  drag.hist.push({ x: e.clientX, y: e.clientY, t: performance.now() });
+  if (drag.hist.length > 8) drag.hist.shift();
+});
+
+function endDrag(e) {
+  if (!drag) return;
+  const c = drag.c;
+  c.dragging = false;
+  c.el.classList.remove('grabbing');
+
+  // fling velocity from recent pointer history (px/s)
+  let vx = 0, vy = 0;
+  const h = drag.hist;
+  if (h.length > 1) {
+    const a = h[0], b = h[h.length - 1];
+    const dt = Math.max(16, b.t - a.t);
+    vx = (b.x - a.x) / dt * 1000;
+    vy = (b.y - a.y) / dt * 1000;
+  }
+
+  const flung = Math.hypot(vx, vy) > 550 || Math.hypot(c.x, c.y) > CW * 0.75;
+  if (flung && drag.moved) {
+    c.flying = true; c.fadeOut = false; c.vs = 0;
+    const len = Math.hypot(vx, vy);
+    const speed = Math.max(1450, len * 1.05);
+    const nx = len > 1 ? vx / len : Math.sign(c.x) || 1;
+    const ny = len > 1 ? vy / len : 0.3;
+    c.vx = nx * speed; c.vy = ny * speed;
+    c.vr = c.vx * 0.05 + (Math.random() - 0.5) * 50;
+    cursor++;
+    loaderPulse();
+  } else if (!drag.moved) {
+    // a clean click on the top card opens it, app-store style
+    peek = false;
+    setTargets();
+    drag = null;
+    openTakeover(c);
+    return;
+  } else {
+    // not flung: seed the spring with the release velocity so the return glides, doesn't snap
+    c.vx = vx; c.vy = vy;
+  }
+  peek = false;
+  setTargets();
+  drag = null;
+}
+stage.addEventListener('pointerup', endDrag);
+stage.addEventListener('pointercancel', endDrag);
+
+/* ---------- wheel ---------- */
+addEventListener('wheel', e => {
+  if (takeoverC) {
+    e.preventDefault();
+    if (takeoverStage === 'full') {
+      // route the wheel straight into the page — scrolls anywhere over the
+      // takeover, hero included, and can't double-fire with native scroll
+      takeoverC.page.scrollTop += e.deltaY;
+      takeoverC.cover.style.transform = `translateY(${-takeoverC.page.scrollTop}px)`;
+    } else {
+      // in the peek, scrolling is the decision: down digs deeper, up backs out
+      peekAcc += e.deltaY;
+      if (peekAcc > 90) { peekAcc = 0; goFull(); }
+      else if (peekAcc < -90) { peekAcc = 0; closeTakeover(); }
+    }
+    return;
+  }
+  const d = e.deltaY + e.deltaX;     // horizontal swipes ride the same gesture
+
+  if (mode === 'grid') {
+    gridScrollT = Math.max(0, Math.min(gridMax, gridScrollT + e.deltaY));
+    return;
+  }
+
+  if (mode === 'stack') {
+    // time machine: the wheel scrubs the top card along its exit path
+    const top = cards[mod(cursor, N)];
+    if (top.flying || top.dragging || top.frozen) return;
+    const nowW = performance.now();
+    scrub.lastWheel = nowW;
+    if (d > 0) {
+      if (scrub.t === 0) newScrubDir();   // each fresh gesture leans a new way
+      // cap below the fade-out zone: while the rate-limiter holds the commit,
+      // the card must hang visible, never vanish mid-scroll
+      scrub.t = Math.min(0.72, scrub.t + d * 0.0016);
+      // rate-limit commits so a hard scroll riffles in rhythm instead of machine-gunning
+      if ((scrub.t >= 0.5 || d > 140) && nowW - scrub.lastCommit > 120) {
+        scrub.lastCommit = nowW;
+        commitScrub();
+      }
+    } else if (d < 0) {
+      if (scrub.t > 0.001) scrub.t = Math.max(0, scrub.t + d * 0.0016);
+      else recallPrev();
+    }
+    return;
+  }
+
+  if (mode === 'row') {
+    // coverflow: the wheel moves the strip directly — no steps, no locks
+    flow.lastWheel = performance.now();
+    flow.target = Math.max(-0.15, Math.min(N - 0.85, flow.target + d * 0.0045));
+  }
+}, { passive: false });   // non-passive so the takeover can claim the wheel
+
+/* ---------- clicks: expand, grid-peek, row-jump ---------- */
+stage.addEventListener('click', e => {
+  const hit = e.target.closest('.card');
+  if (!hit) return;
+  const c = cards.find(k => k.el === hit);
+
+  if (e.target.closest('.more')) {
+    if (takeoverStage === 'peek') goFull();
+    return;
+  }
+  if (e.target.closest('.expand')) {
+    if (c === takeoverC) { closeTakeover(); return; }
+    openTakeover(c);
+    return;
+  }
+  if (takeoverC) {
+    // anywhere on the peeked card commits to the full story
+    if (takeoverStage === 'peek' && c === takeoverC) goFull();
+    return;
+  }
+  if (mode === 'grid') { openTakeover(c); }
+  else if (mode === 'row' && c.i !== cursor) {
+    // clicking a neighbour glides the strip to it
+    flow.target = c.i;
+    flow.lastWheel = 0;
+  }
+  else if (mode === 'row' && c.i === cursor) {
+    openTakeover(c);
+  }
+});
+
+addEventListener('keydown', e => {
+  if (e.key === 'Escape' && takeoverC) { closeTakeover(); return; }
+  if (takeoverC) return;
+  if (e.key === 'ArrowRight') {
+    if (mode === 'stack') commitScrub();
+    else if (mode === 'row') { flow.target = Math.min(N - 1, Math.round(flow.target) + 1); flow.lastWheel = 0; }
+  }
+  if (e.key === 'ArrowLeft') {
+    if (mode === 'stack') recallPrev();
+    else if (mode === 'row') { flow.target = Math.max(0, Math.round(flow.target) - 1); flow.lastWheel = 0; }
+  }
+});
+
+/* ---------- mode switching ---------- */
+function setMode(m) {
+  const prev = mode;
+  mode = m;
+  scrub.t = 0; peek = false;
+  if (m === 'grid') { gridScroll = 0; gridScrollT = 0; }
+  if (m === 'stack') cursor = mod(cursor, N);
+  if (m === 'row') {
+    cursor = Math.max(0, Math.min(N - 1, mod(cursor, N)));
+    flow.pos = flow.target = cursor;
+    flow.lastWheel = 0;
+  }
+  modesEl.querySelectorAll('button').forEach(b =>
+    b.classList.toggle('on', b.dataset.mode === m));
+  setTargets();
+  if (m !== prev) {
+    // view morphs ride the eased tween, not the spring
+    cards.forEach(c => tweenTo(c, MORPH_LONG));
+  }
+}
+
+modesEl.addEventListener('click', e => {
+  const btn = e.target.closest('button');
+  if (!btn) return;
+  if (takeoverC) closeTakeover();
+  setMode(btn.dataset.mode);
+});
+
+scrimEl.addEventListener('click', closeTakeover);
+addEventListener('resize', () => { if (takeoverC) closeTakeover(); });
+
+/* ---------- intro ----------
+   As on Marvin's site: a beat of empty panel, then the whole stack swooshes
+   in together as a ghosted fan from the upper right — the front card leads,
+   the ones behind trail higher and more rotated — and the fan collapses
+   into the neat pile as it fades up to full. */
+(function intro() {
+  introHold = false;
+  setTargets();
+
+  // everyone starts parked in their slot, invisible
+  cards.forEach(c => {
+    const d = mod(c.i - cursor, N);
+    c.x = 0; c.y = stackY(d); c.r = 0;
+    c.s = stackS(d);
+    c.b = stackB(d);
+    c.o = 0;
+  });
+
+  // the visible stack waits off upper-right as a trailing fan — washed
+  // white but OPAQUE, so no card ever shows through another.
+  // Every visible depth rides the fan, so nothing fades in on its own.
+  const FAN = STACK_N + 1;
+  for (let d = 0; d < FAN; d++) {
+    const c = cards[mod(cursor + d, N)];
+    c.x = panelW * (0.18 + d * 0.055);
+    c.y = -panelH * (0.22 + d * 0.065) - BH * RS * 0.35;
+    c.r = -9 - d * 9;
+    c.s = RS * (1.08 + d * 0.015);
+    c.b = 1;                   // bright in flight; the settle dims the covered ones
+    c.o = 0;                   // resolves to solid within the first beats of the swoosh
+    c.wsh = 0.85;              // the fade lives here: a white wash that burns off
+    c.frozen = true;
+  }
+
+  setTimeout(() => {           // a breath of empty canvas first
+    for (let d = 0; d < FAN; d++) {
+      const c = cards[mod(cursor + d, N)];
+      c.frozen = false;
+      tweenTo(c, 0.95 + d * 0.07, EASE_DROP);  // deeper cards trail in a touch later
+    }
+    loaderPulse(1400);
+  }, 400);
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,595 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Card Toss — Time Machine Lab</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  html, body {
+    height: 100%;
+    overflow: hidden;
+    font-family: -apple-system, BlinkMacSystemFont, "Inter", "Helvetica Neue", sans-serif;
+    -webkit-font-smoothing: antialiased;
+    background: #4a7ab5;
+  }
+
+  .backdrop {
+    position: fixed;
+    inset: -10%;
+    background:
+      radial-gradient(42% 55% at 12% 18%, #f3ecd2 0%, rgba(243,236,210,0) 100%),
+      radial-gradient(50% 60% at 85% 12%, #a8d8f0 0%, rgba(168,216,240,0) 100%),
+      radial-gradient(45% 50% at 70% 75%, #0b2f9e 0%, rgba(11,47,158,0) 100%),
+      radial-gradient(60% 55% at 25% 85%, #1a5ecc 0%, rgba(26,94,204,0) 100%),
+      radial-gradient(35% 45% at 50% 40%, #7db8e8 0%, rgba(125,184,232,0) 100%),
+      linear-gradient(160deg, #6fa8d8 0%, #3d6db5 55%, #1a3a8f 100%);
+    filter: blur(48px) saturate(1.15);
+    transform: scale(1.1);
+  }
+
+  .panel {
+    position: fixed;
+    left: 7.6%; right: 7.6%;
+    top: 12.9%; bottom: 12.9%;
+    background: #fff;
+    border-radius: 12px;
+    box-shadow: 0 60px 140px -20px rgba(4, 16, 60, 0.45), 0 20px 50px rgba(4, 16, 60, 0.25);
+    overflow: hidden;
+  }
+
+  .stage {
+    position: absolute;
+    inset: 0;
+    overflow: hidden;
+    cursor: grab;
+    animation: stageIn .7s ease-out both;
+  }
+  .stage.grabbing { cursor: grabbing; }
+  @keyframes stageIn { from { opacity: 0; } to { opacity: 1; } }
+
+  .chrome {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    z-index: 500;
+  }
+  .chrome header {
+    position: absolute;
+    top: 22px; left: 24px; right: 24px;
+    display: flex;
+    justify-content: space-between;
+    font-size: 13px;
+  }
+  .chrome header .who { color: #1d1d1f; font-weight: 500; }
+  .chrome header a { color: #b9b9bd; text-decoration: none; pointer-events: auto; }
+  .chrome header a:hover { color: #7a7a7f; }
+
+  .chrome footer {
+    position: absolute;
+    bottom: 18px; left: 24px; right: 18px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 16px;
+    font-size: 13px;
+  }
+  .hint { color: #b9b9bd; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+  .hud { display: flex; align-items: center; gap: 14px; pointer-events: auto; }
+  .counter { color: #b9b9bd; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .counter b { color: #1d1d1f; font-weight: 600; }
+
+  .variants {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    padding: 3px;
+    border: 1px solid #ececee;
+    border-radius: 99px;
+    background: #fff;
+  }
+  .variants button {
+    height: 30px;
+    padding: 0 13px;
+    border: 0;
+    border-radius: 99px;
+    background: transparent;
+    color: #a5a5aa;
+    font-size: 12px;
+    font-weight: 500;
+    font-family: inherit;
+    cursor: pointer;
+    transition: background .25s, color .25s;
+    white-space: nowrap;
+  }
+  .variants button:hover { color: #57575c; }
+  .variants button.on { background: #1d1d1f; color: #fff; }
+
+  .card {
+    position: absolute;
+    left: 50%; top: 50%;
+    width: 480px; height: 320px;
+    margin: -160px 0 0 -240px;
+    border-radius: 14px;
+    overflow: hidden;
+    box-shadow: 0 24px 55px -12px rgba(10, 12, 40, 0.35);
+    user-select: none;
+    -webkit-user-select: none;
+    touch-action: none;
+    will-change: transform, filter;
+    pointer-events: none;   /* the stage owns the gesture */
+  }
+
+  .cover { position: absolute; inset: 0; }
+
+  .meta {
+    position: absolute;
+    left: 16px; bottom: 13px; right: 52px;
+    color: #fff;
+    pointer-events: none;
+    text-shadow: 0 1px 8px rgba(0,0,0,.12);
+  }
+  .meta h3 { font-size: 14px; font-weight: 600; line-height: 1.35; }
+  .meta p  { font-size: 13.5px; font-weight: 400; opacity: .75; line-height: 1.35; }
+  .card.ink .meta { color: #1d1d1f; text-shadow: none; }
+  .card.ink .meta p { opacity: .55; }
+
+  /* ===== covers (same 12 originals as the main study) ===== */
+  .cv-northstar { background: linear-gradient(165deg, #1a35f0 0%, #0a1499 78%); }
+  .cv-northstar .mark { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; color: #c9d2f2; font-size: 44px; font-weight: 700; letter-spacing: -0.03em; }
+  .cv-northstar .mark span { color: #8fa0e8; }
+
+  .cv-market { background: linear-gradient(180deg, #fafafa 0%, #ececef 100%); }
+  .cv-market .wordmark { position: absolute; left: 50%; top: 46%; transform: translate(-50%, -50%); font-size: 34px; font-weight: 700; letter-spacing: -0.04em; color: #4b3df0; }
+  .cv-market .tile { position: absolute; border-radius: 10px; background: #fff; box-shadow: 0 6px 18px rgba(20,20,40,.10); }
+
+  .cv-fieldnotes { background: linear-gradient(170deg, #c01822 0%, #8f0e18 100%); }
+  .cv-fieldnotes .masthead { position: absolute; inset: 34px; color: #f6e8d4; font-family: Georgia, "Times New Roman", serif; text-align: center; }
+  .cv-fieldnotes .masthead h2 { font-size: 33px; font-weight: 500; font-style: italic; line-height: 1.18; }
+  .cv-fieldnotes .masthead small { display: block; margin-top: 14px; font-size: 12px; letter-spacing: .28em; text-transform: uppercase; opacity: .7; }
+
+  .cv-index { background: linear-gradient(175deg, #e8c229 0%, #d4a91a 100%); }
+  .cv-index .numeral { position: absolute; left: 40px; bottom: 44px; font-size: 110px; font-weight: 200; letter-spacing: -.05em; color: #3a3208; font-family: Georgia, serif; }
+  .cv-index .chip { position: absolute; border-radius: 8px; background: rgba(255,252,235,.85); box-shadow: 0 4px 12px rgba(90,70,0,.18); }
+
+  .cv-resonance { background: radial-gradient(75% 95% at 50% 42%, #8b4dd8 0%, #3d1178 70%, #250a52 100%); }
+  .cv-resonance .figure { position: absolute; left: 50%; top: 55%; transform: translate(-50%, -50%); }
+
+  .cv-loudspeaker { background: #101012; }
+  .cv-loudspeaker .bar { position: absolute; left: 26px; right: 26px; top: 55%; height: 44px; border-radius: 6px; background: linear-gradient(90deg, #37e831, #78f26e); box-shadow: 0 0 34px rgba(70, 230, 60, .35); }
+  .cv-loudspeaker .wordmark { position: absolute; right: 34px; top: 26%; color: #f2f2f2; font-size: 26px; font-weight: 800; font-style: italic; letter-spacing: .06em; }
+  .cv-loudspeaker .copy { position: absolute; left: 28px; top: 20%; color: #cfcfd4; font-size: 11px; line-height: 1.5; width: 150px; }
+
+  .cv-posters { background: #17171a; }
+  .cv-posters .half { position: absolute; top: 26px; bottom: 26px; width: calc(50% - 34px); border-radius: 8px; }
+  .cv-posters .half.a { left: 26px; background: linear-gradient(180deg, #3d7bf5, #2451c9); }
+  .cv-posters .half.b { right: 26px; background: linear-gradient(180deg, #7a2bc9, #4d1191); }
+  .cv-posters .half span { position: absolute; left: 14px; top: 12px; color: #fff; font-size: 15px; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; line-height: 1.15; }
+
+  .cv-weather { background: linear-gradient(180deg, #b8d8f2 0%, #e8f2fa 55%, #f7f2e6 100%); }
+  .cv-weather .cloud { position: absolute; border-radius: 99px; background: rgba(255,255,255,.92); filter: blur(7px); }
+
+  .cv-oneline { background: #fcfcfa; }
+  .cv-oneline svg { position: absolute; inset: 0; width: 100%; height: 100%; }
+
+  .cv-pocket { background: #141416; }
+  .cv-pocket .phone { position: absolute; top: 42px; bottom: 42px; width: 21.5%; border-radius: 12px; background: #232327; border: 1px solid #333338; }
+  .cv-pocket .phone i { position: absolute; left: 12%; right: 12%; border-radius: 3px; background: #3c3c44; }
+
+  .cv-monument { background: linear-gradient(170deg, #9a958c 0%, #6e6a62 100%); }
+  .cv-monument .m { position: absolute; inset: 0; display: grid; place-items: center; color: #edeae2; font-family: Georgia, serif; font-size: 96px; font-weight: 500; }
+
+  .cv-sunset { background: linear-gradient(175deg, #f7c5d8 0%, #f2a0b8 60%, #e88f9e 100%); }
+  .cv-sunset .sun { position: absolute; left: 50%; top: 44%; width: 120px; height: 120px; transform: translate(-50%, -50%); border-radius: 50%; background: radial-gradient(circle at 42% 38%, #ffb347, #f2711c); box-shadow: 0 12px 60px rgba(242, 113, 28, .5); }
+</style>
+</head>
+<body>
+
+<div class="backdrop"></div>
+
+<div class="panel">
+  <div class="stage" id="stage"></div>
+  <div class="chrome">
+    <header>
+      <span class="who">Card Toss — Time Machine Lab</span>
+      <a href="./">back to the study &#8599;</a>
+    </header>
+    <footer>
+      <span class="hint" id="hint"></span>
+      <span class="hud">
+        <span class="counter"><b id="cNow">01</b> <span style="color:#d3d3d6">/</span> 12</span>
+        <span class="variants" id="variantBar"></span>
+      </span>
+    </footer>
+  </div>
+</div>
+
+<script>
+/* ============================================================
+   TIME MACHINE LAB — five renderings of one gesture.
+   A single continuous deck position `pos` drives everything:
+   scroll or grab-drag moves it, every variant is just a
+   different pose function of each card's distance from it.
+   Fully reversible — scrub forward and back through time.
+   ============================================================ */
+
+const DATA = [
+  { t: 'Northstar',      s: 'A new home for design systems',        c: 'northstar' },
+  { t: 'Market',         s: 'Everything shopping, in one place',    c: 'market', ink: true },
+  { t: 'Field Notes',    s: 'Essays from the studio floor',         c: 'fieldnotes' },
+  { t: 'August Index',   s: 'A quarterly of small wonders',         c: 'index', ink: true },
+  { t: 'Resonance',      s: 'An instrument for the browser',        c: 'resonance' },
+  { t: 'Loudspeaker',    s: 'A campaign system in one bar',         c: 'loudspeaker' },
+  { t: 'Speaker Series', s: 'Posters for a season of talks',        c: 'posters' },
+  { t: 'Weather Room',   s: 'A calmer forecast',                    c: 'weather', ink: true },
+  { t: 'One Line',       s: 'Drawings from the creative internet',  c: 'oneline', ink: true },
+  { t: 'Pocket Studio',  s: 'Three screens, one flow',              c: 'pocket' },
+  { t: 'Monument',       s: 'An identity cut in granite',           c: 'monument' },
+  { t: 'Sunset Club',    s: 'A social for golden hour',             c: 'sunset', ink: true },
+];
+
+const COVERS = {
+  northstar: `<div class="mark">north<span>&#9733;</span>studio</div>`,
+  market: `
+    <div class="tile" style="left:8%;  top:12%; width:64px; height:88px;"></div>
+    <div class="tile" style="left:26%; top:8%;  width:56px; height:56px; background:#e05a2b;"></div>
+    <div class="tile" style="right:9%; top:14%; width:70px; height:60px;"></div>
+    <div class="tile" style="left:11%; bottom:12%; width:58px; height:74px; background:#2d2d33;"></div>
+    <div class="tile" style="left:38%; bottom:8%;  width:84px; height:56px; background:#c9dfae;"></div>
+    <div class="tile" style="right:12%; bottom:11%; width:52px; height:80px; background:#f0d648;"></div>
+    <div class="wordmark">market</div>`,
+  fieldnotes: `
+    <div class="masthead">
+      <h2>World Views,<br>Theses &amp; Weather</h2>
+      <small>Vol. 02 &mdash; Field Notes</small>
+    </div>`,
+  index: `
+    <div class="chip" style="right:36px; top:34px;  width:74px; height:52px;"></div>
+    <div class="chip" style="right:52px; top:100px; width:46px; height:46px;"></div>
+    <div class="chip" style="right:130px; top:52px; width:40px; height:64px;"></div>
+    <div class="numeral">08</div>`,
+  resonance: `
+    <svg class="figure" width="200" height="200" viewBox="0 0 200 200">
+      <path d="M100 40 C 70 60, 60 100, 78 130 C 90 150, 120 156, 138 140 C 122 148, 96 144, 88 122 C 78 96, 88 66, 112 50 Z" fill="#120425"/>
+      <circle cx="128" cy="52" r="14" fill="#120425"/>
+    </svg>`,
+  loudspeaker: `
+    <div class="copy">We will make your idea unmissable, as soon as it is audible.</div>
+    <div class="wordmark">LOUD</div>
+    <div class="bar"></div>`,
+  posters: `
+    <div class="half a"><span>Spring<br>Talks</span></div>
+    <div class="half b"><span>Gala<br>Nights</span></div>`,
+  weather: `
+    <div class="cloud" style="left:12%; top:22%; width:150px; height:44px;"></div>
+    <div class="cloud" style="right:14%; top:40%; width:190px; height:52px;"></div>
+    <div class="cloud" style="left:24%; bottom:20%; width:120px; height:38px;"></div>`,
+  oneline: `
+    <svg viewBox="0 0 480 320" fill="none">
+      <path d="M70 230 C 90 160, 150 140, 185 165 C 205 180, 200 210, 230 212 C 270 214, 275 170, 315 168 C 355 166, 370 200, 400 190 C 420 183, 418 158, 398 152 C 380 147, 368 166, 382 176"
+        stroke="#1d1d1f" stroke-width="3.5" stroke-linecap="round"/>
+      <circle cx="352" cy="140" r="4" fill="#1d1d1f"/>
+    </svg>`,
+  pocket: `
+    <div class="phone" style="left:12%;">  <i style="top:14px; height:34%;"></i><i style="top:52%; height:8px;"></i><i style="top:62%; height:8px; right:34%;"></i></div>
+    <div class="phone" style="left:39.5%;"><i style="top:14px; height:20%; background:#4d6df0;"></i><i style="top:40%; height:8px;"></i><i style="top:50%; height:8px;"></i><i style="top:60%; height:8px; right:40%;"></i></div>
+    <div class="phone" style="right:12%;"> <i style="top:14px; height:48%; background:#2e2e34;"></i><i style="top:70%; height:10px; border-radius:99px; background:#4d6df0;"></i></div>`,
+  monument: `<div class="m">M</div>`,
+  sunset: `<div class="sun"></div>`,
+};
+
+/* ---------- build ---------- */
+const stage = document.getElementById('stage');
+const N = DATA.length;
+const BW = 480, BH = 320;
+let panelW = 0, panelH = 0, RS = 1, CW = 480, CH = 320;
+
+const cards = DATA.map((d, i) => {
+  const el = document.createElement('div');
+  el.className = 'card' + (d.ink ? ' ink' : '');
+  el.innerHTML = `
+    <div class="cover cv-${d.c}">${COVERS[d.c]}</div>
+    <div class="meta"><h3>${d.t}</h3><p>${d.s}</p></div>`;
+  stage.appendChild(el);
+  return { i, el };
+});
+
+function measure() {
+  const rect = stage.getBoundingClientRect();
+  panelW = rect.width; panelH = rect.height;
+  RS = Math.min(1, (panelW * 0.42) / BW, (panelH * 0.55) / BH);
+  CW = BW * RS; CH = BH * RS;
+}
+measure();
+addEventListener('resize', measure);
+addEventListener('load', measure);
+
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+const lerp = (a, b, k) => a + (b - a) * k;
+
+/* deck-depth brightness: bright on top, near-black strips below —
+   f is continuous, so the reveal brightens smoothly as you scrub */
+function depthB(f) {
+  if (f <= 0) return 1;
+  if (f < 1) return lerp(1, 0.42, f);
+  return Math.max(0.16, 0.42 - (f - 1) * 0.07);
+}
+
+/* the classic stack slot for f >= 0 */
+function stackSlot(f) {
+  return {
+    x: 0, y: f * 7 * RS, r: 0,
+    s: RS * (1 - f * 0.038),
+    b: depthB(f),
+    o: f > 5.5 ? 0 : 1,
+    z: 300 - Math.round(f * 10),
+  };
+}
+
+/* ============ THE VARIANTS ============ */
+const VARIANTS = {
+
+  lift: {
+    name: 'Lift',
+    hint: 'Scroll or drag — cards lift up past the lens, the study’s original path',
+    wheelK: 0.0028, dragK: 0.8, friction: 0.90,
+    pose(f) {
+      if (f >= 0) return stackSlot(f);
+      const t = Math.min(1.2, -f);
+      return {
+        x: -panelW * 0.16 * t,
+        y: -panelH * 0.55 * t,
+        r: -12 * t,
+        s: RS * (1 + 0.42 * t),
+        b: 1,
+        o: t < 0.65 ? 1 : Math.max(0, 1 - (t - 0.65) / 0.35),
+        z: 400 + Math.round(t * 10),
+      };
+    },
+  },
+
+  warp: {
+    name: 'Warp',
+    hint: 'Scroll or drag — straight through the deck, cards pass right over the camera',
+    wheelK: 0.0028, dragK: 0.8, friction: 0.90,
+    pose(f) {
+      if (f >= 0) return stackSlot(f);
+      const t = Math.min(1.2, -f);
+      return {
+        x: 0,
+        y: panelH * 0.04 * t,
+        r: 0,
+        s: RS * (1 + 1.9 * t * t),
+        b: 1,
+        o: t < 0.35 ? 1 : Math.max(0, 1 - (t - 0.35) / 0.5),
+        z: 400 + Math.round(t * 10),
+      };
+    },
+  },
+
+  flick: {
+    name: 'Flick',
+    hint: 'Scroll or drag — cards flick off sideways; a hard flick riffles a few at once',
+    wheelK: 0.0038, dragK: 1.0, friction: 0.955,   // slippery: momentum carries it
+    pose(f) {
+      if (f >= 0) return stackSlot(f);
+      const t = Math.min(1.3, -f);
+      return {
+        x: -panelW * 0.62 * t * (1 + t * 0.25),
+        y: -panelH * 0.06 * t,
+        r: -10 * t,
+        s: RS * (1 + 0.06 * t),
+        b: 1,
+        o: 1,
+        z: 400 + Math.round(t * 10),
+      };
+    },
+  },
+
+  fan: {
+    name: 'Fan',
+    hint: 'Grab the deck and rake it left or right — the cards spread under your hand',
+    wheelK: 0.0028, dragK: 1.9, friction: 0.92,    // dragK high: one swipe rakes several
+    pose(f, g) {
+      const sp = g.act;   // 0 at rest → 1 mid-gesture
+      // rest pose: the plain stack (leaving cards tuck away leftward)
+      let rest;
+      if (f >= 0) rest = stackSlot(f);
+      else {
+        const t = Math.min(1.2, -f);
+        rest = { x: -CW * 0.3 * t, y: -CH * 0.1 * t, r: -6 * t, s: RS, b: 1, o: Math.max(0, 1 - t * 1.6), z: 400 };
+      }
+      // gesture pose: a spread hand of cards, centre card biggest and brightest
+      const af = Math.abs(f);
+      const hand = {
+        x: f * CW * 0.86,
+        y: af * 9 * RS,
+        r: f * 4,
+        s: RS * (1 - Math.min(af * 0.035, 0.25)),
+        b: 1 - Math.min(af * 0.10, 0.5),
+        o: af > 3.4 ? 0 : 1,
+        z: 300 - Math.round(af * 10),
+      };
+      return {
+        x: lerp(rest.x, hand.x, sp),
+        y: lerp(rest.y, hand.y, sp),
+        r: lerp(rest.r, hand.r, sp),
+        s: lerp(rest.s, hand.s, sp),
+        b: lerp(rest.b, hand.b, sp),
+        o: lerp(rest.o, hand.o, sp),
+        z: sp > 0.4 ? hand.z : rest.z,
+      };
+    },
+  },
+
+  rolodex: {
+    name: 'Rolodex',
+    hint: 'Spin the wheel — the deck sweeps along an arc, drag or scroll to turn it',
+    wheelK: 0.0026, dragK: 1.3, friction: 0.945,
+    pose(f) {
+      const th = f * 0.38;
+      const af = Math.abs(f);
+      return {
+        x: Math.sin(th) * CW * 1.05,
+        y: (1 - Math.cos(th)) * CH * 1.35,
+        r: th * 28,
+        s: RS * (1 - Math.min(af * 0.045, 0.3)),
+        b: 1 - Math.min(af * 0.13, 0.6),
+        o: af > 3.4 ? 0 : 1,
+        z: 300 - Math.round(af * 10),
+      };
+    },
+  },
+};
+
+/* ============ the one gesture ============ */
+let variant = 'lift';
+const eng = {
+  pos: 0,        // rendered position (chases posT)
+  posT: 0,       // gesture target
+  vel: 0,        // momentum after release
+  act: 0,        // smoothed gesture activity (drives the fan spread)
+  lastWheel: 0,
+  drag: null,
+};
+
+const hintEl = document.getElementById('hint');
+const cNow = document.getElementById('cNow');
+const barEl = document.getElementById('variantBar');
+
+Object.entries(VARIANTS).forEach(([key, v]) => {
+  const b = document.createElement('button');
+  b.textContent = v.name;
+  b.dataset.key = key;
+  if (key === variant) b.classList.add('on');
+  barEl.appendChild(b);
+});
+barEl.addEventListener('click', e => {
+  const b = e.target.closest('button');
+  if (b) setVariant(b.dataset.key);
+});
+addEventListener('keydown', e => {
+  const keys = Object.keys(VARIANTS);
+  const n = parseInt(e.key, 10);
+  if (n >= 1 && n <= keys.length) setVariant(keys[n - 1]);
+  if (e.key === 'ArrowRight') { eng.posT = clamp(Math.round(eng.posT) + 1, 0, N - 1); eng.vel = 0; }
+  if (e.key === 'ArrowLeft')  { eng.posT = clamp(Math.round(eng.posT) - 1, 0, N - 1); eng.vel = 0; }
+});
+
+function setVariant(key) {
+  variant = key;
+  eng.vel = 0;
+  hintEl.textContent = VARIANTS[key].hint;
+  barEl.querySelectorAll('button').forEach(b => b.classList.toggle('on', b.dataset.key === key));
+}
+setVariant(variant);
+
+/* wheel: scrubs the target directly (vertical or horizontal) */
+addEventListener('wheel', e => {
+  const V = VARIANTS[variant];
+  eng.lastWheel = performance.now();
+  eng.vel = 0;
+  eng.posT = clamp(eng.posT + (e.deltaY + e.deltaX) * V.wheelK, -0.4, N - 0.6);
+}, { passive: true });
+
+/* drag: grab anywhere and rake left / right */
+stage.addEventListener('pointerdown', e => {
+  eng.drag = { x0: e.clientX, p0: eng.posT, hist: [] };
+  eng.vel = 0;
+  stage.classList.add('grabbing');
+  stage.setPointerCapture(e.pointerId);
+});
+stage.addEventListener('pointermove', e => {
+  if (!eng.drag) return;
+  const V = VARIANTS[variant];
+  const dp = -(e.clientX - eng.drag.x0) / CW * V.dragK;   // pull left → move forward
+  eng.posT = clamp(eng.drag.p0 + dp, -0.4, N - 0.6);
+  eng.drag.hist.push({ p: eng.posT, t: performance.now() });
+  if (eng.drag.hist.length > 7) eng.drag.hist.shift();
+});
+function endDrag() {
+  if (!eng.drag) return;
+  const h = eng.drag.hist;
+  if (h.length > 1) {
+    const a = h[0], b = h[h.length - 1];
+    const dt = Math.max(16, b.t - a.t);
+    eng.vel = (b.p - a.p) / dt * 16.7;     // pos-units per frame
+    eng.vel = clamp(eng.vel, -0.9, 0.9);
+  }
+  eng.drag = null;
+  stage.classList.remove('grabbing');
+}
+stage.addEventListener('pointerup', endDrag);
+stage.addEventListener('pointercancel', endDrag);
+
+/* ============ frame loop ============ */
+function frame() {
+  if (panelW < 10) measure();   // layout can land after first script run
+  const V = VARIANTS[variant];
+  const now = performance.now();
+  const wheelLive = now - eng.lastWheel < 140;
+  const busy = !!eng.drag || wheelLive || Math.abs(eng.vel) > 0.004;
+
+  // momentum, then magnetic snap
+  if (!eng.drag && !wheelLive) {
+    if (Math.abs(eng.vel) > 0.0005) {
+      eng.posT += eng.vel;
+      eng.vel *= V.friction;
+    } else {
+      eng.vel = 0;
+      eng.posT += (clamp(Math.round(eng.posT), 0, N - 1) - eng.posT) * 0.11;
+    }
+    eng.posT = clamp(eng.posT, -0.4, N - 0.6);
+  }
+
+  // rendered position glides after the target — the butter
+  eng.pos += (eng.posT - eng.pos) * 0.16;
+
+  // gesture activity (fan spread): swells while busy, relaxes at rest
+  eng.act += ((busy ? 1 : 0) - eng.act) * (busy ? 0.13 : 0.06);
+
+  // counter
+  const cur = clamp(Math.round(eng.posT), 0, N - 1);
+  cNow.textContent = String(cur + 1).padStart(2, '0');
+
+  // pose every card straight from its distance to the deck position
+  cards.forEach(c => {
+    const p = VARIANTS[variant].pose(c.i - eng.pos, eng);
+    c.el.style.transform = `translate(${p.x}px, ${p.y}px) rotate(${p.r}deg) scale(${Math.max(0.01, p.s)})`;
+    c.el.style.filter = `brightness(${clamp(p.b, 0.1, 1)})`;
+    c.el.style.opacity = clamp(p.o, 0, 1);
+    c.el.style.zIndex = p.z;
+  });
+
+  requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
+
+/* headless verification helper */
+window.__frames = (n = 60) => {
+  // frame() is rAF-driven; this advances the gesture math synchronously
+  for (let i = 0; i < n; i++) {
+    const V = VARIANTS[variant];
+    if (!eng.drag && performance.now() - eng.lastWheel >= 140) {
+      if (Math.abs(eng.vel) > 0.0005) { eng.posT += eng.vel; eng.vel *= V.friction; }
+      else { eng.vel = 0; eng.posT += (clamp(Math.round(eng.posT), 0, N - 1) - eng.posT) * 0.11; }
+      eng.posT = clamp(eng.posT, -0.4, N - 0.6);
+    }
+    eng.pos += (eng.posT - eng.pos) * 0.16;
+    const busy = !!eng.drag || Math.abs(eng.vel) > 0.004;
+    eng.act += ((busy ? 1 : 0) - eng.act) * (busy ? 0.13 : 0.06);
+  }
+  cards.forEach(c => {
+    const p = VARIANTS[variant].pose(c.i - eng.pos, eng);
+    c.el.style.transform = `translate(${p.x}px, ${p.y}px) rotate(${p.r}deg) scale(${Math.max(0.01, p.s)})`;
+    c.el.style.filter = `brightness(${clamp(p.b, 0.1, 1)})`;
+    c.el.style.opacity = clamp(p.o, 0, 1);
+    c.el.style.zIndex = p.z;
+  });
+  return `${variant} pos=${eng.pos.toFixed(2)} act=${eng.act.toFixed(2)}`;
+};
+</script>
+</body>
+</html>

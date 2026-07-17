@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
+<link rel="preload" href="/fonts/WT_Kormelink_Italic.woff2" as="font" type="font/woff2" crossorigin />
+<link rel="preload" href="/fonts/WT_Kormelink_Roman.woff2" as="font" type="font/woff2" crossorigin />
+<link rel="preload" href="/fonts/Knockout.woff2" as="font" type="font/woff2" crossorigin />
+<link rel="preload" href="/fonts/SangBleuOGSans-Light.woff2" as="font" type="font/woff2" crossorigin />
+<title>The Quarry House | Gallery</title>
+<meta name="description" content="M.Fisher Quarry House — faithful rebuild" />
+<meta name="theme-color" content="#000000" />
+<link rel="stylesheet" href="/styles.css" />
+</head>
+<body>
+<div id="app">
+
+  <!-- ===== Preloader ===== -->
+  <div class="preloader" id="preloader">
+    <div class="preloader-wrap" id="preloaderWrap">
+      <div class="indicator">
+        <svg class="circle-progress" id="circleProgress" width="100%" height="100%" viewBox="0 0 100 100">
+          <circle cx="50" cy="50" r="49" fill="none" pathLength="100" stroke="#c4c4c4" stroke-width="1" stroke-dasharray="100" stroke-dashoffset="0" stroke-linecap="round"></circle>
+          <circle cx="50" cy="50" r="49" fill="none" pathLength="100" stroke-dashoffset="100" stroke="#28282a" stroke-width="1" stroke-dasharray="100" stroke-linecap="round" id="progressArc"></circle>
+        </svg>
+        <svg width="100%" height="100%" viewBox="0 0 30 30" fill="none" xmlns="http://www.w3.org/2000/svg" class="logo">
+          <path d="M29.372 0H18.688a.625.625 0 0 0-.615.517 3.026 3.026 0 0 1-5.962 0A.625.625 0 0 0 11.495 0H.592a.624.624 0 0 0-.199.033A.607.607 0 0 0 0 .614v28.76c0 .346.28.626.627.626h12.326c.346 0 .627-.28.627-.627V12.528c0-.703.479-1.293 1.128-1.462l.015-.004.05-.012c.77-.157 1.465.27 1.724.919l.003.007c.026.065.047.133.064.203l.003.014c.016.068.026.137.032.208l.002.022c.003.035.004.07.004.106v16.843c0 .347.28.627.627.627h12.141c.346 0 .627-.28.627-.627V.627A.629.629 0 0 0 29.372 0Z" fill="currentColor"></path>
+        </svg>
+      </div>
+      <footer class="preloader-footer">
+        <span id="plLoading">Loading...</span>
+        <span id="plSound">Click Anywhere For Sound</span>
+        <span id="plCount">000</span>
+      </footer>
+    </div>
+  </div>
+
+  <!-- ===== Gallery ===== -->
+  <main class="gallery">
+    <header class="header" id="header">
+      <div class="header-left">
+        <a href="#">M.FISHER</a>
+        <div class="progress" id="progress">00%</div>
+      </div>
+      <button class="hamburger" aria-label="menu">
+        <svg viewBox="0 0 100 100">
+          <circle cx="50" cy="50" r="45" stroke="currentColor" stroke-width="2" fill="none"></circle>
+          <line x1="58" y1="30" x2="58" y2="74" stroke-linecap="round" stroke-width="5" stroke="currentColor"></line>
+          <line x1="42" y1="30" x2="42" y2="65" stroke-linecap="round" stroke-width="5" stroke="currentColor"></line>
+        </svg>
+      </button>
+    </header>
+
+    <!-- wheel of cards -->
+    <div class="carousel" id="carousel">
+      <div class="wheel" id="wheel"></div>
+    </div>
+
+    <div class="gallery-title" id="galleryTitle">
+      <p>The</p>
+      <p id="roomName"></p>
+    </div>
+  </main>
+
+  <!-- ===== Fullscreen Viewer ===== -->
+  <div class="viewer" id="viewer">
+    <div class="viewer-img" id="viewerImg"></div>
+    <button class="viewer-close" id="viewerClose" aria-label="close">
+      <svg viewBox="0 0 100 100">
+        <circle cx="50" cy="50" r="45" stroke="currentColor" stroke-width="2" fill="none"></circle>
+        <line x1="35" y1="35" x2="65" y2="65" stroke-linecap="round" stroke-width="5" stroke="currentColor"></line>
+        <line x1="65" y1="35" x2="35" y2="65" stroke-linecap="round" stroke-width="5" stroke="currentColor"></line>
+      </svg>
+    </button>
+    <div class="viewer-arrows">
+      <button class="v-arrow v-prev" id="vPrev" aria-label="previous">
+        <svg viewBox="0 0 6 9" fill="none"><path fill-rule="evenodd" clip-rule="evenodd" d="M5.07287 0.946545L1.44606 4.49494L5.07287 8.06293C5.56298 8.53344 4.7592 9.33722 4.26909 8.84711L0.132565 4.82821C-0.0438745 4.65177 -0.0438745 4.35771 0.132565 4.20087L4.26909 0.142766C4.7592 -0.327739 5.56298 0.47604 5.07287 0.946545Z" fill="currentColor"/></svg>
+      </button>
+      <button class="v-arrow v-next" id="vNext" aria-label="next">
+        <svg viewBox="0 0 6 9" fill="none"><path fill-rule="evenodd" clip-rule="evenodd" d="M5.07287 0.946545L1.44606 4.49494L5.07287 8.06293C5.56298 8.53344 4.7592 9.33722 4.26909 8.84711L0.132565 4.82821C-0.0438745 4.65177 -0.0438745 4.35771 0.132565 4.20087L4.26909 0.142766C4.7592 -0.327739 5.56298 0.47604 5.07287 0.946545Z" fill="currentColor"/></svg>
+      </button>
+    </div>
+  </div>
+
+  <!-- ===== Custom Cursor ===== -->
+  <div class="cursor" id="cursor">
+    <div class="cursor-center">
+      <span class="cursor-rotate" id="cursorRotate"></span>
+    </div>
+  </div>
+
+</div>
+<script src="/app.js"></script>
+</body>
+</html>

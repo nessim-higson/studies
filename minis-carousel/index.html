@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>minis carousel — study</title>
+<style>
+  :root{
+    --bg:#0d0d26;
+    --bg-deep:#080818;
+    --iris:#5b4ce0;
+    --pill:#4f33e0;
+    --ink:#fff;
+    --card-w:250px;
+    --card-h:375px;
+    --radius:390px;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  html,body{height:100%}
+  body{
+    background:linear-gradient(180deg,var(--bg-deep) 0%,var(--bg) 34%,var(--bg) 100%);
+    color:var(--ink);
+    font-family:-apple-system,"SF Pro Text","Helvetica Neue",Inter,sans-serif;
+    overflow:hidden;
+    -webkit-font-smoothing:antialiased;
+  }
+
+  /* ---------- carousel ---------- */
+  .stage{
+    position:absolute;inset:0;
+    display:flex;align-items:center;justify-content:center;
+    perspective:1500px;
+    perspective-origin:50% 42%;
+    cursor:grab;
+  }
+  .stage.dragging{cursor:grabbing}
+  .ring{
+    position:relative;
+    width:var(--card-w);height:var(--card-h);
+    transform-style:preserve-3d;
+  }
+  .slot{
+    position:absolute;inset:0;
+    transform-style:preserve-3d;
+    /* rotateY + translateZ set inline */
+  }
+  .card{
+    position:absolute;inset:0;
+    transform-style:preserve-3d;
+    opacity:0;
+    transform:translateY(60px) scale(.7);
+    transition:opacity .9s cubic-bezier(.2,.7,.2,1),transform .9s cubic-bezier(.2,.7,.2,1);
+  }
+  .ring.live .card{opacity:1;transform:none}
+
+  .face{
+    position:absolute;inset:0;
+    border-radius:18px;
+    overflow:hidden;
+    backface-visibility:hidden;
+    -webkit-backface-visibility:hidden;
+    box-shadow:0 30px 80px rgba(0,0,0,.45);
+  }
+  .face.back{transform:rotateY(180deg)}
+
+  /* depth dim overlay — opacity driven per-frame from JS via --dim */
+  .face::after{
+    content:"";
+    position:absolute;inset:0;
+    background:#0a0a20;
+    opacity:var(--dim,0);
+    pointer-events:none;
+    transition:none;
+  }
+
+  /* ---------- app faces ---------- */
+  .app{
+    display:flex;flex-direction:column;
+    padding:16px;
+  }
+  .app .head{
+    display:flex;align-items:center;gap:8px;
+    font-size:13px;font-weight:600;
+    position:relative;z-index:2;
+  }
+  .app .head .ico{
+    width:22px;height:22px;border-radius:6px;
+    display:grid;place-items:center;font-size:11px;
+  }
+  .app .caption{
+    margin-top:auto;
+    font-size:16px;font-weight:600;letter-spacing:-.02em;
+    position:relative;z-index:2;
+  }
+
+  /* 1 — Daily Fits */
+  .f-daily{background:#efece6;color:#111}
+  .f-daily .ico{background:#5b4ce0;color:#fff}
+  .f-daily .fig{
+    position:absolute;inset:0;display:grid;place-items:center;
+  }
+  .f-daily .fig .person{position:relative;width:110px;height:250px;transform:scale(.78)}
+  .f-daily .fig .head-c{position:absolute;top:0;left:50%;transform:translateX(-50%);width:34px;height:34px;border-radius:50%;background:#2b2620}
+  .f-daily .fig .top{position:absolute;top:40px;left:50%;transform:translateX(-50%);width:62px;height:74px;border-radius:14px 14px 6px 6px;background:#fdfdfb;box-shadow:inset 0 -6px 12px rgba(0,0,0,.06)}
+  .f-daily .fig .pants{position:absolute;top:112px;left:50%;transform:translateX(-50%);width:96px;height:118px;background:#41525c;clip-path:polygon(18% 0,82% 0,100% 100%,56% 100%,50% 30%,44% 100%,0 100%)}
+  .f-daily .fig .shoes{position:absolute;bottom:0;left:50%;transform:translateX(-50%);width:104px;height:12px;display:flex;justify-content:space-between}
+  .f-daily .fig .shoes i{width:34px;height:12px;border-radius:6px;background:#ddd8cf;display:block}
+
+  /* 2 — Keyforge */
+  .f-key{background:#0b0b16;color:#fff}
+  .f-key .ico{background:#1d1d30;color:#9f8fff}
+  .f-key .glow{
+    position:absolute;top:26%;left:50%;transform:translateX(-50%);
+    width:88px;height:88px;border-radius:20px;
+    background:linear-gradient(145deg,#33306b,#191934);
+    box-shadow:0 0 60px 24px rgba(91,76,224,.35),inset 0 1px 0 rgba(255,255,255,.2);
+  }
+  .f-key .kicker{
+    position:absolute;top:56%;width:100%;text-align:center;
+    font-size:21px;font-weight:600;letter-spacing:-.02em;
+  }
+  .f-key .kicker small{display:block;margin-top:8px;font-size:9.5px;font-weight:400;color:rgba(255,255,255,.45);letter-spacing:0}
+
+  /* 3 — Rate My Fit */
+  .f-rate{
+    background:
+      linear-gradient(#0000 23px,rgba(0,0,0,.055) 24px) 0 0/24px 24px,
+      linear-gradient(90deg,#0000 23px,rgba(0,0,0,.055) 24px) 0 0/24px 24px,
+      #f6f5f1;
+    color:#111;
+  }
+  .f-rate .ico{background:#111;color:#fff;border-radius:999px}
+  .f-rate .sticker{
+    position:absolute;top:42%;left:50%;
+    transform:translate(-50%,-50%) rotate(-4deg);
+    background:#141414;color:#fff;
+    font-family:"Marker Felt","Comic Sans MS",cursive;
+    font-size:24px;
+    padding:10px 20px;border-radius:999px;
+    border:4px solid #fff;
+    box-shadow:0 4px 14px rgba(0,0,0,.25);
+  }
+  .f-rate .sticker::after{
+    content:"";position:absolute;top:-7px;right:22px;
+    width:14px;height:14px;border-radius:50%;background:#f5d321;
+  }
+
+  /* 4 — FoodSocial */
+  .f-food{color:#fff;background:
+    radial-gradient(90px 70px at 30% 62%,#c0392b 0%,#0000 70%),
+    radial-gradient(70px 60px at 62% 55%,#e8ecdf 0%,#0000 65%),
+    radial-gradient(110px 90px at 55% 75%,#5d7c46 0%,#0000 70%),
+    radial-gradient(140px 120px at 45% 60%,#7e9b62 0%,#0000 75%),
+    linear-gradient(180deg,#43522f,#2c3a20);
+  }
+  .f-food .ico{background:#3f6f3f;color:#fff}
+  .f-food .mast{
+    position:absolute;top:52px;width:100%;text-align:center;
+    font-family:"Times New Roman",Georgia,serif;
+    font-size:37px;letter-spacing:-.02em;
+  }
+  .f-food::before{content:"";position:absolute;inset:0;background:linear-gradient(180deg,rgba(0,0,0,.3),#0000 30%,#0000 70%,rgba(0,0,0,.45))}
+
+  /* 5 — Gear Up */
+  .f-gear{color:#fff;background:
+    radial-gradient(160px 240px at 50% 58%,#1c1e20 0%,#0000 80%),
+    linear-gradient(180deg,#585d61 0%,#3c4145 45%,#26292c 100%);
+  }
+  .f-gear .ico{background:#222;color:#fff}
+  .f-gear .runner{
+    position:absolute;top:26%;left:50%;transform:translateX(-50%);
+    width:120px;height:200px;
+    background:radial-gradient(38px 38px at 50% 12%,#0f1112 98%,#0000),
+               radial-gradient(70px 130px at 50% 62%,#141618 98%,#0000);
+    filter:blur(1px);
+  }
+  .f-gear .type{
+    position:absolute;top:38%;width:100%;text-align:center;
+    font-size:34px;font-weight:200;letter-spacing:.06em;
+  }
+  .f-gear .type .a{color:#4d7dd6;font-weight:400}
+
+  /* 6 — Pull It Off */
+  .f-pull{color:#0c2b33;background:
+    radial-gradient(150px 190px at 50% 45%,#ffffff 0%,#dff5f8 45%,#b9e6ee 70%,#8fd2e2 100%);
+  }
+  .f-pull .ico{background:#0e6f8a;color:#fff}
+  .f-pull .orb{
+    position:absolute;top:34%;left:50%;transform:translateX(-50%);
+    width:120px;height:120px;border-radius:50%;
+    background:radial-gradient(circle at 45% 40%,#fff 30%,#e7fbff 60%,#0000 75%);
+    box-shadow:0 0 70px 30px rgba(255,255,255,.8);
+  }
+
+  /* ---------- ghost face (card backs) ---------- */
+  .face.back{background:#0b0b1a}
+  .ghost{
+    position:absolute;inset:0;
+    display:flex;flex-direction:column;
+    opacity:.2;
+    filter:saturate(.65) blur(1.5px);
+    pointer-events:none;
+  }
+
+  /* ---------- footer hint ---------- */
+  .hint{
+    position:fixed;bottom:18px;width:100%;text-align:center;
+    font-size:11px;color:rgba(255,255,255,.28);
+    z-index:10;letter-spacing:.02em;
+  }
+</style>
+</head>
+<body>
+
+<div class="stage" id="stage">
+  <div class="ring" id="ring"></div>
+</div>
+
+<p class="hint">drag to spin</p>
+
+<script>
+/* ============================================================
+   Shop Minis hero study — 6 double-sided cards on a Y-axis ring.
+   Front face = the mini app screen, back face = its source code
+   (that's what the dark panels in the original are).
+   Stepped auto-rotation + drag-to-spin with snap.
+   ============================================================ */
+
+const APPS = [
+  { id:'daily', name:'Daily Fits', caption:'Track your outfits',
+    face:`<div class="fig"><div class="person"><div class="head-c"></div><div class="top"></div><div class="pants"></div><div class="shoes"><i></i><i></i></div></div></div>` },
+  { id:'key', name:'Keyforge', caption:'Build your keyboard',
+    face:`<div class="glow"></div><div class="kicker">Custom<br>Keyboards<small>Design, sequence, and perfect your best<br>experimental keyboard expression</small></div>` },
+  { id:'rate', name:'Rate My Fit', caption:'Quick outfit feedback',
+    face:`<div class="sticker">rate my fit</div>` },
+  { id:'food', name:'FoodSocial', caption:'Explore recipes',
+    face:`<div class="mast">FoodSocial</div>` },
+  { id:'gear', name:'Gear Up', caption:'One-stop fitness',
+    face:`<div class="runner"></div><div class="type"><span class="a">GEA</span>R &nbsp;&#8593;UP</div>` },
+  { id:'pull', name:'Pull It Off', caption:'AI style picks',
+    face:`<div class="orb"></div>` },
+];
+
+const N = APPS.length;
+const STEP = 360 / N;                       // 60°
+const RADIUS = getComputedStyle(document.documentElement).getPropertyValue('--radius').trim().replace('px','')*1;
+
+const ring  = document.getElementById('ring');
+const stage = document.getElementById('stage');
+
+APPS.forEach((a, i) => {
+  const inner = `
+    <div class="head"><span class="ico">${a.name[0]}</span>${a.name}</div>
+    ${a.face}
+    <div class="caption">${a.caption}</div>`;
+  const slot = document.createElement('div');
+  slot.className = 'slot';
+  slot.style.transform = `rotateY(${i * STEP}deg) translateZ(${RADIUS}px)`;
+  slot.innerHTML = `
+    <div class="card" style="transition-delay:${i * 90}ms">
+      <div class="face front app f-${a.id}">${inner}</div>
+      <div class="face back">
+        <div class="ghost app f-${a.id}">${inner}</div>
+      </div>
+    </div>`;
+  ring.appendChild(slot);
+});
+
+const cards = [...ring.querySelectorAll('.card')];
+const faces = [...ring.querySelectorAll('.face')];
+
+/* ---------- rotation state ---------- */
+let angle = 0;            // current ring angle (deg)
+let target = 0;           // tween target
+let tweenFrom = 0, tweenT0 = 0, tweenDur = 0, tweening = false;
+let autoTimer = null;
+let dragging = false, dragX0 = 0, dragA0 = 0, dragV = 0, lastX = 0, lastT = 0;
+
+const easeInOut = t => t < .5 ? 4*t*t*t : 1 - Math.pow(-2*t + 2, 3) / 2;
+
+function tweenTo(a, dur){
+  tweenFrom = angle; target = a;
+  tweenT0 = performance.now(); tweenDur = dur; tweening = true;
+}
+
+function scheduleAuto(delay = 3800){
+  clearTimeout(autoTimer);
+  autoTimer = setTimeout(() => {
+    // advance one card: cards travel right → left like the original
+    tweenTo(Math.round(target / STEP) * STEP - STEP, 1700);
+    scheduleAuto();
+  }, delay);
+}
+
+/* ---------- drag ---------- */
+stage.addEventListener('pointerdown', e => {
+  dragging = true; tweening = false;
+  stage.classList.add('dragging');
+  stage.setPointerCapture(e.pointerId);
+  dragX0 = lastX = e.clientX; dragA0 = angle; dragV = 0; lastT = performance.now();
+  clearTimeout(autoTimer);
+});
+stage.addEventListener('pointermove', e => {
+  if (!dragging) return;
+  const now = performance.now();
+  dragV = (e.clientX - lastX) / Math.max(now - lastT, 1);
+  lastX = e.clientX; lastT = now;
+  angle = dragA0 + (e.clientX - dragX0) * 0.28;
+});
+stage.addEventListener('pointerup', e => {
+  if (!dragging) return;
+  dragging = false;
+  stage.classList.remove('dragging');
+  const thrown = angle + dragV * 110;                  // momentum
+  tweenTo(Math.round(thrown / STEP) * STEP, 900);      // snap to nearest card
+  scheduleAuto(5200);
+});
+
+/* ---------- render loop ---------- */
+function frame(now){
+  if (tweening){
+    const t = Math.min((now - tweenT0) / tweenDur, 1);
+    angle = tweenFrom + (target - tweenFrom) * easeInOut(t);
+    if (t >= 1) tweening = false;
+  }
+  ring.style.transform = `rotateY(${angle}deg)`;
+
+  // depth dim: darken faces as they turn away from the camera
+  cards.forEach((card, i) => {
+    const world = ((i * STEP + angle) % 360 + 360) % 360;      // 0 = facing camera
+    const facing = Math.cos(world * Math.PI / 180);            // 1 front … -1 back
+    const dimF = Math.min(Math.max((1 - facing) * 0.55, 0), 0.78);  // front face dim
+    const dimB = Math.min(Math.max((1 + facing) * 0.60, 0), 0.88);  // back face dim
+    card.children[0].style.setProperty('--dim', dimF.toFixed(3));
+    card.children[1].style.setProperty('--dim', dimB.toFixed(3));
+  });
+  requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
+
+/* ---------- intro ---------- */
+setTimeout(() => ring.classList.add('live'), 400);
+scheduleAuto(3400);
+</script>
+</body>
+</html>
