@@ -57,12 +57,16 @@ v3 removes layout from the flight path entirely:
 5. One master timeline per transition; interrupts run `progress(1).kill()` —
    scrub-safe at any speed.
 
-Motion system: surfaces lead, images +0.045s, text +0.09s; durations scale with
-travel (0.55–0.95s, `expo.inOut`); arrivals cascade in reading order
-(`expo.out`, spatial sort); exits fade 0.26s; box-shadow (elevation) tweens
-with size; big font-size jumps (ratio > 1.25) crossfade instead of morphing;
-skeleton bars appear where incoming text lands, dissolving as real text
-blur-resolves. Boot renders statically (background tabs get no rAF).
+Motion system (the direction that made it click): **the image and its surface
+are the only things that travel — text never morphs.** All text/CTAs exit
+together at t=0 (0.2s fade) and cascade back in reading order on one fixed
+timing system (start 0.34, stagger 0.06, 0.45s `expo.out`, y+8 + blur-resolve)
+— so a headline is always already wrapped at its final width and never reflows
+mid-flight. Surfaces lead the morph, images ride +0.045s behind; durations
+scale with travel (0.55–0.95s `expo.inOut`); box-shadow (elevation) tweens
+with size. Skeleton bars appear only for text NEW to the scene (first
+appearance); repositioning text just fades. Boot renders statically
+(background tabs get no rAF).
 
 ## Controls
 

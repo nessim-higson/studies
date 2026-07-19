@@ -348,13 +348,12 @@ function goTo(next, rotate = 0) {
   // ---- capture the outgoing scene (rect, radius, font, class per node)
   const oldNodes = [...stage.querySelectorAll("[data-flip-id]")];
   const animate = oldNodes.length > 0 && !REDUCED;
-  const oldRect = new Map(), oldRad = new Map(), oldFS = new Map(), oldCls = new Map(), oldShadow = new Map();
+  const oldRect = new Map(), oldRad = new Map(), oldCls = new Map(), oldShadow = new Map();
   for (const n of oldNodes) {
     const cs = getComputedStyle(n);
     const id = n.dataset.flipId;
     oldRect.set(id, n.getBoundingClientRect());
     oldRad.set(id, parseFloat(cs.borderTopLeftRadius) || 0);
-    oldFS.set(id, parseFloat(cs.fontSize));
     oldCls.set(id, n.className);
     oldShadow.set(id, cs.boxShadow);
   }
@@ -388,7 +387,11 @@ function goTo(next, rotate = 0) {
     return;
   }
 
+  // motion rules: the image (and its surface) is the hero — it alone
+  // morphs. Text and CTAs never travel or resize: they exit at their old
+  // place and fade in at their final one, already wrapped correctly.
   const morph = [], enter = [], xfades = [];
+  const fresh = new Set(); // text ids new to the scene → skeleton treatment
   const newRect = new Map(), newRad = new Map(), newShadow = new Map();
   for (const n of newNodes) {
     const id = n.dataset.flipId;
@@ -396,21 +399,21 @@ function goTo(next, rotate = 0) {
     newRect.set(id, n.getBoundingClientRect());
     newRad.set(id, parseFloat(ncs.borderTopLeftRadius) || 0);
     newShadow.set(id, ncs.boxShadow);
-    if (!oldRect.has(id)) { enter.push(n); continue; }
     const isBox = n.classList.contains("art") || n.classList.contains("surface");
+    if (!oldRect.has(id)) {
+      enter.push(n);
+      if (!isBox) fresh.add(id);
+      continue;
+    }
     if (!isBox) {
-      const a = oldFS.get(id), b = parseFloat(getComputedStyle(n).fontSize);
-      // big type jumps read better as a crossfade than a snapped morph
-      if (a && b && Math.max(a, b) / Math.min(a, b) > 1.25) {
-        enter.push(n);
-        const c = document.createElement(n.tagName);
-        c.className = oldCls.get(id);
-        c.textContent = n.textContent;
-        xfades.push(c);
-        mlayer.append(c);
-        fixAt(c, oldRect.get(id), 3);
-        continue;
-      }
+      enter.push(n);
+      const c = document.createElement(n.tagName);
+      c.className = oldCls.get(id);
+      c.textContent = n.textContent;
+      xfades.push(c);
+      mlayer.append(c);
+      fixAt(c, oldRect.get(id), 3);
+      continue;
     }
     morph.push(n);
   }
@@ -457,12 +460,12 @@ function goTo(next, rotate = 0) {
     }
     tl.to(n, vars, roleDelay(n));
   }
-  for (const n of [...leaving, ...xfades])
-    tl.to(n, { opacity: 0, duration: 0.26, ease: "power1.out" }, 0);
-  for (const p of leaveExtras)
-    tl.to(p, { opacity: 0, duration: 0.22, ease: "power1.out" }, 0);
+  // every outgoing element leaves together, fast and quiet
+  for (const n of [...leaving, ...xfades, ...leaveExtras])
+    tl.to(n, { opacity: 0, duration: 0.2, ease: "power1.out" }, 0);
 
-  // arrivals cascade spatially — top-left first, like reading order
+  // arrivals cascade spatially — top-left first, like reading order —
+  // on one fixed timing system so every state change feels the same
   const byPos = (a, b) => {
     const ra = newRect.get(a.dataset.flipId), rb = newRect.get(b.dataset.flipId);
     return (ra.top - rb.top) || (ra.left - rb.left);
@@ -473,16 +476,18 @@ function goTo(next, rotate = 0) {
     tl.fromTo(eBoxes,
       { opacity: 0, y: 18, scale: 0.96 },
       { opacity: 1, y: 0, scale: 1, duration: 0.55, stagger: 0.06, ease: "expo.out" },
-      0.3);
+      0.28);
   if (eText.length)
     tl.fromTo(eText,
-      { opacity: 0, y: 10, filter: "blur(6px)" },
-      { opacity: 1, y: 0, filter: "blur(0px)", duration: 0.5, stagger: 0.05, ease: "expo.out" },
-      0.38);
+      { opacity: 0, y: 8, filter: "blur(5px)" },
+      { opacity: 1, y: 0, filter: "blur(0px)", duration: 0.45, stagger: 0.06, ease: "expo.out" },
+      0.34);
 
-  // skeleton bars — placeholder lines that resolve into the arriving text
+  // skeleton bars — only for text NEW to the scene (first appearance);
+  // repositioning text just fades, keeping the cascade calm
   const skels = [];
   for (const n of eText) {
+    if (!fresh.has(n.dataset.flipId)) continue;
     if (!n.classList.contains("ttl") && !n.classList.contains("bod")) continue;
     const r = newRect.get(n.dataset.flipId);
     const cs = getComputedStyle(n);
