@@ -348,7 +348,7 @@ function goTo(next, rotate = 0) {
   // ---- capture the outgoing scene (rect, radius, font, class per node)
   const oldNodes = [...stage.querySelectorAll("[data-flip-id]")];
   const animate = oldNodes.length > 0 && !REDUCED;
-  const oldRect = new Map(), oldRad = new Map(), oldFS = new Map(), oldCls = new Map();
+  const oldRect = new Map(), oldRad = new Map(), oldFS = new Map(), oldCls = new Map(), oldShadow = new Map();
   for (const n of oldNodes) {
     const cs = getComputedStyle(n);
     const id = n.dataset.flipId;
@@ -356,6 +356,7 @@ function goTo(next, rotate = 0) {
     oldRad.set(id, parseFloat(cs.borderTopLeftRadius) || 0);
     oldFS.set(id, parseFloat(cs.fontSize));
     oldCls.set(id, n.className);
+    oldShadow.set(id, cs.boxShadow);
   }
 
   // free text (article paragraphs) leaves in place, faded
@@ -388,11 +389,13 @@ function goTo(next, rotate = 0) {
   }
 
   const morph = [], enter = [], xfades = [];
-  const newRect = new Map(), newRad = new Map();
+  const newRect = new Map(), newRad = new Map(), newShadow = new Map();
   for (const n of newNodes) {
     const id = n.dataset.flipId;
+    const ncs = getComputedStyle(n);
     newRect.set(id, n.getBoundingClientRect());
-    newRad.set(id, parseFloat(getComputedStyle(n).borderTopLeftRadius) || 0);
+    newRad.set(id, parseFloat(ncs.borderTopLeftRadius) || 0);
+    newShadow.set(id, ncs.boxShadow);
     if (!oldRect.has(id)) { enter.push(n); continue; }
     const isBox = n.classList.contains("art") || n.classList.contains("surface");
     if (!isBox) {
@@ -430,34 +433,76 @@ function goTo(next, rotate = 0) {
   }
 
   // ---- one timeline, viewport-space only
+  // choreography: surfaces lead, images follow a beat behind, text rides
+  // last; travel-scaled durations; elevation (box-shadow) morphs with size
   const tl = gsap.timeline({ onComplete: () => { activeTL = null; } });
+
+  const roleDelay = (n) =>
+    n.classList.contains("surface") ? 0 : n.classList.contains("art") ? 0.045 : 0.09;
 
   for (const n of morph) {
     const id = n.dataset.flipId;
-    const r = newRect.get(id);
-    tl.to(n, {
+    const a = oldRect.get(id), r = newRect.get(id);
+    const travel = Math.hypot(r.left - a.left, r.top - a.top) + Math.abs(r.width - a.width);
+    const d = gsap.utils.clamp(0.55, 0.95, 0.45 + (travel / innerWidth) * 0.6);
+    const vars = {
       left: r.left, top: r.top, width: r.width, height: r.height,
       borderRadius: newRad.get(id),
-      duration: DUR, ease: "power3.inOut",
-    }, 0);
+      duration: d, ease: "expo.inOut",
+    };
+    const s0 = oldShadow.get(id), s1 = newShadow.get(id);
+    if (s0 && s1 && s0 !== "none" && s1 !== "none" && s0 !== s1) {
+      n.style.boxShadow = s0;
+      vars.boxShadow = s1;
+    }
+    tl.to(n, vars, roleDelay(n));
   }
   for (const n of [...leaving, ...xfades])
-    tl.to(n, { opacity: 0, duration: 0.3, ease: "power1.out" }, 0);
+    tl.to(n, { opacity: 0, duration: 0.26, ease: "power1.out" }, 0);
   for (const p of leaveExtras)
-    tl.to(p, { opacity: 0, duration: 0.25, ease: "power1.out" }, 0);
+    tl.to(p, { opacity: 0, duration: 0.22, ease: "power1.out" }, 0);
 
-  const eBoxes = enter.filter((n) => n.classList.contains("art") || n.classList.contains("surface"));
-  const eText = enter.filter((n) => !eBoxes.includes(n));
+  // arrivals cascade spatially — top-left first, like reading order
+  const byPos = (a, b) => {
+    const ra = newRect.get(a.dataset.flipId), rb = newRect.get(b.dataset.flipId);
+    return (ra.top - rb.top) || (ra.left - rb.left);
+  };
+  const eBoxes = enter.filter((n) => n.classList.contains("art") || n.classList.contains("surface")).sort(byPos);
+  const eText = enter.filter((n) => !n.classList.contains("art") && !n.classList.contains("surface")).sort(byPos);
   if (eBoxes.length)
     tl.fromTo(eBoxes,
-      { opacity: 0, y: 14, scale: 0.95 },
-      { opacity: 1, y: 0, scale: 1, duration: 0.45, stagger: 0.05, ease: "power2.out" },
-      DUR * 0.35);
+      { opacity: 0, y: 18, scale: 0.96 },
+      { opacity: 1, y: 0, scale: 1, duration: 0.55, stagger: 0.06, ease: "expo.out" },
+      0.3);
   if (eText.length)
     tl.fromTo(eText,
       { opacity: 0, y: 10, filter: "blur(6px)" },
-      { opacity: 1, y: 0, filter: "blur(0px)", duration: 0.4, stagger: 0.04, ease: "power2.out" },
-      DUR * 0.42);
+      { opacity: 1, y: 0, filter: "blur(0px)", duration: 0.5, stagger: 0.05, ease: "expo.out" },
+      0.38);
+
+  // skeleton bars — placeholder lines that resolve into the arriving text
+  const skels = [];
+  for (const n of eText) {
+    if (!n.classList.contains("ttl") && !n.classList.contains("bod")) continue;
+    const r = newRect.get(n.dataset.flipId);
+    const cs = getComputedStyle(n);
+    const fs = parseFloat(cs.fontSize), lh = parseFloat(cs.lineHeight) || fs * 1.4;
+    const lines = Math.min(3, Math.max(1, Math.round(r.height / lh)));
+    for (let i = 0; i < lines; i++) {
+      const bar = h("div", "skel");
+      fixAt(bar, {
+        left: r.left,
+        top: r.top + i * lh + (lh - fs * 0.7) / 2,
+        width: r.width * (i === lines - 1 && lines > 1 ? 0.58 : 0.92),
+        height: fs * 0.7,
+      }, 3);
+      bar.style.borderRadius = (fs * 0.35) + "px";
+      mlayer.append(bar);
+      skels.push(bar);
+      tl.fromTo(bar, { opacity: 0 }, { opacity: 1, duration: 0.2, ease: "power1.out" }, 0.14 + i * 0.05);
+      tl.to(bar, { opacity: 0, duration: 0.24, ease: "power1.in" }, 0.4 + i * 0.05);
+    }
+  }
 
   // ---- land: reveal the real layout and slot everything home
   const paras = [...stage.querySelectorAll(".para")];
@@ -535,7 +580,8 @@ const autoBtn = document.getElementById("auto");
 let autoCall = null;
 
 function schedule() {
-  autoCall = gsap.delayedCall(STATES[stateIdx].dwell + DUR, () => { next(); schedule(); });
+  const flight = activeTL ? activeTL.duration() : DUR;
+  autoCall = gsap.delayedCall(STATES[stateIdx].dwell + flight, () => { next(); schedule(); });
 }
 function startAuto() {
   autoBtn.setAttribute("aria-pressed", "true");
