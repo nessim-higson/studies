@@ -130,8 +130,8 @@ body {
   min-height: 0;
 }
 
-/* outgoing-layout snapshots fade beneath the live stage */
-#ghosts { position: fixed; inset: 0; pointer-events: none; z-index: 5; }
+/* outgoing-layout snapshots fade above the live stage */
+#ghosts { position: fixed; inset: 0; pointer-events: none; z-index: 20; }
 
 .lay {
   width: 100%;

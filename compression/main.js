@@ -364,27 +364,30 @@ function goTo(next, rotate = 0) {
   }
   const morphIds = new Set(morphing.map((n) => n.dataset.flipId));
 
-  // the outgoing snapshot fades beneath the incoming layout; elements
-  // whose real nodes are morphing are hidden in it so nothing doubles
+  // the outgoing snapshot fades above the incoming layout; elements whose
+  // real nodes are morphing are hidden in it (nothing doubles), but their
+  // leaving descendants — a card's text, say — must stay visible to fade
   if (snap) {
     const wrap = h("div", "ghost-wrap", snap);
     wrap.style.cssText = `position:fixed;left:${stageRect.left}px;top:${stageRect.top}px;width:${stageRect.width}px;height:${stageRect.height}px;overflow:hidden;pointer-events:none;`;
     snap.querySelectorAll("[data-flip-id]").forEach((c) => {
       if (morphIds.has(c.dataset.flipId)) c.style.visibility = "hidden";
+      else c.style.visibility = "visible";
     });
     ghosts.replaceChildren(wrap);
     snap.scrollTop = snapScroll;
-    gsap.to(wrap, { opacity: 0, duration: 0.3, ease: "power1.out", onComplete: () => wrap.remove() });
+    gsap.to(wrap, { opacity: 0, duration: 0.32, ease: "power1.out", onComplete: () => wrap.remove() });
   }
 
   const tl = gsap.timeline({ onComplete: () => { activeTL = null; } });
 
   if (capture && morphing.length) {
+    // in-flow morph (no absolute): siblings and entering elements reflow
+    // with the resize instead of snapping into place at the end
     tl.add(Flip.from(capture, {
       targets: morphing,
       duration: DUR,
       ease: "power3.inOut",
-      absolute: true,
       nested: true,
       props: "borderRadius",
     }), 0);
@@ -485,3 +488,6 @@ autoBtn.addEventListener("click", () => (autoCall ? stopAuto() : startAuto()));
 /* ---------------- boot ---------------- */
 
 goTo(stateIdx);
+// first paint is instant — background-restored tabs get no rAF, and a
+// stuck intro tween would leave the stage blank until focus
+if (activeTL) { activeTL.progress(1).kill(); activeTL = null; }
