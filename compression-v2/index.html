@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <title>Compression — a study in progressive reveal</title>
+  <meta name="description" content="One body of content reshaped through nine levels of compression.">
+  <link rel="preload" as="image" href="assets/harbor.jpg">
+  <link rel="preload" as="image" href="assets/field.jpg">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <main class="page">
+    <section class="film" aria-label="Compression study">
+      <div id="stage" class="stage"></div>
+      <div id="morph-layer" class="morph-layer" aria-hidden="true"></div>
+
+      <div class="film-controls" aria-label="Playback controls">
+        <button class="control" id="previous" type="button" aria-label="Previous composition">
+          <span aria-hidden="true">←</span>
+        </button>
+        <button class="control control-play" id="play" type="button" aria-label="Pause animation" aria-pressed="true">
+          <span class="pause-mark" aria-hidden="true"></span>
+        </button>
+        <button class="control" id="next" type="button" aria-label="Next composition">
+          <span aria-hidden="true">→</span>
+        </button>
+        <span class="state-name" id="state-name" aria-live="polite"></span>
+      </div>
+
+      <div class="progress" aria-hidden="true"><span id="progress-fill"></span></div>
+    </section>
+
+    <div class="caption">
+      <p><strong>Compression</strong> — content reshaped by attention.</p>
+      <p>Study 02 · after Molly “Primal”</p>
+    </div>
+  </main>
+
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3.13.0/dist/gsap.min.js"></script>
+  <script src="main.js"></script>
+</body>
+</html>
