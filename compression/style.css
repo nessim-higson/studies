@@ -123,14 +123,15 @@ body {
 #stage {
   flex: 1 1 auto;
   position: relative;
+  z-index: 10;
   display: flex;
   align-items: center;
   justify-content: center;
   min-height: 0;
 }
 
-#ghosts { position: fixed; inset: 0; pointer-events: none; z-index: 20; }
-#ghosts .fl { position: fixed; }
+/* outgoing-layout snapshots fade beneath the live stage */
+#ghosts { position: fixed; inset: 0; pointer-events: none; z-index: 5; }
 
 .lay {
   width: 100%;
@@ -256,10 +257,11 @@ body {
 .pair { display: flex; gap: 14px; }
 .a-pair { width: calc(50% - 7px); height: 208px; border-radius: 12px; box-shadow: var(--shadow-sm); }
 
-/* clickable works */
-.art[data-item], .cta { transition: filter 0.2s; }
-.art[data-item] { cursor: pointer; }
-.art[data-item]:hover, .cta:hover { filter: brightness(1.06); }
+/* clickable works — only in the collection states */
+.art, .cta { transition: filter 0.2s; }
+.lay-list .art, .lay-grid .art, .lay-carousel .art { cursor: pointer; }
+.lay-list .art:hover, .lay-grid .art:hover, .lay-carousel .art:hover,
+.cta:hover { filter: brightness(1.06); }
 
 @media (max-width: 720px) {
   .readout { display: none; }

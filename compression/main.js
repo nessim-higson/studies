@@ -1,6 +1,15 @@
 /* COMPRESSION — one work, nine states of reveal
    One content atom morphs through canonical display patterns.
-   The image persists; text layers reveal; the item multiplies. */
+   The image persists; text layers reveal; the item multiplies.
+
+   Fluidity architecture:
+   - every image / title / body / CTA / surface is ONE persistent node,
+     reparented between states (no re-decode, no re-creation churn)
+   - a single master timeline per transition; a new step snaps the
+     previous one to its end before starting (interruption-safe)
+   - only images + surfaces FLIP-morph; text morphs position but
+     crossfades when its font-size jumps; no fontSize tweening
+   - no blur filters on images (only on small text) */
 
 gsap.registerPlugin(Flip);
 
@@ -67,7 +76,6 @@ function mulberry32(seed) {
   };
 }
 
-/* each palette: sky / far / near bands + optional sun */
 const PALETTES = [
   { // harbor, first light — blues, teal water, gold sun
     bg: ["#8fb3d9", "#33567e"],
@@ -138,7 +146,6 @@ function makeArt(pal, seed) {
 
   x.lineCap = "round";
 
-  // sun / moon under the strokes
   if (pal.sun) {
     const s = pal.sun;
     const rg = x.createRadialGradient(s.x * W, s.y * H, 2, s.x * W, s.y * H, s.r * W * 2.6);
@@ -150,7 +157,6 @@ function makeArt(pal, seed) {
     x.globalAlpha = 1;
   }
 
-  // banded impressionist strokes
   for (const band of pal.bands) {
     const count = 620;
     for (let i = 0; i < count; i++) {
@@ -170,7 +176,6 @@ function makeArt(pal, seed) {
     }
   }
 
-  // repaint the sun disc over the strokes, roughly
   if (pal.sun) {
     const s = pal.sun;
     for (let i = 0; i < 60; i++) {
@@ -189,7 +194,6 @@ function makeArt(pal, seed) {
     }
   }
 
-  // grain
   x.globalAlpha = 0.05;
   for (let i = 0; i < 2600; i++) {
     x.fillStyle = rnd() > 0.5 ? "#fff" : "#000";
@@ -202,57 +206,112 @@ function makeArt(pal, seed) {
 
 const ARTS = PALETTES.map((p, i) => makeArt(p, 1000 + i * 977));
 
-/* ---------------- state rendering ---------------- */
+/* ---------------- persistent nodes ---------------- */
+
+function h(tag, cls, ...kids) {
+  const el = document.createElement(tag);
+  if (cls) el.className = cls;
+  for (const k of kids) if (k != null) el.append(k);
+  return el;
+}
+
+const bench = h("div");
+bench.style.display = "none";
+document.body.append(bench);
+
+const NODES = ITEMS.map((it, i) => {
+  const img = h("img", "art");
+  img.src = ARTS[i];
+  img.alt = it.title;
+  img.dataset.flipId = `img-${i}`;
+  img.dataset.item = i;
+  img.draggable = false;
+
+  const ttl = h("h2", "ttl", it.title);
+  ttl.dataset.flipId = `ttl-${i}`;
+
+  const bod = h("p", "bod", it.blurb);
+  bod.dataset.flipId = `bod-${i}`;
+
+  const cta = h("button", "cta", "Learn more");
+  cta.dataset.flipId = `cta-${i}`;
+  cta.dataset.item = i;
+
+  const srf = h("div", "surface");
+  srf.dataset.flipId = `srf-${i}`;
+
+  const all = [img, ttl, bod, cta, srf];
+  bench.append(...all);
+  return { img, ttl, bod, cta, srf, all };
+});
+
+/* ---------------- state assembly ---------------- */
 
 let atom = 0;      // which item is the focused atom
 let stateIdx = 3;  // start at CARD — the unit of attention
 
 const idx = (k) => (atom + k + N) % N;
-const item = (k) => ITEMS[idx(k)];
+const nd = (k) => NODES[idx(k)];
 
-const art = (k, cls, clickable) =>
-  `<img class="fl art ${cls}" data-flip-id="img-${idx(k)}" src="${ARTS[idx(k)]}" alt="${item(k).title}"${clickable ? ` data-item="${idx(k)}"` : ""}>`;
-const ttl = (k, cls) =>
-  `<h2 class="fl ttl ${cls}" data-flip-id="ttl-${idx(k)}">${item(k).title}</h2>`;
-const bod = (k, cls) =>
-  `<p class="fl bod ${cls}" data-flip-id="bod-${idx(k)}">${item(k).blurb}</p>`;
-const cta = (k, cls) =>
-  `<button class="fl cta ${cls}" data-flip-id="cta-${idx(k)}" data-item="${idx(k)}">Learn more</button>`;
+/* set a node's state class and return it */
+const use = (el, cls) => { el.className = cls; return el; };
 
-const RENDER = {
-  icon: () => `<div class="lay lay-icon">${art(0, "a-icon")}</div>`,
+const img = (k, c) => use(nd(k).img, `art ${c}`);
+const ttl = (k, c) => use(nd(k).ttl, `ttl ${c}`);
+const bod = (k, c) => use(nd(k).bod, `bod ${c}`);
+const cta = (k, c) => use(nd(k).cta, `cta ${c}`);
 
-  label: () => `<div class="lay lay-label">${art(0, "a-label")}<div class="meta">${ttl(0, "t-label")}</div></div>`,
+function srf(k, c, ...kids) {
+  const s = use(nd(k).srf, `surface ${c}`);
+  s.replaceChildren(...kids);
+  return s;
+}
 
-  snippet: () => `<div class="lay lay-snippet">${art(0, "a-snippet")}
-    <div class="meta">${ttl(0, "t-snippet")}${bod(0, "b-snippet")}${cta(0, "c-md")}</div></div>`,
+const para = (t) => h("p", "para", t);
 
-  card: () => `<div class="lay lay-card">
-    <div class="fl surface srf-card" data-flip-id="srf-${idx(0)}">${art(0, "a-card")}
-      <div class="meta">${ttl(0, "t-card")}${bod(0, "b-card")}${cta(0, "c-md")}</div></div></div>`,
+const BUILD = {
+  icon: () => h("div", "lay lay-icon", img(0, "a-icon")),
 
-  list: () => `<div class="lay lay-list">${[0, 1, 2].map((k) =>
-    `<div class="fl surface srf-row" data-flip-id="srf-${idx(k)}">${art(k, "a-row", true)}
-      <div class="meta">${ttl(k, "t-row")}${cta(k, "c-sm")}</div></div>`).join("")}</div>`,
+  label: () => h("div", "lay lay-label",
+    img(0, "a-label"),
+    h("div", "meta", ttl(0, "t-label"))),
 
-  grid: () => `<div class="lay lay-grid">${[0, 1, 2, 3].map((k) =>
-    `<div class="fl surface srf-cell" data-flip-id="srf-${idx(k)}">${art(k, "a-cell", true)}
-      <div class="meta">${ttl(k, "t-cell")}${cta(k, "c-sm")}</div></div>`).join("")}</div>`,
+  snippet: () => h("div", "lay lay-snippet",
+    img(0, "a-snippet"),
+    h("div", "meta", ttl(0, "t-snippet"), bod(0, "b-snippet"), cta(0, "c-md"))),
 
-  carousel: () => `<div class="lay lay-carousel">${[-2, -1, 0, 1, 2].map((k) =>
-    `<div class="car-cell">${art(k, "a-carousel", true)}${ttl(k, "t-carousel")}${cta(k, "c-sm")}</div>`).join("")}</div>`,
+  card: () => h("div", "lay lay-card",
+    srf(0, "srf-card",
+      img(0, "a-card"),
+      h("div", "meta", ttl(0, "t-card"), bod(0, "b-card"), cta(0, "c-md")))),
 
-  hero: () => `<div class="lay lay-hero">${art(0, "a-hero")}${ttl(0, "t-hero")}</div>`,
+  list: () => h("div", "lay lay-list",
+    ...[0, 1, 2].map((k) =>
+      srf(k, "srf-row",
+        img(k, "a-row"),
+        h("div", "meta", ttl(k, "t-row"), cta(k, "c-sm"))))),
 
-  article: () => `<div class="lay lay-article"><div class="article">
-    ${ttl(0, "t-headline")}
-    ${bod(0, "lead")}
-    ${art(0, "a-artfull")}
-    <p class="para">${PARAS[0]}</p>
-    <p class="para">${PARAS[1]}</p>
-    <div class="pair">${art(1, "a-pair", true)}${art(2, "a-pair", true)}</div>
-    <p class="para">${PARAS[2]}</p>
-  </div></div>`,
+  grid: () => h("div", "lay lay-grid",
+    ...[0, 1, 2, 3].map((k) =>
+      srf(k, "srf-cell",
+        img(k, "a-cell"),
+        h("div", "meta", ttl(k, "t-cell"), cta(k, "c-sm"))))),
+
+  carousel: () => h("div", "lay lay-carousel",
+    ...[-2, -1, 0, 1, 2].map((k) =>
+      h("div", "car-cell", img(k, "a-carousel"), ttl(k, "t-carousel"), cta(k, "c-sm")))),
+
+  hero: () => h("div", "lay lay-hero", img(0, "a-hero"), ttl(0, "t-hero")),
+
+  article: () => h("div", "lay lay-article",
+    h("div", "article",
+      ttl(0, "t-headline"),
+      bod(0, "lead"),
+      img(0, "a-artfull"),
+      para(PARAS[0]),
+      para(PARAS[1]),
+      h("div", "pair", img(1, "a-pair"), img(2, "a-pair")),
+      para(PARAS[2]))),
 };
 
 /* ---------------- transitions ---------------- */
@@ -260,58 +319,100 @@ const RENDER = {
 const stage = document.getElementById("stage");
 const ghosts = document.getElementById("ghosts");
 
+let activeTL = null;
+
 function goTo(next, rotate = 0) {
-  const prevEls = [...stage.querySelectorAll(".fl")];
-  const flipState = prevEls.length
-    ? Flip.getState(prevEls, { props: "borderRadius,fontSize" })
-    : null;
-  const oldRects = new Map(prevEls.map((el) => [el.dataset.flipId, el.getBoundingClientRect()]));
+  if (next === stateIdx && rotate === 0 && stage.firstChild) return;
+
+  // interruption-safe: land the previous transition before starting
+  if (activeTL) { activeTL.progress(1).kill(); activeTL = null; }
+
+  const oldNodes = [...stage.querySelectorAll("[data-flip-id]")];
+  const oldIds = new Set(oldNodes.map((n) => n.dataset.flipId));
+  const oldFS = new Map(oldNodes.map((n) => [n.dataset.flipId, parseFloat(getComputedStyle(n).fontSize)]));
+  const capture = oldNodes.length ? Flip.getState(oldNodes, { props: "borderRadius" }) : null;
+
+  // snapshot the outgoing layout wholesale, before building the new one
+  // reparents the persistent nodes out of it
+  let snap = null, snapScroll = 0;
+  if (!REDUCED && stage.firstChild) {
+    snapScroll = stage.firstChild.scrollTop || 0;
+    snap = stage.firstChild.cloneNode(true);
+  }
+  const stageRect = stage.getBoundingClientRect();
 
   atom = (atom + rotate + N) % N;
   stateIdx = next;
-  stage.innerHTML = RENDER[STATES[next].key]();
+  stage.replaceChildren(BUILD[STATES[next].key]());
 
-  const newIds = new Set([...stage.querySelectorAll(".fl")].map((el) => el.dataset.flipId));
+  // bench whatever this state doesn't use
+  for (const it of NODES) for (const n of it.all) if (!stage.contains(n)) bench.append(n);
 
-  // elements that leave: ghost them out in place
-  if (!REDUCED) {
-    for (const el of prevEls) {
-      const id = el.dataset.flipId;
-      if (newIds.has(id)) continue;
-      // skip children of a leaving surface that ghosts as a whole
-      const parentSrf = el.parentElement?.closest(".fl");
-      if (parentSrf && !newIds.has(parentSrf.dataset.flipId)) continue;
-      const r = oldRects.get(id);
-      const g = el.cloneNode(true);
-      g.querySelectorAll(".fl").forEach((c) => c.classList.remove("fl"));
-      g.classList.add("ghost");
-      g.style.cssText += `;left:${r.left}px;top:${r.top}px;width:${r.width}px;height:${r.height}px;margin:0;`;
-      ghosts.appendChild(g);
-      gsap.to(g, { opacity: 0, filter: "blur(6px)", duration: 0.32, ease: "power1.out", onComplete: () => g.remove() });
+  // sort new nodes: morphing (id persisted, size compatible) vs entering
+  const newNodes = [...stage.querySelectorAll("[data-flip-id]")];
+  const morphing = [], entering = [];
+  for (const n of newNodes) {
+    const id = n.dataset.flipId;
+    if (!oldIds.has(id)) { entering.push(n); continue; }
+    const isBox = n.classList.contains("art") || n.classList.contains("surface");
+    if (!isBox) {
+      const a = oldFS.get(id), b = parseFloat(getComputedStyle(n).fontSize);
+      // big type jumps read better as a crossfade than a reflowing morph
+      if (a && b && Math.max(a, b) / Math.min(a, b) > 1.25) { entering.push(n); continue; }
     }
+    morphing.push(n);
+  }
+  const morphIds = new Set(morphing.map((n) => n.dataset.flipId));
+
+  // the outgoing snapshot fades beneath the incoming layout; elements
+  // whose real nodes are morphing are hidden in it so nothing doubles
+  if (snap) {
+    const wrap = h("div", "ghost-wrap", snap);
+    wrap.style.cssText = `position:fixed;left:${stageRect.left}px;top:${stageRect.top}px;width:${stageRect.width}px;height:${stageRect.height}px;overflow:hidden;pointer-events:none;`;
+    snap.querySelectorAll("[data-flip-id]").forEach((c) => {
+      if (morphIds.has(c.dataset.flipId)) c.style.visibility = "hidden";
+    });
+    ghosts.replaceChildren(wrap);
+    snap.scrollTop = snapScroll;
+    gsap.to(wrap, { opacity: 0, duration: 0.3, ease: "power1.out", onComplete: () => wrap.remove() });
   }
 
-  if (flipState) {
-    Flip.from(flipState, {
-      targets: "#stage .fl",
+  const tl = gsap.timeline({ onComplete: () => { activeTL = null; } });
+
+  if (capture && morphing.length) {
+    tl.add(Flip.from(capture, {
+      targets: morphing,
       duration: DUR,
       ease: "power3.inOut",
       absolute: true,
       nested: true,
-      props: "borderRadius,fontSize",
-      onEnter: (els) =>
-        gsap.fromTo(els,
-          { opacity: 0, y: 14, filter: "blur(8px)" },
-          { opacity: 1, y: 0, filter: "blur(0px)", duration: REDUCED ? 0 : 0.55, delay: DUR * 0.35, stagger: 0.05, ease: "power2.out", clearProps: "filter" }),
-    });
+      props: "borderRadius",
+    }), 0);
   }
 
-  // article paragraphs are not flipped — soft cascade
+  if (entering.length && !REDUCED) {
+    const boxes = entering.filter((n) => n.classList.contains("art") || n.classList.contains("surface"));
+    const text = entering.filter((n) => !boxes.includes(n));
+    if (boxes.length)
+      tl.fromTo(boxes,
+        { opacity: 0, scale: 0.94, y: 12 },
+        { opacity: 1, scale: 1, y: 0, duration: 0.5, stagger: 0.05, ease: "power2.out", clearProps: "scale" },
+        capture ? DUR * 0.38 : 0.05);
+    if (text.length)
+      tl.fromTo(text,
+        { opacity: 0, y: 10, filter: "blur(6px)" },
+        { opacity: 1, y: 0, filter: "blur(0px)", duration: 0.45, stagger: 0.05, ease: "power2.out", clearProps: "filter" },
+        capture ? DUR * 0.45 : 0.12);
+  }
+
   const paras = stage.querySelectorAll(".para");
-  if (paras.length && !REDUCED) {
-    gsap.fromTo(paras, { opacity: 0, y: 10 }, { opacity: 1, y: 0, duration: 0.5, delay: DUR * 0.4, stagger: 0.08, ease: "power2.out" });
-  }
+  if (paras.length && !REDUCED)
+    tl.fromTo(paras,
+      { opacity: 0, y: 10 },
+      { opacity: 1, y: 0, duration: 0.45, stagger: 0.07, ease: "power2.out" },
+      DUR * 0.5);
 
+  activeTL = tl;
   updateHUD();
 }
 
@@ -355,10 +456,11 @@ addEventListener("keydown", (e) => {
 stage.addEventListener("click", (e) => {
   const t = e.target;
   if (!t.dataset || t.dataset.item === undefined) return;
-  stopAuto();
   const i = +t.dataset.item;
-  if (t.classList.contains("cta")) promote(i, 8);       // learn more = decompress
-  else if (t.classList.contains("art")) promote(i, 3);  // pick a work = its card
+  if (t.classList.contains("cta")) { stopAuto(); promote(i, 8); }        // learn more = decompress
+  else if (t.classList.contains("art") && [4, 5, 6].includes(stateIdx)) { // pick a work = its card
+    stopAuto(); promote(i, 3);
+  }
 });
 
 /* auto loop — opt-in, like the reference film */
@@ -382,5 +484,4 @@ autoBtn.addEventListener("click", () => (autoCall ? stopAuto() : startAuto()));
 
 /* ---------------- boot ---------------- */
 
-stage.innerHTML = RENDER[STATES[stateIdx].key]();
-updateHUD();
+goTo(stateIdx);
