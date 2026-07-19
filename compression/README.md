@@ -27,7 +27,11 @@ reference film.
 
 ## Build
 
-Vanilla HTML/CSS/JS + GSAP 3.13 Flip (CDN). Artwork is generated at boot: six
+Vanilla HTML/CSS/JS + GSAP 3.13 core (CDN). Transitions are a hand-rolled
+morph layer, not GSAP Flip: both scenes are measured, then every element
+tweens numerically between viewport rects in a fixed-position layer while
+the real layout mounts hidden underneath — layout never participates
+mid-flight, so nothing can wobble or snap. Artwork is generated at boot: six
 seeded impressionist canvases (banded flow-field strokes + sun disc + grain),
 rendered to dataURLs — no image assets.
 

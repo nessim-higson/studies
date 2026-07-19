@@ -11,8 +11,6 @@
      crossfades when its font-size jumps; no fontSize tweening
    - no blur filters on images (only on small text) */
 
-gsap.registerPlugin(Flip);
-
 const REDUCED = matchMedia("(prefers-reduced-motion: reduce)").matches;
 const DUR = REDUCED ? 0 : 0.75;
 
@@ -314,12 +312,32 @@ const BUILD = {
       para(PARAS[2]))),
 };
 
-/* ---------------- transitions ---------------- */
+/* ---------------- transitions ----------------
+   Every transition runs in a fixed-position morph layer: the outgoing
+   scene's elements are lifted out of layout at their measured viewport
+   rects and tweened numerically to the incoming scene's measured rects.
+   Layout never participates mid-flight, so nothing can wobble or snap.
+   The real (static) layout mounts hidden and is revealed at landing. */
 
 const stage = document.getElementById("stage");
-const ghosts = document.getElementById("ghosts");
+const mlayer = document.getElementById("ghosts");
 
 let activeTL = null;
+
+function fixAt(n, r, z) {
+  n.style.position = "fixed";
+  n.style.left = r.left + "px";
+  n.style.top = r.top + "px";
+  n.style.width = r.width + "px";
+  n.style.height = r.height + "px";
+  n.style.margin = "0";
+  n.style.zIndex = z;
+}
+
+const zOf = (n) => (n.classList.contains("surface") ? 1 : n.classList.contains("art") ? 2 : 3);
+
+const unfix = (n) =>
+  gsap.set(n, { clearProps: "position,left,top,width,height,margin,zIndex,opacity,transform,borderRadius,filter" });
 
 function goTo(next, rotate = 0) {
   if (next === stateIdx && rotate === 0 && stage.firstChild) return;
@@ -327,93 +345,139 @@ function goTo(next, rotate = 0) {
   // interruption-safe: land the previous transition before starting
   if (activeTL) { activeTL.progress(1).kill(); activeTL = null; }
 
+  // ---- capture the outgoing scene (rect, radius, font, class per node)
   const oldNodes = [...stage.querySelectorAll("[data-flip-id]")];
-  const oldIds = new Set(oldNodes.map((n) => n.dataset.flipId));
-  const oldFS = new Map(oldNodes.map((n) => [n.dataset.flipId, parseFloat(getComputedStyle(n).fontSize)]));
-  const capture = oldNodes.length ? Flip.getState(oldNodes, { props: "borderRadius" }) : null;
-
-  // snapshot the outgoing layout wholesale, before building the new one
-  // reparents the persistent nodes out of it
-  let snap = null, snapScroll = 0;
-  if (!REDUCED && stage.firstChild) {
-    snapScroll = stage.firstChild.scrollTop || 0;
-    snap = stage.firstChild.cloneNode(true);
+  const animate = oldNodes.length > 0 && !REDUCED;
+  const oldRect = new Map(), oldRad = new Map(), oldFS = new Map(), oldCls = new Map();
+  for (const n of oldNodes) {
+    const cs = getComputedStyle(n);
+    const id = n.dataset.flipId;
+    oldRect.set(id, n.getBoundingClientRect());
+    oldRad.set(id, parseFloat(cs.borderTopLeftRadius) || 0);
+    oldFS.set(id, parseFloat(cs.fontSize));
+    oldCls.set(id, n.className);
   }
-  const stageRect = stage.getBoundingClientRect();
+
+  // free text (article paragraphs) leaves in place, faded
+  const leaveExtras = [];
+  if (animate) {
+    for (const p of [...stage.querySelectorAll(".para")]) {
+      const r = p.getBoundingClientRect();
+      mlayer.append(p);
+      fixAt(p, r, 3);
+      leaveExtras.push(p);
+    }
+  }
 
   atom = (atom + rotate + N) % N;
   stateIdx = next;
-  stage.replaceChildren(BUILD[STATES[next].key]());
 
-  // bench whatever this state doesn't use
-  for (const it of NODES) for (const n of it.all) if (!stage.contains(n)) bench.append(n);
+  // ---- mount the incoming scene hidden, measure everything
+  const lay = BUILD[STATES[next].key]();
+  stage.replaceChildren(lay);
+  if (animate) lay.style.visibility = "hidden";
 
-  // sort new nodes: morphing (id persisted, size compatible) vs entering
   const newNodes = [...stage.querySelectorAll("[data-flip-id]")];
-  const morphing = [], entering = [];
+  const leaving = oldNodes.filter((n) => !stage.contains(n));
+
+  if (!animate) {
+    for (const it of NODES) for (const n of it.all) if (!stage.contains(n)) bench.append(n);
+    mlayer.replaceChildren();
+    updateHUD();
+    return;
+  }
+
+  const morph = [], enter = [], xfades = [];
+  const newRect = new Map(), newRad = new Map();
   for (const n of newNodes) {
     const id = n.dataset.flipId;
-    if (!oldIds.has(id)) { entering.push(n); continue; }
+    newRect.set(id, n.getBoundingClientRect());
+    newRad.set(id, parseFloat(getComputedStyle(n).borderTopLeftRadius) || 0);
+    if (!oldRect.has(id)) { enter.push(n); continue; }
     const isBox = n.classList.contains("art") || n.classList.contains("surface");
     if (!isBox) {
       const a = oldFS.get(id), b = parseFloat(getComputedStyle(n).fontSize);
-      // big type jumps read better as a crossfade than a reflowing morph
-      if (a && b && Math.max(a, b) / Math.min(a, b) > 1.25) { entering.push(n); continue; }
+      // big type jumps read better as a crossfade than a snapped morph
+      if (a && b && Math.max(a, b) / Math.min(a, b) > 1.25) {
+        enter.push(n);
+        const c = document.createElement(n.tagName);
+        c.className = oldCls.get(id);
+        c.textContent = n.textContent;
+        xfades.push(c);
+        mlayer.append(c);
+        fixAt(c, oldRect.get(id), 3);
+        continue;
+      }
     }
-    morphing.push(n);
-  }
-  const morphIds = new Set(morphing.map((n) => n.dataset.flipId));
-
-  // the outgoing snapshot fades above the incoming layout; elements whose
-  // real nodes are morphing are hidden in it (nothing doubles), but their
-  // leaving descendants — a card's text, say — must stay visible to fade
-  if (snap) {
-    const wrap = h("div", "ghost-wrap", snap);
-    wrap.style.cssText = `position:fixed;left:${stageRect.left}px;top:${stageRect.top}px;width:${stageRect.width}px;height:${stageRect.height}px;overflow:hidden;pointer-events:none;`;
-    snap.querySelectorAll("[data-flip-id]").forEach((c) => {
-      if (morphIds.has(c.dataset.flipId)) c.style.visibility = "hidden";
-      else c.style.visibility = "visible";
-    });
-    ghosts.replaceChildren(wrap);
-    snap.scrollTop = snapScroll;
-    gsap.to(wrap, { opacity: 0, duration: 0.32, ease: "power1.out", onComplete: () => wrap.remove() });
+    morph.push(n);
   }
 
+  // ---- lift the players into the morph layer
+  const placeholders = [];
+  for (const n of [...morph, ...enter]) {
+    const ph = document.createComment("slot");
+    n.replaceWith(ph);
+    placeholders.push([n, ph]);
+    mlayer.append(n);
+    const id = n.dataset.flipId;
+    fixAt(n, morph.includes(n) ? oldRect.get(id) : newRect.get(id), zOf(n));
+    if (morph.includes(n)) n.style.borderRadius = oldRad.get(id) + "px";
+    else n.style.opacity = 0;
+  }
+  for (const n of leaving) {
+    mlayer.append(n);
+    fixAt(n, oldRect.get(n.dataset.flipId), zOf(n));
+  }
+
+  // ---- one timeline, viewport-space only
   const tl = gsap.timeline({ onComplete: () => { activeTL = null; } });
 
-  if (capture && morphing.length) {
-    // in-flow morph (no absolute): siblings and entering elements reflow
-    // with the resize instead of snapping into place at the end
-    tl.add(Flip.from(capture, {
-      targets: morphing,
-      duration: DUR,
-      ease: "power3.inOut",
-      nested: true,
-      props: "borderRadius",
-    }), 0);
+  for (const n of morph) {
+    const id = n.dataset.flipId;
+    const r = newRect.get(id);
+    tl.to(n, {
+      left: r.left, top: r.top, width: r.width, height: r.height,
+      borderRadius: newRad.get(id),
+      duration: DUR, ease: "power3.inOut",
+    }, 0);
   }
+  for (const n of [...leaving, ...xfades])
+    tl.to(n, { opacity: 0, duration: 0.3, ease: "power1.out" }, 0);
+  for (const p of leaveExtras)
+    tl.to(p, { opacity: 0, duration: 0.25, ease: "power1.out" }, 0);
 
-  if (entering.length && !REDUCED) {
-    const boxes = entering.filter((n) => n.classList.contains("art") || n.classList.contains("surface"));
-    const text = entering.filter((n) => !boxes.includes(n));
-    if (boxes.length)
-      tl.fromTo(boxes,
-        { opacity: 0, scale: 0.94, y: 12 },
-        { opacity: 1, scale: 1, y: 0, duration: 0.5, stagger: 0.05, ease: "power2.out", clearProps: "scale" },
-        capture ? DUR * 0.38 : 0.05);
-    if (text.length)
-      tl.fromTo(text,
-        { opacity: 0, y: 10, filter: "blur(6px)" },
-        { opacity: 1, y: 0, filter: "blur(0px)", duration: 0.45, stagger: 0.05, ease: "power2.out", clearProps: "filter" },
-        capture ? DUR * 0.45 : 0.12);
-  }
+  const eBoxes = enter.filter((n) => n.classList.contains("art") || n.classList.contains("surface"));
+  const eText = enter.filter((n) => !eBoxes.includes(n));
+  if (eBoxes.length)
+    tl.fromTo(eBoxes,
+      { opacity: 0, y: 14, scale: 0.95 },
+      { opacity: 1, y: 0, scale: 1, duration: 0.45, stagger: 0.05, ease: "power2.out" },
+      DUR * 0.35);
+  if (eText.length)
+    tl.fromTo(eText,
+      { opacity: 0, y: 10, filter: "blur(6px)" },
+      { opacity: 1, y: 0, filter: "blur(0px)", duration: 0.4, stagger: 0.04, ease: "power2.out" },
+      DUR * 0.42);
 
-  const paras = stage.querySelectorAll(".para");
-  if (paras.length && !REDUCED)
+  // ---- land: reveal the real layout and slot everything home
+  const paras = [...stage.querySelectorAll(".para")];
+  paras.forEach((p) => (p.style.opacity = 0));
+
+  tl.call(() => {
+    lay.style.visibility = "";
+    for (const [n, ph] of placeholders) { ph.replaceWith(n); unfix(n); }
+    for (const n of leaving) { unfix(n); bench.append(n); }
+    xfades.forEach((c) => c.remove());
+    leaveExtras.forEach((p) => p.remove());
+    mlayer.replaceChildren();
+    for (const it of NODES) for (const n of it.all) if (!stage.contains(n)) bench.append(n);
+  }, [], tl.duration());
+
+  if (paras.length)
     tl.fromTo(paras,
       { opacity: 0, y: 10 },
-      { opacity: 1, y: 0, duration: 0.45, stagger: 0.07, ease: "power2.out" },
-      DUR * 0.5);
+      { opacity: 1, y: 0, duration: 0.45, stagger: 0.07, ease: "power2.out", clearProps: "opacity,transform" },
+      ">0.02");
 
   activeTL = tl;
   updateHUD();
@@ -487,7 +551,4 @@ autoBtn.addEventListener("click", () => (autoCall ? stopAuto() : startAuto()));
 
 /* ---------------- boot ---------------- */
 
-goTo(stateIdx);
-// first paint is instant — background-restored tabs get no rAF, and a
-// stuck intro tween would leave the stage blank until focus
-if (activeTL) { activeTL.progress(1).kill(); activeTL = null; }
+goTo(stateIdx); // boot renders statically — no old scene, nothing animates
