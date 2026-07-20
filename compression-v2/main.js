@@ -231,12 +231,6 @@ function layerFor(node) {
   return 3;
 }
 
-function roleDelay(node, flight) {
-  if (node.classList.contains("surface")) return 0;
-  if (node.classList.contains("art")) return flight * 0.035;
-  return flight * 0.07;
-}
-
 function finishActiveTransition() {
   if (!activeTimeline) return;
   activeTimeline.progress(1).kill();
@@ -291,7 +285,6 @@ function goTo(nextState, rotate = 0, instant = false) {
   const animate = oldNodes.length > 0 && !REDUCED && !instant;
   const oldRect = new Map();
   const oldRadius = new Map();
-  const oldFont = new Map();
   const oldClass = new Map();
   const oldShadow = new Map();
 
@@ -300,7 +293,6 @@ function goTo(nextState, rotate = 0, instant = false) {
     const id = node.dataset.morphId;
     oldRect.set(id, node.getBoundingClientRect());
     oldRadius.set(id, parseFloat(styles.borderTopLeftRadius) || 0);
-    oldFont.set(id, parseFloat(styles.fontSize) || 0);
     oldClass.set(id, node.className);
     oldShadow.set(id, styles.boxShadow);
   }
@@ -325,7 +317,7 @@ function goTo(nextState, rotate = 0, instant = false) {
   if (animate) {
     layout.style.visibility = "hidden";
     if (enteringExtras.length) {
-      gsap.set(enteringExtras, { opacity: 0, y: 7 });
+      gsap.set(enteringExtras, { opacity: 0 });
     }
   }
 
@@ -360,11 +352,11 @@ function goTo(nextState, rotate = 0, instant = false) {
     }
 
     const isShape = node.classList.contains("surface") || node.classList.contains("art") || node.classList.contains("signal");
-    const oldSize = oldFont.get(id);
-    const newSize = parseFloat(styles.fontSize) || 0;
-    const ratio = oldSize && newSize ? Math.max(oldSize, newSize) / Math.min(oldSize, newSize) : 1;
 
-    if (!isShape && ratio > 1.32) {
+    // Type should never reflow while its box is moving. A clean optical
+    // crossfade reads as one content atom without the elastic line wrapping
+    // that made the previous pass feel wobbly.
+    if (!isShape) {
       entering.push(node);
       const clone = document.createElement(node.tagName);
       clone.className = oldClass.get(id);
@@ -398,7 +390,7 @@ function goTo(nextState, rotate = 0, instant = false) {
   }
 
   const flight = STATES[nextState].flight;
-  const landing = flight * 0.82;
+  const landing = flight * 0.80;
   const timeline = gsap.timeline({
     onComplete: () => {
       activeTimeline = null;
@@ -409,14 +401,13 @@ function goTo(nextState, rotate = 0, instant = false) {
   for (const node of morphing) {
     const id = node.dataset.morphId;
     const destination = newRect.get(id);
-    const delay = roleDelay(node, flight);
     const values = {
       left: destination.left,
       top: destination.top,
       width: destination.width,
       height: destination.height,
       borderRadius: newRadius.get(id),
-      duration: Math.max(0.2, landing - delay),
+      duration: landing,
       ease: "power3.inOut",
     };
 
@@ -427,15 +418,16 @@ function goTo(nextState, rotate = 0, instant = false) {
       values.boxShadow = toShadow;
     }
 
-    timeline.to(node, values, delay);
+    // Surfaces and artwork share one clock. Their relative geometry can
+    // change, but neither element trails the other.
+    timeline.to(node, values, 0);
   }
 
   for (const node of [...leaving, ...crossfades, ...leavingExtras]) {
     timeline.to(node, {
       opacity: 0,
-      y: node.classList?.contains("title") ? -3 : 0,
-      duration: flight * 0.28,
-      ease: "power2.out",
+      duration: flight * 0.22,
+      ease: "power1.out",
     }, 0);
   }
 
@@ -447,16 +439,16 @@ function goTo(nextState, rotate = 0, instant = false) {
 
   if (enteringShapes.length) {
     timeline.fromTo(enteringShapes,
-      { opacity: 0, y: 8, scale: 0.985 },
-      { opacity: 1, y: 0, scale: 1, duration: flight * 0.48, stagger: flight * 0.035, ease: "power3.out" },
-      flight * 0.27);
+      { opacity: 0 },
+      { opacity: 1, duration: flight * 0.34, stagger: flight * 0.025, ease: "power1.out" },
+      flight * 0.34);
   }
 
   if (enteringText.length) {
     timeline.fromTo(enteringText,
-      { opacity: 0, y: 6 },
-      { opacity: 1, y: 0, duration: flight * 0.38, stagger: flight * 0.025, ease: "power2.out" },
-      flight * 0.40);
+      { opacity: 0 },
+      { opacity: 1, duration: flight * 0.28, stagger: flight * 0.018, ease: "power1.out" },
+      flight * 0.46);
   }
 
   if (enteringSignal.length) {
@@ -485,11 +477,9 @@ function goTo(nextState, rotate = 0, instant = false) {
   if (enteringExtras.length) {
     timeline.to(enteringExtras, {
       opacity: 1,
-      y: 0,
       duration: flight - landing,
-      stagger: 0.03,
-      ease: "power2.out",
-      clearProps: "opacity,transform",
+      ease: "power1.out",
+      clearProps: "opacity",
     }, landing);
   }
 

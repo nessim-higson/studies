@@ -75,6 +75,10 @@ button { font: inherit; }
   pointer-events: none;
 }
 
+.morph-layer > * {
+  will-change: left, top, width, height, opacity;
+}
+
 .bench { display: none !important; }
 
 .scene {

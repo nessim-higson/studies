@@ -28,6 +28,8 @@ Vanilla HTML/CSS/JS and GSAP core. Images, titles, copy, buttons, and surfaces
 are persistent DOM nodes. During each transition, nodes move through a
 fixed-position morph layer between measured viewport rectangles, then return to
 their real layout slots. Layout never participates while geometry is moving.
+Artwork and surfaces use a shared easing clock, while type crossfades between
+settled layouts so line wrapping never flexes during a transition.
 
 The six paintings are original project assets generated for this study with the
 built-in OpenAI image-generation workflow. They are substitutes informed by the

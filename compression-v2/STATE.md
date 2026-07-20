@@ -1,6 +1,6 @@
 # COMPRESSION V2 — STATE
 
-Status: new independent build, ready for visual QA.
+Status: independent build, motion-refined and browser verified.
 
 ## Intent
 
@@ -22,7 +22,9 @@ flight time is 15.6 seconds.
 - Hand-rolled viewport-space morph layer; no GSAP Flip dependency.
 - Destination layouts mount hidden, are measured, and receive their nodes at
   landing.
-- State-specific layout composition with a shared timing system.
+- Artwork and surfaces share one geometry clock; neither trails the other.
+- Typography crossfades between settled layouts and never reflows in flight.
+- State-specific layout composition with restrained, non-spring timing.
 - Original JPEG artwork assets in `assets/`.
 - Reduced-motion mode is static and manually navigable.
 
