@@ -1,13 +1,14 @@
 # COMPRESSION V2 — STATE
 
-Status: independent build, motion-refined and browser verified.
+Status: independent build, second motion refinement complete; visual review
+pending a manual localhost refresh.
 
 ## Intent
 
 Create a live DOM composition that feels like the Molly “Primal” compression
 film rather than a labelled component explorer. The primary experience is a
-silent 15.6-second autoplay loop inside a restrained 16:9 frame. Controls are
-secondary and appear on hover, focus, or touch.
+silent 15.6-second autoplay loop inside a restrained 16:9 frame. Nine persistent
+labelled stops also make the choreography directly explorable.
 
 ## Sequence
 
@@ -23,6 +24,8 @@ flight time is 15.6 seconds.
 - Destination layouts mount hidden, are measured, and receive their nodes at
   landing.
 - Artwork and surfaces share one geometry clock; neither trails the other.
+- Artwork masks and aspect-locked image planes interpolate separately, avoiding
+  live `object-fit` crop recalculation.
 - Typography crossfades between settled layouts and never reflows in flight.
 - State-specific layout composition with restrained, non-spring timing.
 - Original JPEG artwork assets in `assets/`.

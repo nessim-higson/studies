@@ -17,7 +17,9 @@ python3 -m http.server 4215
 
 - The 15.6-second loop starts automatically.
 - Click the film or press Space to pause/resume.
-- Use arrow keys or the hover controls to step manually.
+- Select any of the nine labelled stops to jump directly to that composition;
+  direct selection pauses autoplay.
+- Use arrow keys or the previous/next controls to step manually.
 - Select artwork in collection states to promote it.
 - “View work” opens the selected item into the article composition.
 - Reduced-motion visitors receive a static card and manual controls.
@@ -29,7 +31,9 @@ are persistent DOM nodes. During each transition, nodes move through a
 fixed-position morph layer between measured viewport rectangles, then return to
 their real layout slots. Layout never participates while geometry is moving.
 Artwork and surfaces use a shared easing clock, while type crossfades between
-settled layouts so line wrapping never flexes during a transition.
+settled layouts so line wrapping never flexes during a transition. Each artwork
+uses a moving mask around a separately interpolated, aspect-locked image plane;
+the browser never recalculates `object-fit` while its shape is in flight.
 
 The six paintings are original project assets generated for this study with the
 built-in OpenAI image-generation workflow. They are substitutes informed by the

@@ -59,6 +59,7 @@ const previousButton = document.getElementById("previous");
 const nextButton = document.getElementById("next");
 const stateName = document.getElementById("state-name");
 const progressFill = document.getElementById("progress-fill");
+const stopNav = document.getElementById("stop-nav");
 
 function element(tag, className, ...children) {
   const node = document.createElement(tag);
@@ -72,10 +73,12 @@ bench.setAttribute("aria-hidden", "true");
 document.body.append(bench);
 
 const NODES = ITEMS.map((item, index) => {
-  const art = element("img", "art");
-  art.src = item.image;
-  art.alt = item.title;
-  art.draggable = false;
+  const artImage = element("img", "art-image");
+  artImage.src = item.image;
+  artImage.alt = item.title;
+  artImage.draggable = false;
+
+  const art = element("div", "art", artImage);
   art.dataset.morphId = `art-${index}`;
   art.dataset.item = index;
 
@@ -96,18 +99,27 @@ const NODES = ITEMS.map((item, index) => {
 
   const all = [art, title, body, action, surface];
   bench.append(...all);
-  return { art, title, body, action, surface, all };
+  return { art, artImage, title, body, action, surface, all };
 });
 
 const signal = element("span", "signal");
 signal.dataset.morphId = "signal";
 bench.append(signal);
 
+const stopButtons = STATES.map((state, index) => {
+  const button = element("button", "stop", state.key);
+  button.type = "button";
+  button.dataset.state = index;
+  button.setAttribute("aria-label", `Show ${index + 1} of ${STATES.length}: ${state.label}`);
+  stopNav.append(button);
+  return button;
+});
+
 let atom = 0;
 let stateIndex = 0;
 let activeTimeline = null;
 let autoCall = null;
-let progressTween = null;
+let navTween = null;
 let playing = !REDUCED;
 
 const itemIndex = (offset) => (atom + offset + ITEMS.length) % ITEMS.length;
@@ -221,7 +233,44 @@ function fixAt(node, rect, zIndex) {
 
 function clearFixed(node) {
   gsap.set(node, {
-    clearProps: "position,left,top,width,height,margin,zIndex,opacity,transform,borderRadius,boxShadow",
+    clearProps: "position,left,top,width,height,margin,zIndex,opacity,transform,borderRadius,boxShadow,filter",
+  });
+}
+
+function coverFrame(node, rect) {
+  const image = node.querySelector(".art-image");
+  const naturalWidth = image.naturalWidth || 4;
+  const naturalHeight = image.naturalHeight || 3;
+  const scale = Math.max(rect.width / naturalWidth, rect.height / naturalHeight);
+  const width = naturalWidth * scale;
+  const height = naturalHeight * scale;
+
+  return {
+    left: (rect.width - width) / 2,
+    top: (rect.height - height) / 2,
+    width,
+    height,
+  };
+}
+
+function setArtFrame(node, frame) {
+  const image = node.querySelector(".art-image");
+  Object.assign(image.style, {
+    position: "absolute",
+    left: `${frame.left}px`,
+    top: `${frame.top}px`,
+    width: `${frame.width}px`,
+    height: `${frame.height}px`,
+    maxWidth: "none",
+    objectFit: "fill",
+  });
+}
+
+function clearArtFrame(node) {
+  const image = node.querySelector(".art-image");
+  if (!image) return;
+  gsap.set(image, {
+    clearProps: "position,left,top,width,height,maxWidth,objectFit,transform",
   });
 }
 
@@ -244,22 +293,33 @@ function parkUnusedNodes() {
   if (!stage.contains(signal)) bench.append(signal);
 }
 
-function updateMeta() {
+function updateMeta(duration = 0) {
   const state = STATES[stateIndex];
-  stateName.textContent = state.label;
+  stateName.textContent = `${String(stateIndex + 1).padStart(2, "0")} / ${String(STATES.length).padStart(2, "0")} · ${state.label}`;
   document.documentElement.classList.toggle("is-paused", !playing);
   playButton.setAttribute("aria-pressed", String(playing));
   playButton.setAttribute("aria-label", playing ? "Pause animation" : "Play animation");
 
-  if (stateIndex === 0) gsap.set(progressFill, { scaleX: 0 });
-  else gsap.set(progressFill, { scaleX: stateIndex / STATES.length });
+  stopButtons.forEach((button, index) => {
+    const active = index === stateIndex;
+    button.classList.toggle("active", active);
+    if (active) button.setAttribute("aria-current", "step");
+    else button.removeAttribute("aria-current");
+  });
+
+  navTween?.kill();
+  const scaleX = stateIndex / (STATES.length - 1);
+  if (duration > 0) {
+    navTween = gsap.to(progressFill, { scaleX, duration, ease: "power3.inOut" });
+  } else {
+    gsap.set(progressFill, { scaleX });
+    navTween = null;
+  }
 }
 
 function clearScheduling() {
   autoCall?.kill();
-  progressTween?.kill();
   autoCall = null;
-  progressTween = null;
 }
 
 function scheduleAdvance() {
@@ -267,16 +327,15 @@ function scheduleAdvance() {
   if (!playing || activeTimeline) return;
 
   const hold = STATES[stateIndex].hold;
-  progressTween = gsap.to(progressFill, {
-    scaleX: (stateIndex + 1) / STATES.length,
-    duration: hold,
-    ease: "none",
-  });
   autoCall = gsap.delayedCall(hold, advance);
 }
 
 function goTo(nextState, rotate = 0, instant = false) {
-  if (nextState === stateIndex && rotate === 0 && stage.firstChild) return;
+  if (nextState === stateIndex && rotate === 0 && stage.firstChild) {
+    finishActiveTransition();
+    updateMeta();
+    return;
+  }
 
   clearScheduling();
   finishActiveTransition();
@@ -287,14 +346,17 @@ function goTo(nextState, rotate = 0, instant = false) {
   const oldRadius = new Map();
   const oldClass = new Map();
   const oldShadow = new Map();
+  const oldArtFrame = new Map();
 
   for (const node of oldNodes) {
     const styles = getComputedStyle(node);
     const id = node.dataset.morphId;
-    oldRect.set(id, node.getBoundingClientRect());
+    const rect = node.getBoundingClientRect();
+    oldRect.set(id, rect);
     oldRadius.set(id, parseFloat(styles.borderTopLeftRadius) || 0);
     oldClass.set(id, node.className);
     oldShadow.set(id, styles.boxShadow);
+    if (node.classList.contains("art")) oldArtFrame.set(id, coverFrame(node, rect));
   }
 
   const leavingExtras = [];
@@ -313,12 +375,10 @@ function goTo(nextState, rotate = 0, instant = false) {
   const layout = BUILD[STATES[nextState].key]();
   stage.replaceChildren(layout);
   const enteringExtras = [...layout.querySelectorAll("[data-extra]")];
+  const enteringExtraRect = new Map(enteringExtras.map((node) => [node, node.getBoundingClientRect()]));
 
   if (animate) {
     layout.style.visibility = "hidden";
-    if (enteringExtras.length) {
-      gsap.set(enteringExtras, { opacity: 0 });
-    }
   }
 
   const newNodes = [...stage.querySelectorAll("[data-morph-id]")];
@@ -338,13 +398,16 @@ function goTo(nextState, rotate = 0, instant = false) {
   const newRect = new Map();
   const newRadius = new Map();
   const newShadow = new Map();
+  const newArtFrame = new Map();
 
   for (const node of newNodes) {
     const id = node.dataset.morphId;
     const styles = getComputedStyle(node);
-    newRect.set(id, node.getBoundingClientRect());
+    const rect = node.getBoundingClientRect();
+    newRect.set(id, rect);
     newRadius.set(id, parseFloat(styles.borderTopLeftRadius) || 0);
     newShadow.set(id, styles.boxShadow);
+    if (node.classList.contains("art")) newArtFrame.set(id, coverFrame(node, rect));
 
     if (!oldRect.has(id)) {
       entering.push(node);
@@ -380,8 +443,21 @@ function goTo(nextState, rotate = 0, instant = false) {
     const rect = morphing.includes(node) ? oldRect.get(id) : newRect.get(id);
     fixAt(node, rect, layerFor(node));
 
-    if (morphing.includes(node)) node.style.borderRadius = `${oldRadius.get(id)}px`;
+    if (morphing.includes(node)) {
+      node.style.borderRadius = `${oldRadius.get(id)}px`;
+      if (node.classList.contains("art")) setArtFrame(node, oldArtFrame.get(id));
+    }
     else node.style.opacity = "0";
+  }
+
+  const extraPlaceholders = [];
+  for (const node of enteringExtras) {
+    const placeholder = document.createComment("extra-slot");
+    node.replaceWith(placeholder);
+    extraPlaceholders.push([node, placeholder]);
+    morphLayer.append(node);
+    fixAt(node, enteringExtraRect.get(node), 3);
+    node.style.opacity = "0";
   }
 
   for (const node of leaving) {
@@ -390,7 +466,7 @@ function goTo(nextState, rotate = 0, instant = false) {
   }
 
   const flight = STATES[nextState].flight;
-  const landing = flight * 0.80;
+  const shapeDuration = flight * 0.82;
   const timeline = gsap.timeline({
     onComplete: () => {
       activeTimeline = null;
@@ -407,8 +483,8 @@ function goTo(nextState, rotate = 0, instant = false) {
       width: destination.width,
       height: destination.height,
       borderRadius: newRadius.get(id),
-      duration: landing,
-      ease: "power3.inOut",
+      duration: shapeDuration,
+      ease: "expo.inOut",
     };
 
     const fromShadow = oldShadow.get(id);
@@ -421,12 +497,25 @@ function goTo(nextState, rotate = 0, instant = false) {
     // Surfaces and artwork share one clock. Their relative geometry can
     // change, but neither element trails the other.
     timeline.to(node, values, 0);
+
+    if (node.classList.contains("art")) {
+      const image = node.querySelector(".art-image");
+      const frame = newArtFrame.get(id);
+      timeline.to(image, {
+        left: frame.left,
+        top: frame.top,
+        width: frame.width,
+        height: frame.height,
+        duration: shapeDuration,
+        ease: "expo.inOut",
+      }, 0);
+    }
   }
 
   for (const node of [...leaving, ...crossfades, ...leavingExtras]) {
     timeline.to(node, {
       opacity: 0,
-      duration: flight * 0.22,
+      duration: Math.min(0.18, flight * 0.22),
       ease: "power1.out",
     }, 0);
   }
@@ -440,15 +529,32 @@ function goTo(nextState, rotate = 0, instant = false) {
   if (enteringShapes.length) {
     timeline.fromTo(enteringShapes,
       { opacity: 0 },
-      { opacity: 1, duration: flight * 0.34, stagger: flight * 0.025, ease: "power1.out" },
-      flight * 0.34);
+      { opacity: 1, duration: flight * 0.32, stagger: flight * 0.025, ease: "power2.out" },
+      flight * 0.30);
   }
 
   if (enteringText.length) {
     timeline.fromTo(enteringText,
       { opacity: 0 },
-      { opacity: 1, duration: flight * 0.28, stagger: flight * 0.018, ease: "power1.out" },
-      flight * 0.46);
+      {
+        opacity: 1,
+        duration: Math.max(0.38, flight * 0.46),
+        stagger: 0.028,
+        ease: "power2.out",
+      },
+      flight * 0.24);
+  }
+
+  if (enteringExtras.length) {
+    timeline.fromTo(enteringExtras,
+      { opacity: 0 },
+      {
+        opacity: 1,
+        duration: Math.max(0.4, flight * 0.48),
+        stagger: 0.03,
+        ease: "power2.out",
+      },
+      flight * 0.27);
   }
 
   if (enteringSignal.length) {
@@ -458,9 +564,15 @@ function goTo(nextState, rotate = 0, instant = false) {
       flight * 0.28);
   }
 
+  const landing = Math.max(flight, timeline.duration());
   timeline.call(() => {
     layout.style.visibility = "";
     for (const [node, placeholder] of placeholders) {
+      placeholder.replaceWith(node);
+      if (node.classList.contains("art")) clearArtFrame(node);
+      clearFixed(node);
+    }
+    for (const [node, placeholder] of extraPlaceholders) {
       placeholder.replaceWith(node);
       clearFixed(node);
     }
@@ -473,19 +585,8 @@ function goTo(nextState, rotate = 0, instant = false) {
     morphLayer.replaceChildren();
     parkUnusedNodes();
   }, [], landing);
-
-  if (enteringExtras.length) {
-    timeline.to(enteringExtras, {
-      opacity: 1,
-      duration: flight - landing,
-      ease: "power1.out",
-      clearProps: "opacity",
-    }, landing);
-  }
-
-  timeline.call(() => {}, [], flight);
   activeTimeline = timeline;
-  updateMeta();
+  updateMeta(shapeDuration);
 }
 
 function advance() {
@@ -537,9 +638,16 @@ nextButton.addEventListener("click", (event) => {
   advance();
 });
 
+stopButtons.forEach((button, index) => {
+  button.addEventListener("click", () => {
+    stop();
+    goTo(index);
+  });
+});
+
 stage.addEventListener("click", (event) => {
-  const target = event.target;
-  const index = target?.dataset?.item;
+  const target = event.target.closest("[data-item]");
+  const index = target?.dataset.item;
 
   if (index !== undefined && target.classList.contains("action")) {
     stop();

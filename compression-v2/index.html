@@ -15,8 +15,14 @@
     <section class="film" aria-label="Compression study">
       <div id="stage" class="stage"></div>
       <div id="morph-layer" class="morph-layer" aria-hidden="true"></div>
+    </section>
 
-      <div class="film-controls" aria-label="Playback controls">
+    <div class="study-controls">
+      <nav class="stop-nav" id="stop-nav" aria-label="Composition stops">
+        <span class="stop-track" aria-hidden="true"><span id="progress-fill"></span></span>
+      </nav>
+
+      <div class="transport" aria-label="Playback controls">
         <button class="control" id="previous" type="button" aria-label="Previous composition">
           <span aria-hidden="true">←</span>
         </button>
@@ -28,9 +34,7 @@
         </button>
         <span class="state-name" id="state-name" aria-live="polite"></span>
       </div>
-
-      <div class="progress" aria-hidden="true"><span id="progress-fill"></span></div>
-    </section>
+    </div>
 
     <div class="caption">
       <p><strong>Compression</strong> — content reshaped by attention.</p>
