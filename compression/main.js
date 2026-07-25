@@ -337,7 +337,82 @@ function fixAt(n, r, z) {
 const zOf = (n) => (n.classList.contains("surface") ? 1 : n.classList.contains("art") ? 2 : 3);
 
 const unfix = (n) =>
-  gsap.set(n, { clearProps: "position,left,top,width,height,margin,zIndex,opacity,transform,borderRadius,filter" });
+  gsap.set(n, { clearProps: "position,left,top,width,height,margin,zIndex,opacity,transform,borderRadius,filter,boxShadow" });
+
+/* Letterform decode: incoming type resolves left-to-right through cycling
+   glyphs. Every glyph's true position in the naturally-shaped text is
+   measured with Range rects, then the element is rebuilt as absolutely
+   positioned cells at those exact coordinates — kerning, ligatures and
+   line breaks are frozen geometry, so nothing can shift or wrap while
+   letters switch. Cycling glyphs are width-matched to the target char.
+   Driven by a pure function of progress, so interrupts land it instantly. */
+const GLYPH_SET = [..."aceimnorstuvwxz<>*+#·"];
+const glyphCtx = document.createElement("canvas").getContext("2d");
+const glyphCache = new Map();
+
+function glyphAlts(font, w) {
+  let table = glyphCache.get(font);
+  if (!table) {
+    glyphCtx.font = font;
+    table = GLYPH_SET.map((g) => [g, glyphCtx.measureText(g).width]);
+    glyphCache.set(font, table);
+  }
+  return [...table]
+    .sort((a, b) => Math.abs(a[1] - w) - Math.abs(b[1] - w))
+    .slice(0, 4)
+    .map(([g]) => g);
+}
+
+function scrambleIn(tl, el, at, scrambled) {
+  const text = el.textContent;
+  if (!text.trim() || !el.firstChild) return;
+  scrambled.push([el, text]);
+  el.setAttribute("aria-label", text);
+
+  const tn = el.firstChild;
+  const base = el.getBoundingClientRect();
+  const cs = getComputedStyle(el);
+  const font = `${cs.fontStyle} ${cs.fontWeight} ${cs.fontSize} ${cs.fontFamily}`;
+  const range = document.createRange();
+  const cells = [];
+  for (let i = 0; i < text.length; i++) {
+    if (/\s/.test(text[i])) continue;
+    range.setStart(tn, i);
+    range.setEnd(tn, i + 1);
+    const r = range.getBoundingClientRect();
+    cells.push({ ch: text[i], x: r.left - base.left, y: r.top - base.top, w: r.width, h: r.height });
+  }
+  el.textContent = "";
+  for (const c of cells) {
+    const s = document.createElement("span");
+    s.textContent = c.ch;
+    s.setAttribute("aria-hidden", "true");
+    s.style.cssText = `position:absolute;left:${c.x}px;top:${c.y}px;width:${c.w}px;height:${c.h}px;line-height:${c.h}px;text-align:center;opacity:0;`;
+    el.appendChild(s);
+    c.s = s;
+    c.alts = glyphAlts(font, c.w);
+  }
+
+  const n = cells.length;
+  const dur = gsap.utils.clamp(0.4, 0.65, 0.15 + n * 0.01);
+  const LEAD = 0.25; // fraction of the sweep each char spends cycling before it locks
+  const proxy = { p: 0 };
+  tl.to(el, { opacity: 1, duration: 0.16, ease: "power1.out" }, at);
+  tl.to(proxy, {
+    p: 1, duration: dur, ease: "none",
+    onUpdate() {
+      for (let i = 0; i < n; i++) {
+        const lock = LEAD + (i / Math.max(1, n - 1)) * (1 - LEAD);
+        const c = cells[i];
+        if (proxy.p >= lock) { c.s.textContent = c.ch; c.s.style.opacity = "1"; }
+        else if (proxy.p >= lock - LEAD) {
+          c.s.textContent = c.alts[(Math.random() * c.alts.length) | 0];
+          c.s.style.opacity = "0.45";
+        } else c.s.style.opacity = "0";
+      }
+    },
+  }, at);
+}
 
 function goTo(next, rotate = 0) {
   if (next === stateIdx && rotate === 0 && stage.firstChild) return;
@@ -391,7 +466,6 @@ function goTo(next, rotate = 0) {
   // morphs. Text and CTAs never travel or resize: they exit at their old
   // place and fade in at their final one, already wrapped correctly.
   const morph = [], enter = [], xfades = [];
-  const fresh = new Set(); // text ids new to the scene → skeleton treatment
   const newRect = new Map(), newRad = new Map(), newShadow = new Map();
   for (const n of newNodes) {
     const id = n.dataset.flipId;
@@ -402,7 +476,6 @@ function goTo(next, rotate = 0) {
     const isBox = n.classList.contains("art") || n.classList.contains("surface");
     if (!oldRect.has(id)) {
       enter.push(n);
-      if (!isBox) fresh.add(id);
       continue;
     }
     if (!isBox) {
@@ -436,18 +509,20 @@ function goTo(next, rotate = 0) {
   }
 
   // ---- one timeline, viewport-space only
-  // choreography: surfaces lead, images follow a beat behind, text rides
-  // last; travel-scaled durations; elevation (box-shadow) morphs with size
+  // choreography: the image leads, its surface a beat behind, copy follows
+  // as the morph lands; travel-scaled durations; elevation morphs with size
   const tl = gsap.timeline({ onComplete: () => { activeTL = null; } });
 
-  const roleDelay = (n) =>
-    n.classList.contains("surface") ? 0 : n.classList.contains("art") ? 0.045 : 0.09;
+  // the image leads; its surface rides a beat behind it
+  const roleDelay = (n) => (n.classList.contains("surface") ? 0.05 : 0);
 
+  let morphEnd = 0;
   for (const n of morph) {
     const id = n.dataset.flipId;
     const a = oldRect.get(id), r = newRect.get(id);
     const travel = Math.hypot(r.left - a.left, r.top - a.top) + Math.abs(r.width - a.width);
     const d = gsap.utils.clamp(0.55, 0.95, 0.45 + (travel / innerWidth) * 0.6);
+    morphEnd = Math.max(morphEnd, roleDelay(n) + d);
     const vars = {
       left: r.left, top: r.top, width: r.width, height: r.height,
       borderRadius: newRad.get(id),
@@ -462,10 +537,9 @@ function goTo(next, rotate = 0) {
   }
   // every outgoing element leaves together, fast and quiet
   for (const n of [...leaving, ...xfades, ...leaveExtras])
-    tl.to(n, { opacity: 0, duration: 0.2, ease: "power1.out" }, 0);
+    tl.to(n, { opacity: 0, duration: 0.18, ease: "power1.out" }, 0);
 
-  // arrivals cascade spatially — top-left first, like reading order —
-  // on one fixed timing system so every state change feels the same
+  // arrivals cascade spatially — top-left first, like reading order
   const byPos = (a, b) => {
     const ra = newRect.get(a.dataset.flipId), rb = newRect.get(b.dataset.flipId);
     return (ra.top - rb.top) || (ra.left - rb.left);
@@ -474,40 +548,15 @@ function goTo(next, rotate = 0) {
   const eText = enter.filter((n) => !n.classList.contains("art") && !n.classList.contains("surface")).sort(byPos);
   if (eBoxes.length)
     tl.fromTo(eBoxes,
-      { opacity: 0, y: 18, scale: 0.96 },
-      { opacity: 1, y: 0, scale: 1, duration: 0.55, stagger: 0.06, ease: "expo.out" },
-      0.28);
-  if (eText.length)
-    tl.fromTo(eText,
-      { opacity: 0, y: 8, filter: "blur(5px)" },
-      { opacity: 1, y: 0, filter: "blur(0px)", duration: 0.45, stagger: 0.06, ease: "expo.out" },
-      0.34);
+      { opacity: 0, y: 12, scale: 0.97 },
+      { opacity: 1, y: 0, scale: 1, duration: 0.5, stagger: 0.06, ease: "expo.out" },
+      0.24);
 
-  // skeleton bars — only for text NEW to the scene (first appearance);
-  // repositioning text just fades, keeping the cascade calm
-  const skels = [];
-  for (const n of eText) {
-    if (!fresh.has(n.dataset.flipId)) continue;
-    if (!n.classList.contains("ttl") && !n.classList.contains("bod")) continue;
-    const r = newRect.get(n.dataset.flipId);
-    const cs = getComputedStyle(n);
-    const fs = parseFloat(cs.fontSize), lh = parseFloat(cs.lineHeight) || fs * 1.4;
-    const lines = Math.min(3, Math.max(1, Math.round(r.height / lh)));
-    for (let i = 0; i < lines; i++) {
-      const bar = h("div", "skel");
-      fixAt(bar, {
-        left: r.left,
-        top: r.top + i * lh + (lh - fs * 0.7) / 2,
-        width: r.width * (i === lines - 1 && lines > 1 ? 0.58 : 0.92),
-        height: fs * 0.7,
-      }, 3);
-      bar.style.borderRadius = (fs * 0.35) + "px";
-      mlayer.append(bar);
-      skels.push(bar);
-      tl.fromTo(bar, { opacity: 0 }, { opacity: 1, duration: 0.2, ease: "power1.out" }, 0.14 + i * 0.05);
-      tl.to(bar, { opacity: 0, duration: 0.24, ease: "power1.in" }, 0.4 + i * 0.05);
-    }
-  }
+  // copy follows the image: it begins as the lead morph is landing and
+  // decodes left-to-right — letterforms switch in, no blur, no bars
+  const textAt = morph.length ? Math.max(0.3, morphEnd - 0.28) : 0.15;
+  const scrambled = [];
+  eText.forEach((n2, k) => scrambleIn(tl, n2, textAt + k * 0.05, scrambled));
 
   // ---- land: reveal the real layout and slot everything home
   const paras = [...stage.querySelectorAll(".para")];
@@ -515,6 +564,7 @@ function goTo(next, rotate = 0) {
 
   tl.call(() => {
     lay.style.visibility = "";
+    for (const [el, text] of scrambled) { el.textContent = text; el.removeAttribute("aria-label"); }
     for (const [n, ph] of placeholders) { ph.replaceWith(n); unfix(n); }
     for (const n of leaving) { unfix(n); bench.append(n); }
     xfades.forEach((c) => c.remove());

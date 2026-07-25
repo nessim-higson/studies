@@ -167,8 +167,6 @@ body {
 .c-md { font-size: 10.5px; padding: 7px 14px; }
 .c-sm { font-size: 9.5px; padding: 5px 11px; }
 
-.skel { background: #e6e3da; pointer-events: none; }
-
 .surface {
   background: var(--surface);
   box-shadow: var(--shadow-lg);

@@ -57,16 +57,22 @@ v3 removes layout from the flight path entirely:
 5. One master timeline per transition; interrupts run `progress(1).kill()` —
    scrub-safe at any speed.
 
-Motion system (the direction that made it click): **the image and its surface
-are the only things that travel — text never morphs.** All text/CTAs exit
-together at t=0 (0.2s fade) and cascade back in reading order on one fixed
-timing system (start 0.34, stagger 0.06, 0.45s `expo.out`, y+8 + blur-resolve)
-— so a headline is always already wrapped at its final width and never reflows
-mid-flight. Surfaces lead the morph, images ride +0.045s behind; durations
+Motion system (the direction that made it click): **the image leads — it is
+the only thing that travels (surface a beat behind, +0.05s); text never
+morphs.** All text/CTAs exit together at t=0 (0.18s fade) and re-enter as the
+lead morph is landing (anchor = max(0.3, morphEnd − 0.28), stagger 0.05,
+reading order) via a **letterform decode**: type resolves left-to-right
+through cycling glyphs. Every glyph's true position in the naturally-shaped
+text is measured with Range rects and rebuilt as absolutely-positioned cells
+at exact coordinates — kerning/line breaks are frozen geometry, nothing can
+shift or wrap mid-decode — and cycling glyphs are width-matched to their
+target char (canvas-measured pool). No blur, no skeleton bars. Durations
 scale with travel (0.55–0.95s `expo.inOut`); box-shadow (elevation) tweens
-with size. Skeleton bars appear only for text NEW to the scene (first
-appearance); repositioning text just fades. Boot renders statically
-(background tabs get no rAF).
+with size and is cleared at landing. Boot renders statically (background
+tabs get no rAF). The decode is a pure function of tween progress, so
+interrupts land it instantly. (This pass was adversarially reviewed by a
+13-agent workflow; 4 confirmed defects — stale inline shadows, kerning-loss
+phantom wraps, glyph-width collisions, stale comment — all fixed.)
 
 ## Controls
 
