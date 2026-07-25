@@ -1,0 +1,155 @@
+/* COMPRESSION 002 — ABSTRACT
+   One painting hangs still forever; only the writing moves.
+   Five compression levels of the same text, scrubbed by hand. */
+
+:root {
+  --bg: #f6f4ef;
+  --ink: #17171a;
+  --dim: #a5a29a;
+  --gray: #8b8880;
+  --shadow-lg: 0 24px 60px rgba(30, 28, 20, 0.10), 0 4px 14px rgba(30, 28, 20, 0.05);
+  --mono: "SF Mono", "JetBrains Mono", ui-monospace, Menlo, monospace;
+  --sans: -apple-system, BlinkMacSystemFont, "Inter", "Helvetica Neue", sans-serif;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+html, body { height: 100%; }
+
+body {
+  background: var(--bg);
+  font-family: var(--sans);
+  color: var(--ink);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ---------- HUD (family of 001) ---------- */
+
+.hud {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20px 28px;
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  flex: 0 0 auto;
+  z-index: 30;
+}
+.hud-block { display: flex; align-items: baseline; gap: 14px; }
+.hud-strong { color: var(--ink); font-weight: 600; }
+.hud-dim { color: var(--dim); }
+.hud-link { color: var(--dim); text-decoration: none; }
+.hud-link:hover { color: var(--ink); }
+
+.hud-bottom { gap: 24px; }
+
+.rail { display: flex; gap: 4px; }
+.tick {
+  appearance: none;
+  border: none;
+  background: none;
+  font-family: var(--mono);
+  font-size: 8.5px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--dim);
+  cursor: pointer;
+  padding: 6px 7px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  transition: color 0.25s;
+}
+.tick::before {
+  content: "";
+  width: 7px; height: 7px;
+  border-radius: 50%;
+  border: 1px solid var(--dim);
+  transition: background 0.25s, border-color 0.25s, transform 0.25s;
+}
+.tick:hover { color: var(--ink); }
+.tick.active { color: var(--ink); }
+.tick.active::before { background: var(--ink); border-color: var(--ink); transform: scale(1.25); }
+
+.hint {
+  font-family: var(--mono);
+  font-size: 9.5px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--dim);
+  margin-left: auto;
+  transition: opacity 0.6s;
+}
+.hint.gone { opacity: 0; }
+
+.readout {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  color: var(--gray);
+  min-width: 220px;
+  text-align: right;
+  text-transform: uppercase;
+}
+.readout b { color: var(--ink); font-weight: 600; }
+
+/* ---------- stage ---------- */
+
+#stage {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 34px;
+  padding: 0 24px;
+}
+
+#painting {
+  width: min(560px, 84vw);
+  aspect-ratio: 4 / 3;
+  max-height: 46vh;
+  object-fit: cover;
+  border-radius: 16px;
+  box-shadow: var(--shadow-lg);
+  flex: 0 0 auto;
+  user-select: none;
+}
+
+/* the text well — fixed frame, absolute word cells inside */
+#well {
+  position: relative;
+  width: min(600px, 88vw);
+  cursor: ew-resize;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+#well .cell {
+  position: absolute;
+  white-space: pre;
+  will-change: left, top, opacity;
+}
+
+/* level typographies — applied to the measuring pass and inherited by cells */
+.lvl { position: absolute; inset: 0 auto auto 0; width: 100%; }
+.lvl-0 { font-size: 22px; font-weight: 600; letter-spacing: 0.02em; line-height: 1.3; text-align: center; color: var(--ink); }
+.lvl-1 { font-size: 16px; font-weight: 500; line-height: 1.5; text-align: center; color: #4a4842; }
+.lvl-2 { font-size: 13.5px; font-weight: 400; line-height: 1.65; text-align: left; color: #55534d; }
+.lvl-3 { font-size: 13px; font-weight: 400; line-height: 1.7; text-align: left; color: var(--gray); }
+.lvl-4 { font-size: 13px; font-weight: 400; line-height: 1.7; text-align: left; color: var(--gray); }
+
+.lvl .w { display: inline; }
+
+@media (max-width: 720px) {
+  .readout { display: none; }
+  .tick { font-size: 0; padding: 6px 4px; }
+}

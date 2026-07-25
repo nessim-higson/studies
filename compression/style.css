@@ -45,6 +45,8 @@ body {
 .hud-block { display: flex; align-items: baseline; gap: 14px; }
 .hud-strong { color: var(--ink); font-weight: 600; }
 .hud-dim { color: var(--dim); }
+.hud-link { color: var(--dim); text-decoration: none; }
+.hud-link:hover { color: var(--ink); }
 
 .hud-bottom { gap: 24px; }
 

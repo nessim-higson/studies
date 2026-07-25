@@ -1,6 +1,26 @@
 # COMPRESSION — STATE
 
-Last updated: 2026-07-19 · build v109 · status: **working, motion-design pass complete**
+Last updated: 2026-07-19 · status: **001 complete (v2 frozen) · 002 "ABSTRACT" built**
+
+## 002 — ABSTRACT (the fresh take)
+
+`002.html/css/js` in the same folder. Chosen from a 4-concept judged exploration
+(semantic zoom, attention-lens, text-compression, wildcard spatial physics —
+text-compression won 67/80). The reframe: 001 compressed the CONTAINER while
+text rode along; 002 pins the container — **one generated painting hangs still
+forever — and moves the compression axis onto the language itself.** The same
+authored text exists at five real compression levels (TITLE 2 words → CAPTION →
+WALL LABEL → CATALOG → ESSAY ~157) and you physically drag the writing between
+them: shared words slide to their newly-typeset positions (chained LCS word
+tracking across levels), everything else dissolves/materializes through cycling
+letterforms. Engine: each level typeset + measured word-by-word at boot; ONE
+paused master timeline scrubbed by drag (release snaps to nearest level, ticks
++ arrow keys for discrete control); decode is a pure function of progress —
+scrub-exact both directions. Summarization as a physical act.
+
+---
+
+# 001 — canonical build (below)
 
 Live: https://nessim-higson.github.io/studies/compression/
 Local: `compression` in prototypes/.claude/launch.json → http://localhost:4215
