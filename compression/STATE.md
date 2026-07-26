@@ -1,6 +1,20 @@
 # COMPRESSION — STATE
 
-Last updated: 2026-07-19 · status: **001 complete (v2 frozen) · 002 "ABSTRACT" built**
+Last updated: 2026-07-19 · status: **001 complete (v2 frozen) · 002 "ABSTRACT" built · 003 "ALTITUDE" built**
+
+## 003 — ALTITUDE (semantic zoom)
+
+`003.html/css/js`. The runner-up concept from the same judged exploration,
+built on request. Compression = camera distance: one zoom scalar z ∈ [0,5]
+spans six altitude bands — FIELD (six works scattered as icons) → LABELS →
+GRID → CARD → HERO → ARTICLE. Scroll/pinch/drag changes altitude; the cursor
+AIMS the descent (nearest work becomes the candidate; crossing into CARD
+locks it as the atom, siblings fall to a left icon rail — rail click switches
+atoms). Engine: every band typeset + measured at boot (per-atom bands cached
+lazily, cache keyed by stage size); the frame is a pure function of z —
+geometry lerped between measured rects, presence via decode/fade windows —
+so the scrub is exact both directions and the decode runs backwards on
+ascent. Altimeter rail + arrow keys as the discrete elevator.
 
 ## 002 — ABSTRACT (the fresh take)
 

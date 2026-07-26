@@ -1,0 +1,140 @@
+/* COMPRESSION 003 — ALTITUDE
+   Semantic zoom over an editorial terrain. Compression is camera
+   distance: far = six works as icons on a field, near = one work as an
+   article. Scroll/pinch is the hand; the cursor aims the descent. */
+
+:root {
+  --bg: #f6f4ef;
+  --ink: #17171a;
+  --dim: #a5a29a;
+  --gray: #8b8880;
+  --surface: #ffffff;
+  --shadow-lg: 0 24px 60px rgba(30, 28, 20, 0.10), 0 4px 14px rgba(30, 28, 20, 0.05);
+  --shadow-sm: 0 10px 28px rgba(30, 28, 20, 0.08), 0 2px 8px rgba(30, 28, 20, 0.04);
+  --mono: "SF Mono", "JetBrains Mono", ui-monospace, Menlo, monospace;
+  --sans: -apple-system, BlinkMacSystemFont, "Inter", "Helvetica Neue", sans-serif;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+html, body { height: 100%; }
+
+body {
+  background: var(--bg);
+  font-family: var(--sans);
+  color: var(--ink);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ---------- HUD (family of 001/002) ---------- */
+
+.hud {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20px 28px;
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  flex: 0 0 auto;
+  z-index: 30;
+}
+.hud-block { display: flex; align-items: baseline; gap: 14px; }
+.hud-strong { color: var(--ink); font-weight: 600; }
+.hud-dim { color: var(--dim); }
+.hud-link { color: var(--dim); text-decoration: none; }
+.hud-link:hover { color: var(--ink); }
+
+.hint {
+  font-family: var(--mono);
+  font-size: 9.5px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--dim);
+  transition: opacity 0.6s;
+}
+.hint.gone { opacity: 0; }
+
+.readout {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  color: var(--gray);
+  min-width: 260px;
+  text-align: right;
+  text-transform: uppercase;
+}
+.readout b { color: var(--ink); font-weight: 600; }
+
+/* ---------- stage ---------- */
+
+#stage { flex: 1 1 auto; position: relative; min-height: 0; }
+
+#field, #measure { position: absolute; inset: 0; overflow: hidden; }
+#measure { visibility: hidden; pointer-events: none; }
+
+/* live cells */
+#field .cel { position: absolute; will-change: left, top, width, height, opacity; }
+#field img.cel { object-fit: cover; user-select: none; }
+#field .cel-txt { white-space: pre-wrap; }
+
+/* ---------- altimeter ---------- */
+
+#altimeter {
+  position: absolute;
+  right: 22px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  z-index: 25;
+}
+.band {
+  appearance: none;
+  border: none;
+  background: none;
+  font-family: var(--mono);
+  font-size: 8.5px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--dim);
+  cursor: pointer;
+  padding: 5px 8px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  transition: color 0.25s;
+}
+.band::before {
+  content: "";
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  border: 1px solid var(--dim);
+  transition: background 0.25s, border-color 0.25s, transform 0.25s;
+}
+.band:hover { color: var(--ink); }
+.band.active { color: var(--ink); }
+.band.active::before { background: var(--ink); border-color: var(--ink); transform: scale(1.3); }
+
+/* ---------- scene layouts (measured hidden, never shown) ---------- */
+
+.scene { position: absolute; inset: 0; }
+
+/* shared primitives */
+.scene .ph-img { position: absolute; border-radius: 14px; }
+.scene .ph-ttl { position: absolute; font-weight: 600; letter-spacing: -0.015em; color: var(--ink); }
+.scene .ph-srf { position: absolute; background: var(--surface); }
+.scene .ph-txt { position: absolute; color: var(--gray); }
+
+/* S0 field: loose scatter of icons — coordinates set inline from JS */
+/* S1 labels: same scatter pulled inward, titles beneath — inline from JS */
+
+/* S2 grid */
+.sc-grid .ph-srf { border-radius: 14px; box-shadow: var(--shadow-sm); }
+
+/* type scale per band is set inline by the scene builders */
