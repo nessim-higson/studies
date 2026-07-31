@@ -1,0 +1,355 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>tomato.three — 1999 CD-ROM, recovered</title>
+<style>
+  :root {
+    --bg: #000;
+    --fg: #e9e9e7;
+    --dim: rgba(255,255,255,0.34);
+    --faint: rgba(255,255,255,0.13);
+    --rule: rgba(255,255,255,0.10);
+    --plate: 425px;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    background: var(--bg);
+    color: var(--fg);
+    font: 400 13px/1.65 'Helvetica Neue', Helvetica, Arial, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    padding: 0 clamp(18px, 5vw, 64px) 160px;
+  }
+  a { color: inherit; }
+
+  .wrap { max-width: 980px; margin: 0 auto; }
+
+  /* ── masthead ─────────────────────────────────────────── */
+  header { padding: clamp(56px, 12vh, 130px) 0 0; }
+  h1 {
+    font-size: clamp(30px, 7vw, 62px);
+    font-weight: 500;
+    letter-spacing: -0.035em;
+    line-height: 0.94;
+  }
+  h1 span { color: var(--dim); }
+  .sub {
+    margin-top: 22px;
+    max-width: 54ch;
+    color: rgba(255,255,255,0.62);
+    font-size: 13.5px;
+  }
+  .meta {
+    margin-top: 30px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 26px;
+    font-size: 10px;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: var(--dim);
+  }
+
+  /* ── section furniture ────────────────────────────────── */
+  section { margin-top: clamp(64px, 11vh, 118px); }
+  h2 {
+    font-size: 10px;
+    font-weight: 400;
+    letter-spacing: 0.36em;
+    text-transform: uppercase;
+    color: var(--dim);
+    border-bottom: 1px solid var(--rule);
+    padding-bottom: 11px;
+    margin-bottom: 30px;
+    display: flex;
+    justify-content: space-between;
+    gap: 20px;
+  }
+  h2 em { font-style: normal; color: var(--faint); }
+  .lede { max-width: 60ch; color: rgba(255,255,255,0.5); margin-bottom: 30px; }
+
+  /* ── reel ─────────────────────────────────────────────── */
+  video {
+    width: 100%;
+    max-width: 640px;
+    display: block;
+    background: #000;
+    border: 1px solid var(--rule);
+    image-rendering: pixelated;
+  }
+
+  /* ── project index ────────────────────────────────────── */
+  .index {
+    columns: 190px auto;
+    column-gap: 30px;
+    margin-bottom: 46px;
+  }
+  .index a {
+    display: block;
+    text-decoration: none;
+    color: rgba(255,255,255,0.55);
+    padding: 3.5px 0;
+    font-size: 12px;
+    break-inside: avoid;
+  }
+  .index a:hover { color: #fff; }
+  .index a i { font-style: normal; color: var(--faint); margin-left: 6px; }
+
+  /* ── plates ───────────────────────────────────────────── */
+  .project { margin-bottom: 58px; scroll-margin-top: 24px; }
+  .project h3 {
+    font-size: 11px;
+    font-weight: 400;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: rgba(255,255,255,0.8);
+    padding-bottom: 9px;
+    margin-bottom: 14px;
+    border-bottom: 1px solid var(--rule);
+    display: flex;
+    justify-content: space-between;
+  }
+  .project h3 em { font-style: normal; color: var(--faint); }
+  .plates { display: flex; flex-wrap: wrap; gap: 10px; }
+  .plates img {
+    width: var(--plate);
+    max-width: 100%;
+    height: auto;
+    display: block;
+    background: #0b0b0b;
+  }
+  /* the opening plate of each project carried the title on the CD */
+  .plates img.header { outline: 1px solid rgba(255,255,255,0.18); }
+
+  /* ── spoken ───────────────────────────────────────────── */
+  .track {
+    display: grid;
+    grid-template-columns: 34px minmax(0,1fr) 210px;
+    gap: 18px;
+    align-items: start;
+    padding: 17px 0;
+    border-bottom: 1px solid var(--rule);
+  }
+  .track .num { color: var(--faint); font-size: 11px; padding-top: 3px; }
+  .track p { max-width: 58ch; }
+  .track audio { width: 100%; height: 30px; }
+  .track .plate { margin-top: 10px; display: none; }
+  .track .plate img { max-width: 100%; image-rendering: pixelated; }
+  body.plates-on .track .plate { display: block; }
+
+  /* ── sound pieces ─────────────────────────────────────── */
+  .pieces { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px,1fr)); gap: 22px; }
+  .piece span {
+    display: block;
+    font-size: 10px;
+    letter-spacing: 0.24em;
+    text-transform: uppercase;
+    color: var(--dim);
+    margin-bottom: 9px;
+  }
+  .piece audio { width: 100%; height: 32px; }
+
+  /* ── colophon ─────────────────────────────────────────── */
+  .strips { display: flex; flex-direction: column; gap: 13px; margin-bottom: 34px; }
+  .strips img { max-width: 100%; image-rendering: pixelated; }
+  .navplates { display: flex; flex-wrap: wrap; gap: 8px 20px; align-items: center; margin-bottom: 34px; }
+  .navplates img { image-rendering: pixelated; }
+  .notes { max-width: 66ch; color: rgba(255,255,255,0.5); }
+  .notes p { margin-bottom: 13px; }
+  .notes b { color: rgba(255,255,255,0.78); font-weight: 400; }
+  code {
+    font-family: ui-monospace, Menlo, monospace;
+    font-size: 11.5px;
+    color: rgba(255,255,255,0.72);
+  }
+
+  button.toggle {
+    background: none;
+    border: 1px solid var(--rule);
+    color: var(--dim);
+    font: inherit;
+    font-size: 9.5px;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    padding: 5px 11px;
+    cursor: pointer;
+  }
+  button.toggle:hover { color: #fff; border-color: rgba(255,255,255,0.3); }
+
+  footer {
+    margin-top: 90px;
+    padding-top: 22px;
+    border-top: 1px solid var(--rule);
+    font-size: 10px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--faint);
+  }
+
+  @media (max-width: 660px) {
+    .track { grid-template-columns: 26px 1fr; }
+    .track .audio-cell { grid-column: 2; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <h1>tomato<span>.three</span></h1>
+    <p class="sub">
+      The third Tomato CD-ROM, London, 1999 — a Macromedia Director title pressed for
+      Mac and never ported. This is its contents recovered off the disc: the archive of
+      34 projects in the running order the disc itself used, the showreel, the spoken
+      piece, and the interface typography lifted back out of the Director casts.
+    </p>
+    <div class="meta">
+      <span>tomato interactive</span>
+      <span>director 6 · MV93</span>
+      <span>1999</span>
+      <span id="counts"></span>
+    </div>
+  </header>
+
+  <section id="reel">
+    <h2>the reel <em>tomreel.mov · 5:21</em></h2>
+    <video controls preload="metadata" poster="media/tomreel-poster.jpg">
+      <source src="media/tomreel.mp4" type="video/mp4" />
+    </video>
+  </section>
+
+  <section id="archive">
+    <h2>the archive <em id="archive-count"></em></h2>
+    <p class="lede">
+      The disc kept its gallery as a Lingo property list inside <code>book.dxr</code> —
+      every plate tagged with its project and whether it opened one. That list is what
+      orders this page, so the sequence below is the disc's own.
+    </p>
+    <nav class="index" id="index"></nav>
+    <div id="projects"></div>
+  </section>
+
+  <section id="spoken">
+    <h2>
+      <span>the spoken piece <em>16 parts</em></span>
+      <button class="toggle" id="plateToggle">show original plates</button>
+    </h2>
+    <p class="lede">
+      Sixteen clips, one continuous text. The words were on the disc as bitmaps, not
+      as type — recovered here from the cast of <code>spoken.dxr</code> and transcribed.
+    </p>
+    <div id="tracks"></div>
+  </section>
+
+  <section id="sound">
+    <h2>sound pieces <em>4</em></h2>
+    <p class="lede">
+      Four QuickTime files that carry a one-pixel dummy video track and nothing but
+      audio underneath — sound pieces, not films.
+    </p>
+    <div class="pieces" id="pieces"></div>
+  </section>
+
+  <section id="interface">
+    <h2>the interface <em>recovered from the casts</em></h2>
+    <p class="lede">
+      Every word of the interface was drawn as an 8-bit bitmap. These are those
+      bitmaps, decompressed out of the Director casts and shown at 2×.
+    </p>
+    <div class="navplates" id="navplates"></div>
+    <div class="strips">
+      <img src="media/misc/contact/contact2.png" alt="london 020-7434-0955  new york …" />
+      <img src="media/nav/credits.png" alt="© tomato1999 — made by tomato interactive, thanks to romandson, dylan kendle" />
+      <img src="media/misc/network/looking-for-network.photo.png" alt="looking for network.photo" />
+      <img src="media/misc/network/downloading-data.photo.png" alt="downloading data.photo" />
+      <img src="media/misc/network/unable-to-find-network.photo.png" alt="unable to find network.photo" />
+    </div>
+    <div class="notes">
+      <p><b>How this was read.</b> A <code>.dxr</code> is a protected Director movie:
+      the Lingo source is stripped, but the cast survives. The file is a big-endian
+      RIFX container — its <code>imap</code> points at an <code>mmap</code> that lists
+      every chunk, and <code>KEY*</code> ties each cast member to its data.</p>
+      <p>Text came out of <code>STXT</code>; names out of the <code>CASt</code> info
+      lists; the artwork out of <code>BITD</code>, which is a byte-run RLE over indices
+      into the classic Mac system palette. The tools that did it are in
+      <code>tools/</code>.</p>
+      <p>The media was transcoded rather than rewrapped — the video is Sorenson SVQ1
+      and the audio is QDM2 and IMA ADPCM, none of which a browser will decode.</p>
+    </div>
+  </section>
+
+  <footer>
+    tomato.three © tomato 1999 · archived study, not affiliated with tomato
+  </footer>
+</div>
+
+<script>
+const $ = (s) => document.querySelector(s)
+
+const NAV = ['moving', 'underworld', 'interactive', 'spoken', 'network', 'contact', 'exit']
+
+async function boot () {
+  const [projects, spoken] = await Promise.all([
+    fetch('projects.json').then(r => r.json()),
+    fetch('spoken.json').then(r => r.json()),
+  ])
+
+  // ── archive ──────────────────────────────────────────────
+  const plateCount = projects.reduce((n, p) => n + p.plates.length, 0)
+  $('#counts').textContent = `${projects.length} projects · ${plateCount} plates`
+  $('#archive-count').textContent = `${projects.length} projects · ${plateCount} plates`
+
+  const slug = (s) => s.replace(/[^a-z0-9]+/gi, '-').replace(/^-|-$/g, '').toLowerCase()
+
+  $('#index').innerHTML = projects.map(p =>
+    `<a href="#p-${slug(p.name)}">${p.name}<i>${p.plates.length}</i></a>`).join('')
+
+  $('#projects').innerHTML = projects.map(p => `
+    <div class="project" id="p-${slug(p.name)}">
+      <h3><span>${p.name}</span><em>${p.plates.length} ${p.plates.length === 1 ? 'plate' : 'plates'}</em></h3>
+      <div class="plates">${p.plates.map(pl =>
+        `<img loading="lazy" class="${pl.header ? 'header' : ''}"
+              src="images/${encodeURIComponent(p.name)}/${pl.file}"
+              alt="${p.name} — plate ${pl.file.replace('.jpg', '')}" />`).join('')}</div>
+    </div>`).join('')
+
+  // ── spoken ───────────────────────────────────────────────
+  $('#tracks').innerHTML = spoken.map(t => `
+    <div class="track">
+      <div class="num">${t.n}</div>
+      <div>
+        <p>${t.text}</p>
+        <div class="plate"><img loading="lazy" src="media/spoken/${t.n}.png" alt="${t.text}" /></div>
+      </div>
+      <div class="audio-cell">
+        <audio controls preload="none" src="media/talk/${t.n}.mp3"></audio>
+      </div>
+    </div>`).join('')
+
+  const toggle = $('#plateToggle')
+  toggle.addEventListener('click', () => {
+    const on = document.body.classList.toggle('plates-on')
+    toggle.textContent = on ? 'hide original plates' : 'show original plates'
+  })
+
+  // ── sound pieces ─────────────────────────────────────────
+  $('#pieces').innerHTML = ['bruce', 'bungalow', 'jumbo', 'snake'].map(n => `
+    <div class="piece">
+      <span>${n}</span>
+      <audio controls preload="none" src="media/${n}.mp3"></audio>
+    </div>`).join('')
+
+  // ── interface plates ─────────────────────────────────────
+  $('#navplates').innerHTML = NAV.map(n =>
+    `<img src="media/nav/${n}.png" alt="${n}" />`).join('')
+}
+
+boot().catch(e => {
+  document.getElementById('projects').innerHTML =
+    `<p class="lede">could not load the manifest — ${e}</p>`
+})
+</script>
+</body>
+</html>

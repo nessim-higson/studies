@@ -1,0 +1,564 @@
+[
+ {
+  "name": "adidas",
+  "plates": [
+   {
+    "file": "01.jpg",
+    "header": true
+   },
+   {
+    "file": "02.jpg",
+    "header": false
+   },
+   {
+    "file": "03.jpg",
+    "header": false
+   }
+  ]
+ },
+ {
+  "name": "alberto aspessi",
+  "plates": [
+   {
+    "file": "01.jpg",
+    "header": true
+   }
+  ]
+ },
+ {
+  "name": "bareback",
+  "plates": [
+   {
+    "file": "01.jpg",
+    "header": true
+   },
+   {
+    "file": "02.jpg",
+    "header": false
+   },
+   {
+    "file": "03.jpg",
+    "header": false
+   },
+   {
+    "file": "04.jpg",
+    "header": false
+   },
+   {
+    "file": "05.jpg",
+    "header": false
+   },
+   {
+    "file": "06.jpg",
+    "header": false
+   },
+   {
+    "file": "07.jpg",
+    "header": false
+   },
+   {
+    "file": "08.jpg",
+    "header": false
+   },
+   {
+    "file": "09.jpg",
+    "header": false
+   }
+  ]
+ },
+ {
+  "name": "bungalow with stairs",
+  "plates": [
+   {
+    "file": "01.jpg",
+    "header": true
+   },
+   {
+    "file": "02.jpg",
+    "header": false
+   },
+   {
+    "file": "03.jpg",
+    "header": false
+   }
+  ]
+ },
+ {
+  "name": "busaba",
+  "plates": [
+   {
+    "file": "01.jpg",
+    "header": true
+   },
+   {
+    "file": "02.jpg",
+    "header": false
+   },
+   {
+    "file": "03.jpg",
+    "header": false
+   }
+  ]
+ },
+ {
+  "name": "casio",
+  "plates": [
+   {
+    "file": "01.jpg",
+    "header": true
+   }
+  ]
+ },
+ {
+  "name": "channel 4",
+  "plates": [
+   {
+    "file": "01.jpg",
+    "header": true
+   },
+   {
+    "file": "02.jpg",
+    "header": false
+   }
+  ]
+ },
+ {
+  "name": "daidaiya",
+  "plates": [
+   {
+    "file": "01.jpg",
+    "header": true
+   },
+   {
+    "file": "02.jpg",
+    "header": false
+   },
+   {
+    "file": "03.jpg",
+    "header": false
+   },
+   {
+    "file": "04.jpg",
+    "header": false
+   }
+  ]
+ },
+ {
+  "name": "echobelly",
+  "plates": [
+   {
+    "file": "01.jpg",
+    "header": true
+   },
+   {
+    "file": "02.jpg",
+    "header": false
+   },
+   {
+    "file": "03.jpg",
+    "header": false
+   }
+  ]
+ },
+ {
+  "name": "federation square",
+  "plates": [
+   {
+    "file": "01.jpg",
+    "header": true
+   },
+   {
+    "file": "02.jpg",
+    "header": false
+   },
+   {
+    "file": "03.jpg",
+    "header": false
+   },
+   {
+    "file": "04.jpg",
+    "header": false
+   },
+   {
+    "file": "05.jpg",
+    "header": false
+   },
+   {
+    "file": "06.jpg",
+    "header": false
+   },
+   {
+    "file": "07.jpg",
+    "header": false
+   },
+   {
+    "file": "08.jpg",
+    "header": false
+   },
+   {
+    "file": "09.jpg",
+    "header": false
+   }
+  ]
+ },
+ {
+  "name": "galliano",
+  "plates": [
+   {
+    "file": "01.jpg",
+    "header": true
+   }
+  ]
+ },
+ {
+  "name": "ginza art space",
+  "plates": [
+   {
+    "file": "01.jpg",
+    "header": true
+   }
+  ]
+ },
+ {
+  "name": "grolsch",
+  "plates": [
+   {
+    "file": "01.jpg",
+    "header": true
+   },
+   {
+    "file": "02.jpg",
+    "header": false
+   }
+  ]
+ },
+ {
+  "name": "h.stern",
+  "plates": [
+   {
+    "file": "01.jpg",
+    "header": true
+   }
+  ]
+ },
+ {
+  "name": "johnny conquest",
+  "plates": [
+   {
+    "file": "01.jpg",
+    "header": true
+   }
+  ]
+ },
+ {
+  "name": "mmm...skyscraper i love you",
+  "plates": [
+   {
+    "file": "01.jpg",
+    "header": true
+   },
+   {
+    "file": "02.jpg",
+    "header": false
+   },
+   {
+    "file": "03.jpg",
+    "header": false
+   }
+  ]
+ },
+ {
+  "name": "moderma museet",
+  "plates": [
+   {
+    "file": "01.jpg",
+    "header": true
+   },
+   {
+    "file": "02.jpg",
+    "header": false
+   },
+   {
+    "file": "03.jpg",
+    "header": false
+   },
+   {
+    "file": "04.jpg",
+    "header": false
+   },
+   {
+    "file": "05.jpg",
+    "header": false
+   },
+   {
+    "file": "06.jpg",
+    "header": false
+   }
+  ]
+ },
+ {
+  "name": "moderna museet- wounds",
+  "plates": [
+   {
+    "file": "01.jpg",
+    "header": true
+   },
+   {
+    "file": "02.jpg",
+    "header": false
+   },
+   {
+    "file": "03.jpg",
+    "header": false
+   }
+  ]
+ },
+ {
+  "name": "munich, process",
+  "plates": [
+   {
+    "file": "01.jpg",
+    "header": true
+   },
+   {
+    "file": "02.jpg",
+    "header": false
+   },
+   {
+    "file": "03.jpg",
+    "header": false
+   },
+   {
+    "file": "04.jpg",
+    "header": false
+   }
+  ]
+ },
+ {
+  "name": "natural essence",
+  "plates": [
+   {
+    "file": "01.jpg",
+    "header": true
+   }
+  ]
+ },
+ {
+  "name": "photograms",
+  "plates": [
+   {
+    "file": "01.jpg",
+    "header": true
+   },
+   {
+    "file": "02.jpg",
+    "header": false
+   }
+  ]
+ },
+ {
+  "name": "plane",
+  "plates": [
+   {
+    "file": "01.jpg",
+    "header": true
+   },
+   {
+    "file": "02.jpg",
+    "header": false
+   }
+  ]
+ },
+ {
+  "name": "process, a tomato project",
+  "plates": [
+   {
+    "file": "01.jpg",
+    "header": true
+   },
+   {
+    "file": "02.jpg",
+    "header": false
+   },
+   {
+    "file": "03.jpg",
+    "header": false
+   }
+  ]
+ },
+ {
+  "name": "sirkus",
+  "plates": [
+   {
+    "file": "01.jpg",
+    "header": true
+   },
+   {
+    "file": "02.jpg",
+    "header": false
+   }
+  ]
+ },
+ {
+  "name": "tomato gallery",
+  "plates": [
+   {
+    "file": "01.jpg",
+    "header": true
+   },
+   {
+    "file": "02.jpg",
+    "header": false
+   },
+   {
+    "file": "03.jpg",
+    "header": false
+   }
+  ]
+ },
+ {
+  "name": "tomato windows project",
+  "plates": [
+   {
+    "file": "01.jpg",
+    "header": true
+   },
+   {
+    "file": "02.jpg",
+    "header": false
+   },
+   {
+    "file": "03.jpg",
+    "header": false
+   }
+  ]
+ },
+ {
+  "name": "transister",
+  "plates": [
+   {
+    "file": "01.jpg",
+    "header": true
+   },
+   {
+    "file": "02.jpg",
+    "header": false
+   },
+   {
+    "file": "03.jpg",
+    "header": false
+   }
+  ]
+ },
+ {
+  "name": "underworld",
+  "plates": [
+   {
+    "file": "01.jpg",
+    "header": true
+   },
+   {
+    "file": "02.jpg",
+    "header": false
+   },
+   {
+    "file": "03.jpg",
+    "header": false
+   }
+  ]
+ },
+ {
+  "name": "underworld beaucoup fish",
+  "plates": [
+   {
+    "file": "01.jpg",
+    "header": true
+   },
+   {
+    "file": "02.jpg",
+    "header": false
+   },
+   {
+    "file": "03.jpg",
+    "header": false
+   }
+  ]
+ },
+ {
+  "name": "underworld push upstairs",
+  "plates": [
+   {
+    "file": "01.jpg",
+    "header": true
+   },
+   {
+    "file": "02.jpg",
+    "header": false
+   }
+  ]
+ },
+ {
+  "name": "united arrows",
+  "plates": [
+   {
+    "file": "01.jpg",
+    "header": true
+   }
+  ]
+ },
+ {
+  "name": "united future organisation",
+  "plates": [
+   {
+    "file": "01.jpg",
+    "header": true
+   }
+  ]
+ },
+ {
+  "name": "urban action",
+  "plates": [
+   {
+    "file": "01.jpg",
+    "header": true
+   },
+   {
+    "file": "02.jpg",
+    "header": false
+   },
+   {
+    "file": "03.jpg",
+    "header": false
+   },
+   {
+    "file": "04.jpg",
+    "header": false
+   },
+   {
+    "file": "05.jpg",
+    "header": false
+   },
+   {
+    "file": "06.jpg",
+    "header": false
+   },
+   {
+    "file": "07.jpg",
+    "header": false
+   },
+   {
+    "file": "08.jpg",
+    "header": false
+   }
+  ]
+ },
+ {
+  "name": "volvo",
+  "plates": [
+   {
+    "file": "01.jpg",
+    "header": true
+   }
+  ]
+ }
+]
